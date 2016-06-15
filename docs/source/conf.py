@@ -1,10 +1,10 @@
-# Copyright 2015, Yahoo Inc.
+# Copyright 2016, Yahoo Inc.
 # Licensed under the terms of the Apache License, Version 2.0. See the LICENSE file associated with the project for terms.
 
 # -*- coding: utf-8 -*-
 #
 # graphkit documentation build configuration file, created by
-# sphinx-quickstart on Tue Jun 16 19:10:27 2015.
+# sphinx-quickstart on Tue Jun 16 19:10:27 2016.
 #
 # This file is execfile()d with the current directory set to its
 # containing dir.
@@ -52,7 +52,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'graphkit'
-copyright = u'2015, Flickr Vision: Huy Nguyen, Arel Cordero, Pierre Garrigues, Tobi Baumgartner, Rob Hess'
+copyright = u'2016, Flickr Vision: Huy Nguyen, Arel Cordero, Pierre Garrigues, Tobi Baumgartner, Rob Hess'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
