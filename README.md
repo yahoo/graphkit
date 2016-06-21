@@ -33,7 +33,7 @@ net = compose(name="net")(
     operation(name="pow1", needs=["b"], provides=["e"], params={"power": 2})(pow)
 )
 
-# run your pipeline and request some inputs
+# run your pipeline and request some outputs
 out = net({'a': 2, 'b': 5}, ["e"])
 print(out)
 
