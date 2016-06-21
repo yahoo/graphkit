@@ -1,4 +1,3 @@
-
 ## Lightweight graph processing for computer vision
 
 > It's a DAG all the way down
@@ -11,47 +10,38 @@ Install:
 pip install graphkit
 ```    
 
-
 example.py
 
 ```
-import numpy as np
-from flickr.vision.graphkit import network, Operation
+from vision.graphkit import compose, operation
 
-# implement an image transformation
-class ImageDiff(Operation):
-    def compute(self, inputs):
-        a = inputs[0]
-        b = inputs[1]
-        c = a - b
-        return [c]
+def mul(a, b):
+    c = a*b
+    return c
 
-if __name__ == "__main__":
+def sub(a, b):
+    c = a - b
+    return c
 
-    # describe what data your operation needs and provides
-    diff_op = ImageDiff(
-        name="diff-op",
-        needs=["arr-a", "arr-b"],
-        provides=["diff-img"]
-    )
+def pow(a, power):
+    c = a**power
+    return c
 
-    # compile it into a processing pipeline
-    net = network.Network()
-    net.add_op(diff_op)
-    net.compile()
+net = compose(name="net")(
+    operation(name="mul1", needs=["a", "b"], provides=["a_times_b"])(mul),
+    operation(name="sub1", needs=["a", "a_times_b"], provides=["d"])(sub),
+    operation(name="pow1", needs=["b"], params={"power": 2}, provides=["e"])(pow)
+)
 
-    # run your pipeline with concrete data
-    out = net.compute(
-        outputs=["diff-img"],
-        named_inputs={
-            "arr-a": np.random.rand(5, 5),
-            "arr-b": np.random.rand(5, 5)
-        }
-    )
-    print(out)
+# run your pipeline and request some inputs
+out = net({'a': 2, 'b': 5}, ["e"])
+print(out)
+
+# run your pipeline and request all outputs
+out = net({'a': 2, 'b': 5})
+print(out)
+
 ```
-
-
 
 # License
 
