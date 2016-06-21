@@ -13,7 +13,7 @@ pip install graphkit
 example.py
 
 ```
-from vision.graphkit import compose, operation
+from graphkit import compose, operation
 
 def mul(a, b):
     c = a*b
