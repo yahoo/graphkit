@@ -30,7 +30,7 @@ def pow(a, power):
 net = compose(name="net")(
     operation(name="mul1", needs=["a", "b"], provides=["a_times_b"])(mul),
     operation(name="sub1", needs=["a", "a_times_b"], provides=["d"])(sub),
-    operation(name="pow1", needs=["b"], params={"power": 2}, provides=["e"])(pow)
+    operation(name="pow1", needs=["b"], provides=["e"], params={"power": 2})(pow)
 )
 
 # run your pipeline and request some inputs
