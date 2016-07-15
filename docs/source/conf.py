@@ -52,7 +52,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'graphkit'
-copyright = u'2016, Flickr Vision: Huy Nguyen, Arel Cordero, Pierre Garrigues, Tobi Baumgartner, Rob Hess'
+copyright = u'2016, Yahoo Vision and Machine Learning Team: Huy Nguyen, Arel Cordero, Pierre Garrigues, Tobi Baumgartner, Rob Hess'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -203,7 +203,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
   ('index', 'graphkit.tex', u'graphkit Documentation',
-   u'Flickr Vision: Huy Nguyen, Arel Cordero, Pierre Garrigues, Tobi Baumgartner, Rob Hess', 'manual'),
+   u'Yahoo Vision and Machine Learning Team: Huy Nguyen, Arel Cordero, Pierre Garrigues, Tobi Baumgartner, Rob Hess', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -233,7 +233,7 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'graphkit', u'graphkit Documentation',
-     [u'Flickr Vision: Huy Nguyen, Arel Cordero, Pierre Garrigues, Tobi Baumgartner, Rob Hess'], 1)
+     [u'Yahoo Vision and Machine Learning Team: Huy Nguyen, Arel Cordero, Pierre Garrigues, Tobi Baumgartner, Rob Hess'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -247,7 +247,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
   ('index', 'graphkit', u'graphkit Documentation',
-   u'Flickr Vision: Huy Nguyen, Arel Cordero, Pierre Garrigues, Tobi Baumgartner, Rob Hess', 'graphkit', 'One line description of project.',
+   u'Yahoo Vision and Machine Learning Team: Huy Nguyen, Arel Cordero, Pierre Garrigues, Tobi Baumgartner, Rob Hess', 'graphkit', 'It\'s DAGs all the way down.',
    'Miscellaneous'),
 ]
 

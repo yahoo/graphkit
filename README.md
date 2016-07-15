@@ -8,17 +8,13 @@ GraphKit is a lightweight Python module for creating and running ordered graphs 
 
 ## Quick start
 
-Install:
+Here's how to install:
 
 ```
 pip install graphkit
 ```    
 
-Here's a Python script with an example GraphKit computation graph that produces multiple outputs:
-
-* `a * b`
-* `a - a * b`
-* `abs(a - a * b) ** 3`
+Here's a Python script with an example GraphKit computation graph that produces multiple outputs (`a * b`, `a - a * b`, and `abs(a - a * b) ** 3`):
 
 ```
 from operator import mul, sub
