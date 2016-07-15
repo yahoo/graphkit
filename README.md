@@ -29,6 +29,7 @@ def abspow(a, p):
     c = abs(a) ** p
     return c
 
+# Compose the mul, sub, and abspow operations into a computation graph.
 net = compose(name="net")(
     operation(name="mul1", needs=["a", "b"], provides=["ab"])(mul),
     operation(name="sub1", needs=["a", "ab"], provides=["a_minus_ab"])(sub),
