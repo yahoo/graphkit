@@ -1,9 +1,11 @@
 # Copyright 2016, Yahoo Inc.
 # Licensed under the terms of the Apache License, Version 2.0. See the LICENSE file associated with the project for terms.
 
-from base import Operation, NetworkOperation
 from itertools import chain
-from network import Network, ALL_OUTPUTS
+
+from .base import Operation, NetworkOperation
+from .network import Network, ALL_OUTPUTS
+from .modifiers import optional
 
 
 class FunctionalOperation(Operation):
@@ -12,9 +14,15 @@ class FunctionalOperation(Operation):
         Operation.__init__(self, **kwargs)
 
     def _compute(self, named_inputs, outputs=ALL_OUTPUTS):
-        inputs = [named_inputs[d] for d in self.needs]
+        inputs = [named_inputs[d] for d in self.needs if not isinstance(d, optional)]
 
-        result = self.fn(*inputs, **self.params)
+        # Find any optional inputs in named_inputs.  Get only the ones that
+        # are present there, no extra `None`s.
+        optionals = {n: named_inputs[n] for n in self.needs if isinstance(n, optional) and n in named_inputs}
+
+        # Combine params and optionals into one big glob of keyword arguments.
+        kwargs = {k: v for d in (self.params, optionals) for k, v in d.items()}
+        result = self.fn(*inputs, **kwargs)
         if len(self.provides) == 1:
             result = [result]
 
