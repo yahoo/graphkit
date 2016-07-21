@@ -8,9 +8,9 @@ from pprint import pprint
 from operator import add
 from numpy.testing import assert_raises
 
-import vision.graphkit.network as network
-import vision.graphkit.modifiers as modifiers
-from vision.graphkit import operation, compose, Operation
+import graphkit.network as network
+import graphkit.modifiers as modifiers
+from graphkit import operation, compose, Operation
 
 def test_network():
 

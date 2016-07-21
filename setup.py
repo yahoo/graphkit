@@ -12,7 +12,7 @@ setup(
      author='Huy Nguyen, Arel Cordero, Pierre Garrigues, Rob Hess, Tobi Baumgartner, Clayton Mellina',
      author_email='huyng@yahoo-inc.com',
      url='http://github.com/yahoo/graphkit',
-     packages=['vision', 'vision.graphkit'],
+     packages=['graphkit'],
      install_requires=[
           'networkx',
           'pydot'
