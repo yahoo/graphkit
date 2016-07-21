@@ -43,8 +43,36 @@ class FunctionalOperation(Operation):
 
 
 class operation(Operation):
+    """
+    This object represents an operation in a computational graph.  Its
+    relationship to other operations in the graph is specified via its
+    ``needs`` and ``provides`` arguments.
+    """
 
     def __init__(self, fn=None, **kwargs):
+        """
+        Instantiates a new computational graph operation.
+
+        :param function fn:
+            The function used by this operation.  This does not need to be
+            specified when the operation object is instantiated and can instead
+            be set via ``__call__`` later.
+
+        :param str name:
+            The name of the operation in the computational graph.
+
+        :param list needs:
+            Names of input data objects this operation requires.  These should
+            correspond to the ``args`` of ``fn``.
+
+        :param list provides:
+            Names of output data objects this operation provides.
+
+        :param dict params:
+            A dict of key/value pairs representing constant parameters
+            associated with your operation.  These can correspond to either
+            ``args`` or ``kwargs`` of ``fn`.
+        """
         self.fn = fn
         Operation.__init__(self, **kwargs)
 
@@ -71,6 +99,20 @@ class operation(Operation):
         return kwargs
 
     def __call__(self, fn=None, **kwargs):
+        """
+        This enables ``operation`` to act as a decorator or as a functional
+        operation, for example::
+
+            @operator(name='myadd1', needs=['a', 'b'], provides=['c'])
+            def myadd(a, b):
+                return a + b
+
+        or::
+
+            def myadd(a, b):
+                return a + b
+            operator(name='myadd1', needs=['a', 'b'], provides=['c'])(myadd)
+        """
 
         if fn is not None:
             self.fn = fn

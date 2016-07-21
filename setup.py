@@ -8,7 +8,7 @@ from setuptools import setup
 setup(
      name='graphkit',
      version=1.0,
-     description='Tools for modeling data and image transforms in a network dag',
+     description='Lightweight computation graphs for Python',
      author='Huy Nguyen, Arel Cordero, Pierre Garrigues, Rob Hess, Tobi Baumgartner, Clayton Mellina',
      author_email='huyng@yahoo-inc.com',
      url='http://github.com/yahoo/graphkit',

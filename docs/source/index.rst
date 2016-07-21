@@ -7,12 +7,21 @@
 GraphKit
 ========
 
+**It's a DAG all the way down**
+
+.. toctree::
+   :maxdepth: 2
+
+   operations
+   graph_composition
+
+
 Lightweight computation graphs for Python
 -----------------------------------------
 
-**It's a DAG all the way down**
-
 GraphKit is a lightweight Python module for creating and running ordered graphs of computations, where the nodes of the graph correspond to computational operations, and the edges correspond to output --> input dependencies between those operations.  Such graphs are useful in computer vision, machine learning, and many other domains.
+
+.. _quick-start:
 
 Quick start
 -----------
@@ -20,7 +29,6 @@ Quick start
 Here's how to install::
 
    pip install graphkit
-
 
 Here's a Python script with an example GraphKit computation graph that produces multiple outputs (``a * b``, ``a - a * b``, and ``abs(a - a * b) ** 3``)::
 
