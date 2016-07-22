@@ -126,3 +126,11 @@ A slightly different approach can be used here to accomplish the same effect by 
    pow_op2 = pow_op_factory(name='pow_op2', needs=['a'], params={'p': 3}, provides='a_cubed')
 
    graph = compose(name='two_pows_graph')(pow_op1, pow_op2)
+
+
+Modifiers on ``operation`` inputs and outputs
+---------------------------------------------
+
+Certain modifiers are available to apply to input or output values in ``needs`` and ``provides``, for example to designate an optional input.  These modifiers are available in the ``graphkit.modifiers`` module:
+
+.. autoclass:: graphkit.modifiers.optional
