@@ -3,8 +3,8 @@
 
 __author__ = 'hnguyen'
 
-from functional import operation, compose
+from .functional import operation, compose
 
 # For backwards compatibility
-from base import Operation
-from network import Network
+from .base import Operation
+from .network import Network

@@ -8,8 +8,9 @@ from pprint import pprint
 from operator import add
 from numpy.testing import assert_raises
 
-import vision.graphkit.network as network
-from vision.graphkit import operation, compose, Operation
+import graphkit.network as network
+import graphkit.modifiers as modifiers
+from graphkit import operation, compose, Operation
 
 def test_network():
 
@@ -181,6 +182,30 @@ def test_pruning_raises_for_bad_output():
     # that this raises a ValueError.
     assert_raises(ValueError, net, {'a': 1, 'b': 2, 'c': 3, 'd': 4},
         outputs=['sum1', 'sum3', 'sum4'])
+
+
+def test_optional():
+    # Test that optional() needs work as expected.
+
+    # Function to add two values plus an optional third value.
+    def addplusplus(a, b, c=0):
+        return a + b + c
+
+    sum_op = operation(name='sum_op1', needs=['a', 'b', modifiers.optional('c')], provides='sum')(addplusplus)
+
+    net = compose(name='text_net')(sum_op)
+
+    # Make sure output with optional arg is as expected.
+    named_inputs = {'a': 4, 'b': 3, 'c': 2}
+    results = net(named_inputs)
+    assert 'sum' in results
+    assert results['sum'] == sum(named_inputs.values())
+
+    # Make sure output without optional arg is as expected.
+    named_inputs = {'a': 4, 'b': 3}
+    results = net(named_inputs)
+    assert 'sum' in results
+    assert results['sum'] == sum(named_inputs.values())
 
 
 ####################################
