@@ -41,20 +41,20 @@ Here's a Python script with an example GraphKit computation graph that produces 
       return c
 
    # Compose the mul, sub, and abspow operations into a computation graph.
-   net = compose(name="net")(
+   graph = compose(name="graph")(
       operation(name="mul1", needs=["a", "b"], provides=["ab"])(mul),
       operation(name="sub1", needs=["a", "ab"], provides=["a_minus_ab"])(sub),
       operation(name="abspow1", needs=["a_minus_ab"], provides=["abs_a_minus_ab_cubed"], params={"p": 3})(abspow)
    )
 
-   # Run the network and request all of the outputs.
-   out = net({'a': 2, 'b': 5})
+   # Run the graph and request all of the outputs.
+   out = graph({'a': 2, 'b': 5})
 
    # Prints "{'a': 2, 'a_minus_ab': -8, 'b': 5, 'ab': 10, 'abs_a_minus_ab_cubed': 512}".
    print(out)
 
-   # Run the network and request a subset of the outputs.
-   out = net({'a': 2, 'b': 5}, outputs=["a_minus_ab"])
+   # Run the graph and request a subset of the outputs.
+   out = graph({'a': 2, 'b': 5}, outputs=["a_minus_ab"])
 
    # Prints "{'a_minus_ab': -8}".
    print(out)
@@ -65,11 +65,3 @@ License
 -------
 
 Code licensed under the Apache License, Version 2.0 license. See LICENSE file for terms.
-
-
-.. Indices and tables
-.. ==================
-
-.. * :ref:`genindex`
-.. * :ref:`modindex`
-.. * :ref:`search`

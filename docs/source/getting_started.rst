@@ -61,7 +61,7 @@ Conceptual overview
 
 As a user of this library, you will take action in two common ways:
 defining your own data processing operations and creating a network of
-computation that ties together various operations into a computational graph.
+computation that ties together various operations into a computation graph.
 
 The two main classes in this library to study are  ``Network`` and ``Operation``.
 

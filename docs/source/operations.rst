@@ -1,12 +1,12 @@
 Operations
 ==========
 
-At a high level, an operation is a node in a computational graph.  GraphKit uses an ``operation`` class to represent these computations.
+At a high level, an operation is a node in a computation graph.  GraphKit uses an ``operation`` class to represent these computations.
 
 The ``operation`` class
 -----------------------
 
-The ``operation`` class specifies an operation in a computational graph, including its input data dependencies as well as the output data it provides.  It provides a lightweight wrapper around an arbitrary function to make these specifications.
+The ``operation`` class specifies an operation in a computation graph, including its input data dependencies as well as the output data it provides.  It provides a lightweight wrapper around an arbitrary function to make these specifications.
 
 There are many ways to instantiate an ``operation``, and we'll get into more detail on these later.  First off, though, here's the specification for the ``operation`` class:
 
@@ -32,13 +32,13 @@ At the heart of each ``operation`` is just a function, any arbitrary function.  
 Specifying graph structure: ``provides`` and ``needs``
 ------------------------------------------------------
 
-Of course, each ``operation`` is more than just a function.  It is a node in a computational graph, depending on other nodes in the graph for input data and supplying output data that may be used by other nodes in the graph (or as a graph output).  This graph structure is specified via the ``provides`` and ``needs`` arguments to the ``operation`` constructor.  Specifically:
+Of course, each ``operation`` is more than just a function.  It is a node in a computation graph, depending on other nodes in the graph for input data and supplying output data that may be used by other nodes in the graph (or as a graph output).  This graph structure is specified via the ``provides`` and ``needs`` arguments to the ``operation`` constructor.  Specifically:
 
 * ``provides``: this argument names the outputs (i.e. the returned values) of a given ``operation``.  If multiple outputs are specified by ``provides``, then the return value of the function comprising the ``operation`` must return an iterable.
 
 * ``needs``: this argument names data that is needed as input by a given ``operation``.  Each piece of data named in needs may either be provided by another ``operation`` in the same graph (i.e. specified in the ``provides`` argument of that ``operation``), or it may be specified as a named input to a graph computation (more on graph computations :ref:`here <graph-computations>`).
 
-When many operations are composed into a computational graph (see :ref:`graph-composition` for more on that), Graphkit matches up the values in their ``needs`` and ``provides`` to form the edges of that graph.
+When many operations are composed into a computation graph (see :ref:`graph-composition` for more on that), Graphkit matches up the values in their ``needs`` and ``provides`` to form the edges of that graph.
 
 Let's look again at the operations from the script in :ref:`quick-start`, for example::
 
@@ -51,7 +51,7 @@ Let's look again at the operations from the script in :ref:`quick-start`, for ex
       return c
 
    # Compose the mul, sub, and abspow operations into a computation graph.
-   net = compose(name="net")(
+   graph = compose(name="graph")(
       operation(name="mul1", needs=["a", "b"], provides=["ab"])(mul),
       operation(name="sub1", needs=["a", "ab"], provides=["a_minus_ab"])(sub),
       operation(name="abspow1", needs=["a_minus_ab"], provides=["abs_a_minus_ab_cubed"], params={"p": 3})(abspow)
@@ -65,7 +65,7 @@ The ``needs`` and ``provides`` arguments to the operations in this script define
 Constant operation parameters: ``params``
 -----------------------------------------
 
-Sometimes an ``operation`` will have a customizable parameter you want to hold constant across all runs of a computational graph.  Usually, this will be a keyword argument of the underlying function.  The ``params`` argument to the ``operation`` constructor provides a mechanism for setting such parameters.
+Sometimes an ``operation`` will have a customizable parameter you want to hold constant across all runs of a computation graph.  Usually, this will be a keyword argument of the underlying function.  The ``params`` argument to the ``operation`` constructor provides a mechanism for setting such parameters.
 
 ``params`` should be a dictionary whose keys correspond to keyword parameter names from the function underlying an ``operation`` and whose values are passed as constant arguments to those keyword parameters in all computations utilizing the ``operation``.
 
@@ -78,7 +78,7 @@ There are several ways to instantiate an ``operation``, each of which might be m
 Decorator specification
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-If you are defining your computational graph and the functions that comprise it all in the same script, the decorator specification of ``operation`` instances might be particularly useful, as it allows you to assign computational graph structure to functions as they are defined.  Here's an example::
+If you are defining your computation graph and the functions that comprise it all in the same script, the decorator specification of ``operation`` instances might be particularly useful, as it allows you to assign computation graph structure to functions as they are defined.  Here's an example::
 
    from graphkit import operation, compose
 
@@ -91,7 +91,7 @@ If you are defining your computational graph and the functions that comprise it 
 Functional specification
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-If the functions underlying your computational graph operations are defined elsewhere than the script in which your graph itself is defined (e.g. they are defined in another module, or they are system functions), you can use the functional specification of ``operation`` instances::
+If the functions underlying your computation graph operations are defined elsewhere than the script in which your graph itself is defined (e.g. they are defined in another module, or they are system functions), you can use the functional specification of ``operation`` instances::
 
    from operator import add, mul
    from graphkit import operation, compose
