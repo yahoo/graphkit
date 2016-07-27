@@ -24,6 +24,7 @@ setup(
      install_requires=['networkx', 'pydot'],
      tests_require=['numpy'],
      license='Apache-2.0',
+     keywords=['graph', 'computation graph', 'DAG', 'directed acyclical graph'],
      classifiers=[
           'Development Status :: 5 - Production/Stable',
           'License :: OSI Approved :: Apache Software License',
