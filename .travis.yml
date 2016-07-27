@@ -1,5 +1,4 @@
 language: python
-sudo: false
 
 python:
   - "2.6"
@@ -28,6 +27,7 @@ deploy:
     repo: yahoo/graphkit
     branch: master
     tags: true
+    python: 2.7
     docs_dir: docs/build/html
 
 after_success:
