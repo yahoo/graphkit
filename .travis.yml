@@ -16,7 +16,8 @@ install:
   - make clean html
   - cd ..
 
-script: nosetests --with-coverage --cover-package=graphkit
+script:
+  - python setup.py nosetests --with-coverage --cover-package=graphkit
 
 deploy:
   provider: pypi
