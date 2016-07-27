@@ -18,7 +18,7 @@ def test_network():
     sum_op1 = operation(name='sum_op1', needs=['a', 'b'], provides='sum_ab')(add)
 
     # sum_op1 is callable
-    print sum_op1(1, 2)
+    print(sum_op1(1, 2))
 
     # Multiply operation, decorate in-place
     @operation(name='mul_op1', needs=['sum_ab', 'b'], provides='sum_ab_times_b')
@@ -26,14 +26,14 @@ def test_network():
         return a * b
 
     # mul_op1 is callable
-    print mul_op1(1, 2)
+    print(mul_op1(1, 2))
 
     # Pow operation
     @operation(name='pow_op1', needs='sum_ab', provides=['sum_ab_p1', 'sum_ab_p2', 'sum_ab_p3'], params={'exponent': 3})
     def pow_op1(a, exponent=2):
         return [math.pow(a, y) for y in range(1, exponent+1)]
 
-    print pow_op1._compute({'sum_ab':2}, ['sum_ab_p2'])
+    print(pow_op1._compute({'sum_ab':2}, ['sum_ab_p2']))
 
     # Partial operation that is bound at a later time
     partial_op = operation(name='sum_op2', needs=['sum_ab_p1', 'sum_ab_p2'], provides='p1_plus_p2')
@@ -47,7 +47,7 @@ def test_network():
     sum_op3 = sum_op_factory(name='sum_op3', needs=['a', 'b'], provides='sum_ab2')
 
     # sum_op3 is callable
-    print sum_op3(5, 6)
+    print(sum_op3(5, 6))
 
     # compose network
     net = compose(name='my network')(sum_op1, mul_op1, pow_op1, sum_op2, sum_op3)

@@ -93,10 +93,10 @@ class Network(object):
     def show_layers(self):
         """Shows info (name, needs, and provides) about all layers in this network."""
         for name, step in self.list_layers():
-            print "layer_name: ", name
-            print "\t", "needs: ", step.needs
-            print "\t", "provides: ", step.provides
-            print ""
+            print("layer_name: ", name)
+            print("\t", "needs: ", step.needs)
+            print("\t", "provides: ", step.provides)
+            print("")
 
 
     def compile(self):
