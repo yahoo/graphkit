@@ -1,0 +1,33 @@
+language: python
+sudo: false
+
+python:
+  - "2.6"
+  - "2.7"
+  - "3.2"
+  - "3.3"
+  - "3.4"
+  - "3.5"
+
+install:
+  - pip install sphinx_rtd_theme codecov
+  - python setup.py install
+  - cd docs
+  - make clean html
+  - cd ..
+
+script: nosetests --with-coverage --cover-package=graphkit
+
+deploy:
+  provider: pypi
+  user: graphkit-ci
+  password:
+    secure: Feb5dyGHNltCFNAdta/V7v9D/SZhtbyPJN7aPFSkgQNFUY/QZCR1CvXP6KO50ZRYN6ymbpmFMknxXAe3XsxaipkdYnWKcIYy0mVsETWKPO8+Yyom3KTTYqawzVqLxKvqXHTRVW+Xa+Rgum24DDLVq5rNlagozcmNILYJh0sHiQQp4N5w6agIfsTjEMqtbnffzNvpbCuz+nBs3stva0mS0CljhzLuih9N1f0so8LK/8AVK/hxiWY5TgAfml9F/cSyeCIyQhq76owH24ldf0AbSzqd8An53+UKeGznuogcUMMz0aQLChk0pjmUKcHxOruEr+ze9fSGdCMv+wBuOAFw+W3pRJwlRoaRbz+TVi9/Q9u5nThKkBA1TjSfujVrJBcJsMdMcm+69HDeyVNNaC2DewyNByfnBRTb1zdXTrDAiA2vKgAvfSu7gj+zx+d/h6BllqEW9zSpIMc3+scOVcVwm7skcK3BBRPuFc52EEEk5muGEXjUgB6voG0Dc61u7gPw/UoMl3HrN2pVeTXWyS91ZC0u9WiyLHQLeL/QS29X1HiTpHmaWI6pAzkp7U6i3L75SenIB4o9eiSBbFNW3N0Tw2mDRFK83DmzpGOjYzyV3ZQK6wcfnSbduWlq08YTzAUYCr+GviRaFAHjrq3qPDgcoknZsDRiJ5Qpmur0d5J8fCE=
+  on:
+    repo: yahoo/graphkit
+    branch: master
+    tags: true
+    docs_dir: docs/build/html
+
+after_success:
+  - codecov
