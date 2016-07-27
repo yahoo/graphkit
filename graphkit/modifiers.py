@@ -10,12 +10,30 @@ file associated with the project for terms.
 
 class optional(str):
     """
-    This modifier designates an input value in ``needs`` as optional.  In other
-    words, the ``operation`` can still run if it does not receive this input,
-    but it will use this input if available.  For example, this will make
-    input ``c`` optional::
+    Input values in ``needs`` may be designated as optional using this modifier.
+    If this modifier is applied to an input value, that value will be input to
+    the ``operation`` if it is available.  The function underlying the
+    ``operation`` should have a parameter with the same name as the input value
+    in ``needs``, and the input value will be passed as a keyword argument if
+    it is available.
 
-        operation(name='some_op', needs=['a', 'b', optional('c')]), ...)
+    Here is an example of an operation that uses an optional argument::
+
+        from graphkit import operation, compose
+        from graphkit.modifiers import optional
+
+        # Function that adds either two or three numbers.
+        def myadd(a, b, c=0):
+            return a + b + c
+
+        # Designate c as an optional argument.
+        graph = compose('mygraph')(
+            operator(name='myadd', needs=['a', 'b', optional('c')], provides='sum')(myadd)
+        )
+
+        # The graph works with and without 'c' provided as input.
+        assert graph({'a': 5, 'b': 2, 'c': 4})['sum'] == 11
+        assert graph({'a': 5, 'b': 2})['sum'] == 7
 
     """
     pass

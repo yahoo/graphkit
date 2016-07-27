@@ -43,6 +43,31 @@ class FunctionalOperation(Operation):
 
 
 class operation(Operation):
+    """
+    This object represents an operation in a computation graph.  Its
+    relationship to other operations in the graph is specified via its
+    ``needs`` and ``provides`` arguments.
+
+    :param function fn:
+        The function used by this operation.  This does not need to be
+        specified when the operation object is instantiated and can instead
+        be set via ``__call__`` later.
+
+    :param str name:
+        The name of the operation in the computation graph.
+
+    :param list needs:
+        Names of input data objects this operation requires.  These should
+        correspond to the ``args`` of ``fn``.
+
+    :param list provides:
+        Names of output data objects this operation provides.
+
+    :param dict params:
+        A dict of key/value pairs representing constant parameters
+        associated with your operation.  These can correspond to either
+        ``args`` or ``kwargs`` of ``fn`.
+    """
 
     def __init__(self, fn=None, **kwargs):
         self.fn = fn
@@ -71,6 +96,27 @@ class operation(Operation):
         return kwargs
 
     def __call__(self, fn=None, **kwargs):
+        """
+        This enables ``operation`` to act as a decorator or as a functional
+        operation, for example::
+
+            @operator(name='myadd1', needs=['a', 'b'], provides=['c'])
+            def myadd(a, b):
+                return a + b
+
+        or::
+
+            def myadd(a, b):
+                return a + b
+            operator(name='myadd1', needs=['a', 'b'], provides=['c'])(myadd)
+
+        :param function fn:
+            The function to be used by this ``operation``.
+
+        :return:
+            Returns an operation class that can be called as a function or
+            composed into a computation graph.
+        """
 
         if fn is not None:
             self.fn = fn
@@ -84,12 +130,44 @@ class operation(Operation):
 
 
 class compose(object):
+    """
+    This is a simple class that's used to compose ``operation`` instances into
+    a computation graph.
+
+    :param str name:
+        A name for the graph being composed by this object.
+
+    :param bool merge:
+        If ``True``, this compose object will attempt to merge together
+        ``operation`` instances that represent entire computation graphs.
+        Specifically, if one of the ``operation`` instances passed to this
+        ``compose`` object is itself a graph operation created by an
+        earlier use of ``compose`` the sub-operations in that graph are
+        compared against other operations passed to this ``compose``
+        instance (as well as the sub-operations of other graphs passed to
+        this ``compose`` instance).  If any two operations are the same
+        (based on name), then that operation is computed only once, instead
+        of multiple times (one for each time the operation appears).
+    """
+
     def __init__(self, name=None, merge=False):
-        assert name, "operation needs a name"
+        assert name, "compose needs a name"
         self.name = name
         self.merge = merge
 
     def __call__(self, *operations):
+        """
+        Composes a collection of operations into a single computation graph,
+        obeying the ``merge`` property, if set in the constructor.
+
+        :param operations:
+            Each argument should be an operation instance created using
+            ``operation``.
+
+        :return:
+            Returns a special type of operation class, which represents an
+            entire computation graph as a single operation.
+        """
         assert len(operations), "no operations provided to compose"
 
         # If merge is desired, deduplicate operations before building network

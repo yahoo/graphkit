@@ -4,21 +4,41 @@
 
 from setuptools import setup
 
+LONG_DESCRIPTION = """
+GraphKit is a lightweight Python module for creating and running ordered graphs
+of computations, where the nodes of the graph correspond to computational
+operations, and the edges correspond to output --> input dependencies between
+those operations.  Such graphs are useful in computer vision, machine learning,
+and many other domains.
+"""
 
 setup(
      name='graphkit',
      version=1.0,
-     description='Tools for modeling data and image transforms in a network dag',
+     description='Lightweight computation graphs for Python',
+     long_description=LONG_DESCRIPTION,
      author='Huy Nguyen, Arel Cordero, Pierre Garrigues, Rob Hess, Tobi Baumgartner, Clayton Mellina',
      author_email='huyng@yahoo-inc.com',
      url='http://github.com/yahoo/graphkit',
      packages=['graphkit'],
-     install_requires=[
-          'networkx',
-          'pydot'
-     ],
-     tests_require=[
-          'numpy'
-     ],
-     zip_safe=False
+     install_requires=['networkx', 'pydot'],
+     tests_require=['numpy'],
+     license='Apache-2.0',
+     keywords=['graph', 'computation graph', 'DAG', 'directed acyclical graph'],
+     classifiers=[
+          'Development Status :: 5 - Production/Stable',
+          'License :: OSI Approved :: Apache Software License',
+          'Intended Audience :: Developers',
+          'Intended Audience :: Science/Research',
+          'Natural Language :: English',
+          'Operating System :: MacOS :: MacOS X',
+          'Operating System :: Microsoft :: Windows',
+          'Operating System :: POSIX',
+          'Operating System :: POSIX',
+          'Operating System :: Unix',
+          'Programming Language :: Python :: 2.7',
+          'Topic :: Scientific/Engineering',
+          'Topic :: Software Development'
+    ],
+    platforms='Windows,Linux,Solaris,Mac OS-X,Unix'
 )
