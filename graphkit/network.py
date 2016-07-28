@@ -161,7 +161,7 @@ class Network(object):
             # nodes that are reachable from one of the inputs.  Ignore input
             # names that aren't in the graph.
             necessary_nodes = set()
-            for input_name in inputs.iterkeys():
+            for input_name in iter(inputs):
                 if self.graph.has_node(input_name):
                     necessary_nodes |= nx.descendants(self.graph, input_name)
 
@@ -172,7 +172,7 @@ class Network(object):
             # deeper into the network graph.  Ignore input names that aren't
             # in the graph.
             unnecessary_nodes = set()
-            for input_name in inputs.iterkeys():
+            for input_name in iter(inputs):
                 if self.graph.has_node(input_name):
                     unnecessary_nodes |= nx.ancestors(self.graph, input_name)
 
