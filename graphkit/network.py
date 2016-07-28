@@ -12,9 +12,6 @@ from cStringIO import StringIO
 
 from .base import Operation
 
-# constants
-ALL_OUTPUTS = 'all'
-
 
 class DataPlaceholderNode(str):
     """
@@ -146,9 +143,9 @@ class Network(object):
         the requested outputs.
 
         :param list outputs:
-            A list of desired output names.  This can also be the constant
-            `ALL_OUTPUTS`, in which case the necessary steps are all graph
-            nodes that are reachable from one of the provided inputs.
+            A list of desired output names.  This can also be ``None``, in which
+            case the necessary steps are all graph nodes that are reachable
+            from one of the provided inputs.
 
         :param dict inputs:
             A dictionary mapping names to values for all provided inputs.
@@ -158,7 +155,7 @@ class Network(object):
             provided inputs and requested outputs.
         """
 
-        if outputs == ALL_OUTPUTS:
+        if not outputs:
 
             # If caller requested all outputs, the necessary nodes are all
             # nodes that are reachable from one of the inputs.  Ignore input
@@ -202,7 +199,7 @@ class Network(object):
 
         :param list output: The names of the data node you'd like to have returned
                             once all necessary computations are complete.
-                            If you set this variable to network.ALL_OUTPUTS, all
+                            If you set this variable to ``None``, all
                             data nodes will be kept and returned at runtime.
 
         :param dict named_inputs: A dict of key/value pairs where the keys
@@ -216,7 +213,7 @@ class Network(object):
 
         # assert that network has been compiled
         assert self.steps, "network must be compiled before calling compute."
-        assert isinstance(outputs, (list, tuple)) or outputs == ALL_OUTPUTS,\
+        assert isinstance(outputs, (list, tuple)) or outputs == None,\
             "The outputs argument must be a list"
 
         # start with fresh data cache
@@ -254,7 +251,7 @@ class Network(object):
 
             elif isinstance(step, DeleteInstruction):
 
-                if (outputs != ALL_OUTPUTS) and (step not in outputs):
+                if outputs and step not in outputs:
                     if self._debug:
                         print("removing data '%s' from cache." % step)
                     cache.pop(step)
@@ -262,7 +259,7 @@ class Network(object):
             else:
                 raise TypeError("Unrecognized instruction.")
 
-        if outputs == ALL_OUTPUTS:
+        if not outputs:
             # Return the whole cache as output, including input and
             # intermediate data nodes.
             return cache

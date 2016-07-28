@@ -1,8 +1,6 @@
 # Copyright 2016, Yahoo Inc.
 # Licensed under the terms of the Apache License, Version 2.0. See the LICENSE file associated with the project for terms.
 
-from .network import ALL_OUTPUTS
-
 class Data(object):
     """
     This wraps any data that is consumed or produced
@@ -87,12 +85,12 @@ class Operation(object):
 
         raise NotImplementedError
 
-    def _compute(self, named_inputs, outputs=ALL_OUTPUTS):
+    def _compute(self, named_inputs, outputs=None):
         inputs = [named_inputs[d] for d in self.needs]
         results = self.compute(inputs)
 
         results = zip(self.provides, results)
-        if outputs != ALL_OUTPUTS:
+        if outputs:
             outputs = set(outputs)
             results = filter(lambda x: x[0] in outputs, results)
 
@@ -141,7 +139,7 @@ class NetworkOperation(Operation):
         self.net = kwargs.pop('net')
         Operation.__init__(self, **kwargs)
 
-    def _compute(self, named_inputs, outputs=ALL_OUTPUTS):
+    def _compute(self, named_inputs, outputs=None):
         return self.net.compute(outputs, named_inputs)
 
     def __call__(self, *args, **kwargs):

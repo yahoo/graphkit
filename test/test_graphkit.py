@@ -283,7 +283,7 @@ def test_backwards_compatibility():
     #
 
     # get all outputs
-    pprint(net.compute(outputs=network.ALL_OUTPUTS, named_inputs={'a': 1, 'b': 2}))
+    pprint(net.compute(named_inputs={'a': 1, 'b': 2}))
 
     # get specific outputs
     pprint(net.compute(outputs=["sum_ab_times_b"], named_inputs={'a': 1, 'b': 2}))

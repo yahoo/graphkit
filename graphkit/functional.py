@@ -4,7 +4,7 @@
 from itertools import chain
 
 from .base import Operation, NetworkOperation
-from .network import Network, ALL_OUTPUTS
+from .network import Network
 from .modifiers import optional
 
 
@@ -13,7 +13,7 @@ class FunctionalOperation(Operation):
         self.fn = kwargs.pop('fn')
         Operation.__init__(self, **kwargs)
 
-    def _compute(self, named_inputs, outputs=ALL_OUTPUTS):
+    def _compute(self, named_inputs, outputs=None):
         inputs = [named_inputs[d] for d in self.needs if not isinstance(d, optional)]
 
         # Find any optional inputs in named_inputs.  Get only the ones that
@@ -27,7 +27,7 @@ class FunctionalOperation(Operation):
             result = [result]
 
         result = zip(self.provides, result)
-        if outputs != ALL_OUTPUTS:
+        if outputs:
             outputs = set(outputs)
             result = filter(lambda x: x[0] in outputs, result)
 
