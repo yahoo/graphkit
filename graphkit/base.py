@@ -3,11 +3,6 @@
 
 from .network import ALL_OUTPUTS
 
-class BaseError(Exception):
-    """ Base exception class.
-    """
-    pass
-
 class Data(object):
     """
     This wraps any data that is consumed or produced

@@ -2,7 +2,6 @@
 # Licensed under the terms of the Apache License, Version 2.0. See the LICENSE file associated with the project for terms.
 
 import time
-import base
 import os
 import pydot
 import networkx as nx
@@ -11,6 +10,7 @@ import matplotlib.image as mpimg
 
 from cStringIO import StringIO
 
+from .base import Operation
 
 # constants
 ALL_OUTPUTS = 'all'
@@ -87,7 +87,7 @@ class Network(object):
 
     def list_layers(self):
         assert self.steps, "network must be compiled before listing layers."
-        return [(s.name, s) for s in self.steps if isinstance(s, base.Operation)]
+        return [(s.name, s) for s in self.steps if isinstance(s, Operation)]
 
 
     def show_layers(self):
@@ -115,7 +115,7 @@ class Network(object):
             if isinstance(node, DataPlaceholderNode):
                 continue
 
-            elif isinstance(node, base.Operation):
+            elif isinstance(node, Operation):
 
                 # add layer to list of steps
                 self.steps.append(node)
@@ -126,7 +126,7 @@ class Network(object):
                 for predecessor in self.graph.predecessors(node):
                     predecessor_still_needed = False
                     for future_node in ordered_nodes[i+1:]:
-                        if isinstance(future_node, base.Operation):
+                        if isinstance(future_node, Operation):
                             if predecessor in future_node.needs:
                                 predecessor_still_needed = True
                                 break
@@ -134,7 +134,7 @@ class Network(object):
                         self.steps.append(DeleteInstruction(predecessor))
 
             else:
-                raise base.BaseError("Unrecognized network graph node")
+                raise TypeError("Unrecognized network graph node")
 
 
     def _find_necessary_steps(self, outputs, inputs):
@@ -231,7 +231,7 @@ class Network(object):
 
         for step in all_steps:
 
-            if isinstance(step, base.Operation):
+            if isinstance(step, Operation):
 
                 if self._debug:
                     print("-"*32)
@@ -260,7 +260,7 @@ class Network(object):
                     cache.pop(step)
 
             else:
-                raise base.BaseError("Unrecognized instruction.")
+                raise TypeError("Unrecognized instruction.")
 
         if outputs == ALL_OUTPUTS:
             # Return the whole cache as output, including input and
