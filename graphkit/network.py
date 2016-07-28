@@ -8,7 +8,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
-from cStringIO import StringIO
+from io import StringIO
 
 from .base import Operation
 
