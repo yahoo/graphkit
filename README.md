@@ -4,6 +4,8 @@
 
 > It's a DAG all the way down
 
+[Full Documentation](https://pythonhosted.org/graphkit/)
+
 ## Lightweight computation graphs for Python
 
 GraphKit is a lightweight Python module for creating and running ordered graphs of computations, where the nodes of the graph correspond to computational operations, and the edges correspond to output --> input dependencies between those operations.  Such graphs are useful in computer vision, machine learning, and many other domains.
