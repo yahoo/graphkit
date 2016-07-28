@@ -129,8 +129,8 @@ class Operation(object):
         """
         load from pickle and instantiate the detector
         """
-        for k, v in state.iteritems():
-            self.__setattr__(k, v)
+        for k in iter(state):
+            self.__setattr__(k, state[k])
         self._after_init()
 
 

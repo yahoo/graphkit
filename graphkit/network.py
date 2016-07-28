@@ -267,7 +267,7 @@ class Network(object):
         else:
             # Filter outputs to just return what's needed.
             # Note: list comprehensions exist in python 2.7+
-            return {k: v for k, v in cache.iteritems() if k in outputs}
+            return {k: cache[k] for k in iter(cache) if k in outputs}
 
 
     def plot(self, filename=None, show=False):
