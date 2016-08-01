@@ -2,18 +2,15 @@
 # Licensed under the terms of the Apache License, Version 2.0. See the LICENSE file associated with the project for terms.
 
 import time
-import base
 import os
 import pydot
 import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
-from cStringIO import StringIO
+from io import StringIO
 
-
-# constants
-ALL_OUTPUTS = 'all'
+from .base import Operation
 
 
 class DataPlaceholderNode(str):
@@ -87,16 +84,16 @@ class Network(object):
 
     def list_layers(self):
         assert self.steps, "network must be compiled before listing layers."
-        return [(s.name, s) for s in self.steps if isinstance(s, base.Operation)]
+        return [(s.name, s) for s in self.steps if isinstance(s, Operation)]
 
 
     def show_layers(self):
         """Shows info (name, needs, and provides) about all layers in this network."""
         for name, step in self.list_layers():
-            print "layer_name: ", name
-            print "\t", "needs: ", step.needs
-            print "\t", "provides: ", step.provides
-            print ""
+            print("layer_name: ", name)
+            print("\t", "needs: ", step.needs)
+            print("\t", "provides: ", step.provides)
+            print("")
 
 
     def compile(self):
@@ -115,7 +112,7 @@ class Network(object):
             if isinstance(node, DataPlaceholderNode):
                 continue
 
-            elif isinstance(node, base.Operation):
+            elif isinstance(node, Operation):
 
                 # add layer to list of steps
                 self.steps.append(node)
@@ -126,7 +123,7 @@ class Network(object):
                 for predecessor in self.graph.predecessors(node):
                     predecessor_still_needed = False
                     for future_node in ordered_nodes[i+1:]:
-                        if isinstance(future_node, base.Operation):
+                        if isinstance(future_node, Operation):
                             if predecessor in future_node.needs:
                                 predecessor_still_needed = True
                                 break
@@ -134,7 +131,7 @@ class Network(object):
                         self.steps.append(DeleteInstruction(predecessor))
 
             else:
-                raise base.BaseError("Unrecognized network graph node")
+                raise TypeError("Unrecognized network graph node")
 
 
     def _find_necessary_steps(self, outputs, inputs):
@@ -146,9 +143,9 @@ class Network(object):
         the requested outputs.
 
         :param list outputs:
-            A list of desired output names.  This can also be the constant
-            `ALL_OUTPUTS`, in which case the necessary steps are all graph
-            nodes that are reachable from one of the provided inputs.
+            A list of desired output names.  This can also be ``None``, in which
+            case the necessary steps are all graph nodes that are reachable
+            from one of the provided inputs.
 
         :param dict inputs:
             A dictionary mapping names to values for all provided inputs.
@@ -158,13 +155,13 @@ class Network(object):
             provided inputs and requested outputs.
         """
 
-        if outputs == ALL_OUTPUTS:
+        if not outputs:
 
             # If caller requested all outputs, the necessary nodes are all
             # nodes that are reachable from one of the inputs.  Ignore input
             # names that aren't in the graph.
             necessary_nodes = set()
-            for input_name in inputs.iterkeys():
+            for input_name in iter(inputs):
                 if self.graph.has_node(input_name):
                     necessary_nodes |= nx.descendants(self.graph, input_name)
 
@@ -175,7 +172,7 @@ class Network(object):
             # deeper into the network graph.  Ignore input names that aren't
             # in the graph.
             unnecessary_nodes = set()
-            for input_name in inputs.iterkeys():
+            for input_name in iter(inputs):
                 if self.graph.has_node(input_name):
                     unnecessary_nodes |= nx.ancestors(self.graph, input_name)
 
@@ -202,7 +199,7 @@ class Network(object):
 
         :param list output: The names of the data node you'd like to have returned
                             once all necessary computations are complete.
-                            If you set this variable to network.ALL_OUTPUTS, all
+                            If you set this variable to ``None``, all
                             data nodes will be kept and returned at runtime.
 
         :param dict named_inputs: A dict of key/value pairs where the keys
@@ -216,7 +213,7 @@ class Network(object):
 
         # assert that network has been compiled
         assert self.steps, "network must be compiled before calling compute."
-        assert isinstance(outputs, (list, tuple)) or outputs == ALL_OUTPUTS,\
+        assert isinstance(outputs, (list, tuple)) or outputs == None,\
             "The outputs argument must be a list"
 
         # start with fresh data cache
@@ -231,7 +228,7 @@ class Network(object):
 
         for step in all_steps:
 
-            if isinstance(step, base.Operation):
+            if isinstance(step, Operation):
 
                 if self._debug:
                     print("-"*32)
@@ -254,15 +251,15 @@ class Network(object):
 
             elif isinstance(step, DeleteInstruction):
 
-                if (outputs != ALL_OUTPUTS) and (step not in outputs):
+                if outputs and step not in outputs:
                     if self._debug:
                         print("removing data '%s' from cache." % step)
                     cache.pop(step)
 
             else:
-                raise base.BaseError("Unrecognized instruction.")
+                raise TypeError("Unrecognized instruction.")
 
-        if outputs == ALL_OUTPUTS:
+        if not outputs:
             # Return the whole cache as output, including input and
             # intermediate data nodes.
             return cache
@@ -270,7 +267,7 @@ class Network(object):
         else:
             # Filter outputs to just return what's needed.
             # Note: list comprehensions exist in python 2.7+
-            return {k: v for k, v in cache.iteritems() if k in outputs}
+            return {k: cache[k] for k in iter(cache) if k in outputs}
 
 
     def plot(self, filename=None, show=False):

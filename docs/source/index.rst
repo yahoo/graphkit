@@ -3,9 +3,17 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+
 ========
 GraphKit
 ========
+
+.. image:: https://badge.fury.io/py/graphkit.svg
+   :target: https://badge.fury.io/py/graphkit
+.. image:: https://travis-ci.org/yahoo/graphkit.svg?branch=master
+   :target: https://travis-ci.org/yahoo/graphkit
+.. image:: https://codecov.io/gh/yahoo/graphkit/branch/master/graph/badge.svg
+   :target: https://codecov.io/gh/yahoo/graphkit
 
 **It's a DAG all the way down**
 

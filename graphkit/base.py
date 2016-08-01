@@ -1,13 +1,6 @@
 # Copyright 2016, Yahoo Inc.
 # Licensed under the terms of the Apache License, Version 2.0. See the LICENSE file associated with the project for terms.
 
-import network
-
-class BaseError(Exception):
-    """ Base exception class.
-    """
-    pass
-
 class Data(object):
     """
     This wraps any data that is consumed or produced
@@ -92,12 +85,12 @@ class Operation(object):
 
         raise NotImplementedError
 
-    def _compute(self, named_inputs, outputs=network.ALL_OUTPUTS):
+    def _compute(self, named_inputs, outputs=None):
         inputs = [named_inputs[d] for d in self.needs]
         results = self.compute(inputs)
 
         results = zip(self.provides, results)
-        if outputs != network.ALL_OUTPUTS:
+        if outputs:
             outputs = set(outputs)
             results = filter(lambda x: x[0] in outputs, results)
 
@@ -136,8 +129,8 @@ class Operation(object):
         """
         load from pickle and instantiate the detector
         """
-        for k, v in state.iteritems():
-            self.__setattr__(k, v)
+        for k in iter(state):
+            self.__setattr__(k, state[k])
         self._after_init()
 
 
@@ -146,7 +139,7 @@ class NetworkOperation(Operation):
         self.net = kwargs.pop('net')
         Operation.__init__(self, **kwargs)
 
-    def _compute(self, named_inputs, outputs=network.ALL_OUTPUTS):
+    def _compute(self, named_inputs, outputs=None):
         return self.net.compute(outputs, named_inputs)
 
     def __call__(self, *args, **kwargs):
