@@ -121,6 +121,8 @@ class Network(object):
                 # predecessor may be deleted if it is a data placeholder that
                 # is no longer needed by future Operations.
                 for predecessor in self.graph.predecessors(node):
+                    if self._debug:
+                        print("checking if node %s can be deleted" % predecessor)
                     predecessor_still_needed = False
                     for future_node in ordered_nodes[i+1:]:
                         if isinstance(future_node, Operation):
@@ -128,6 +130,8 @@ class Network(object):
                                 predecessor_still_needed = True
                                 break
                     if not predecessor_still_needed:
+                        if self._debug:
+                            print("  adding delete instruction for %s" % predecessor)
                         self.steps.append(DeleteInstruction(predecessor))
 
             else:
@@ -249,12 +253,18 @@ class Network(object):
                 if self._debug:
                     print("step completion time: %s" % t_complete)
 
+            # Process DeleteInstructions by deleting the corresponding data
+            # if possible.
             elif isinstance(step, DeleteInstruction):
 
                 if outputs and step not in outputs:
-                    if self._debug:
-                        print("removing data '%s' from cache." % step)
-                    cache.pop(step)
+                    # Some DeleteInstruction steps may not exist in the cache
+                    # if they come from optional() needs that are not privoded
+                    # as inputs.  Make sure the step exists before deleting.
+                    if step in cache:
+                        if self._debug:
+                            print("removing data '%s' from cache." % step)
+                        cache.pop(step)
 
             else:
                 raise TypeError("Unrecognized instruction.")

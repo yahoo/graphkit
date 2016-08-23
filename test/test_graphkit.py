@@ -193,7 +193,7 @@ def test_optional():
 
     sum_op = operation(name='sum_op1', needs=['a', 'b', modifiers.optional('c')], provides='sum')(addplusplus)
 
-    net = compose(name='text_net')(sum_op)
+    net = compose(name='test_net')(sum_op)
 
     # Make sure output with optional arg is as expected.
     named_inputs = {'a': 4, 'b': 3, 'c': 2}
@@ -206,6 +206,25 @@ def test_optional():
     results = net(named_inputs)
     assert 'sum' in results
     assert results['sum'] == sum(named_inputs.values())
+
+
+def test_deleted_optional():
+    # Test that DeleteInstructions included for optionals do not raise
+    # exceptions when the corresponding input is not prodided.
+
+    # Function to add two values plus an optional third value.
+    def addplusplus(a, b, c=0):
+        return a + b + c
+
+    # Here, a DeleteInstruction will be inserted for the optional need 'c'.
+    sum_op1 = operation(name='sum_op1', needs=['a', 'b', modifiers.optional('c')], provides='sum1')(addplusplus)
+    sum_op2 = operation(name='sum_op2', needs=['sum1', 'sum1'], provides='sum2')(add)
+    net = compose(name='test_net')(sum_op1, sum_op2)
+
+    # DeleteInstructions are used only when a subset of outputs are requested.
+    results = net({'a': 4, 'b': 3}, outputs=['sum2'])
+    assert 'sum2' in results
+
 
 
 ####################################
