@@ -3,8 +3,6 @@
 # Licensed under the terms of the Apache License, Version 2.0. See the LICENSE file associated with the project for terms.
 
 import os
-import packaging.version as version
-
 from setuptools import setup
 
 LONG_DESCRIPTION = """
@@ -16,11 +14,14 @@ and many other domains.
 """
 
 # Grab the version as the tag name from the Travis build, or else use a default.
-VERSION = os.environ.get('TRAVIS_TAG', '1.0')
+if os.path.isfile('VERSION'):
+     VERSION = open('VERSION').read()
+else:
+     VERSION = os.environ.get('TRAVIS_TAG', '1.0')
 
 setup(
      name='graphkit',
-     version=version.parse(VERSION).public,
+     version=VERSION,
      description='Lightweight computation graphs for Python',
      long_description=LONG_DESCRIPTION,
      author='Huy Nguyen, Arel Cordero, Pierre Garrigues, Rob Hess, Tobi Baumgartner, Clayton Mellina',
