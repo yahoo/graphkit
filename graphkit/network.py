@@ -3,10 +3,7 @@
 
 import time
 import os
-import pydot
 import networkx as nx
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
 
 from io import StringIO
 
@@ -297,6 +294,9 @@ class Network(object):
             An instance of the pydot graph
 
         """
+        import pydot
+        import matplotlib.pyplot as plt
+        import matplotlib.image as mpimg
 
         assert self.graph is not None
 
