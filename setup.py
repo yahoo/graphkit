@@ -28,7 +28,10 @@ setup(
      author_email='huyng@yahoo-inc.com',
      url='http://github.com/yahoo/graphkit',
      packages=['graphkit'],
-     install_requires=['networkx', 'pydot', 'matplotlib'],
+     install_requires=['networkx'],
+     extras_require={
+          'plot': ['pydot', 'matplotlib']
+     },
      tests_require=['numpy'],
      license='Apache-2.0',
      keywords=['graph', 'computation graph', 'DAG', 'directed acyclical graph'],
