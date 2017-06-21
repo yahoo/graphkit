@@ -227,6 +227,7 @@ class Network(object):
         # outputs from the provided inputs.
         all_steps = self._find_necessary_steps(outputs, named_inputs)
 
+        self.times={}
         for step in all_steps:
 
             if isinstance(step, Operation):
