@@ -101,7 +101,7 @@ class Network(object):
         self.steps = []
 
         # create an execution order such that each layer's needs are provided.
-        ordered_nodes = nx.dag.topological_sort(self.graph)
+        ordered_nodes = list(nx.dag.topological_sort(self.graph))
 
         # add Operations evaluation steps, and instructions to free data.
         for i, node in enumerate(ordered_nodes):
