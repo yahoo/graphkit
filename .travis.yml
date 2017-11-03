@@ -6,7 +6,7 @@ python:
   - "3.5"
 
 install:
-  - pip install sphinx_rtd_theme codecov packaging
+  - pip install Sphinx sphinx_rtd_theme codecov packaging
   - "python -c $'import os, packaging.version as version\\nv = version.parse(os.environ.get(\"TRAVIS_TAG\", \"1.0\")).public\\nwith open(\"VERSION\", \"w\") as f: f.write(v)'"
   - python setup.py install
   - cd docs
