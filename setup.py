@@ -17,7 +17,7 @@ and many other domains.
 if os.path.isfile('VERSION'):
      VERSION = open('VERSION').read()
 else:
-     VERSION = os.environ.get('TRAVIS_TAG', '1.0')
+     VERSION = os.environ.get('TRAVIS_TAG', '1.1')
 
 setup(
      name='graphkit',
