@@ -128,6 +128,19 @@ class operation(Operation):
 
         return FunctionalOperation(**total_kwargs)
 
+    def __repr__(self):
+        """
+        Display more informative names for the Operation class
+        """
+        return u"%s(name='%s', needs=%s, provides=%s, fn=%s)" % \
+            (self.__class__.__name__,
+             self.name,
+             self.needs,
+             self.provides,
+             self.fn.__name__)
+
+
+
 
 class compose(object):
     """
