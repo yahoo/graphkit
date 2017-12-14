@@ -232,17 +232,17 @@ def test_parallel_execution():
 
     def fn(x):
         time.sleep(1)
-        print time.time() - t0, "fn"
+        print("fn %s" % (time.time() - t0))
         return 1 + x
 
     def fn2(a,b):
         time.sleep(1)
-        print time.time() - t0, "fn2"
+        print("fn2 %s" % (time.time() - t0))
         return a+b
 
     def fn3(z, k=1):
         time.sleep(1)
-        print time.time() - t0, "fn3"
+        print("fn3 %s" % (time.time() - t0))
         return z + k
 
     pipeline = compose(name="l", merge=True)(
@@ -268,8 +268,8 @@ def test_parallel_execution():
     t0 = time.time()
     pipeline.execmethod = "parallel"
     result_threaded = pipeline({"x": 10}, ["co", "go", "do"])
-    print "threaded result"
-    print result_threaded
+    print("threaded result")
+    print(result_threaded)
 
     t0 = time.time()
     pipeline.execmethod = "sequential"
