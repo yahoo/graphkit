@@ -274,8 +274,8 @@ def test_parallel_execution():
     t0 = time.time()
     pipeline.execmethod = "sequential"
     result_sequential = pipeline({"x": 10}, ["co", "go", "do"])
-    print "sequential result"
-    print result_sequential
+    print("sequential result")
+    print(result_sequential)
 
     # make sure results are the same using either method
     assert result_sequential == result_threaded
