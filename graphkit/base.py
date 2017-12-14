@@ -147,10 +147,11 @@ class Operation(object):
 class NetworkOperation(Operation):
     def __init__(self, **kwargs):
         self.net = kwargs.pop('net')
+        self.execmethod = None
         Operation.__init__(self, **kwargs)
 
     def _compute(self, named_inputs, outputs=None):
-        return self.net.compute(outputs, named_inputs)
+        return self.net.compute(outputs, named_inputs, method=self.execmethod)
 
     def __call__(self, *args, **kwargs):
         return self._compute(*args, **kwargs)

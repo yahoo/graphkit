@@ -50,6 +50,7 @@ class Network(object):
         self.steps = []
 
 
+
     def add_op(self, operation):
         """
         Adds the given operation and its data requirements to the network graph
@@ -184,7 +185,7 @@ class Network(object):
             for output_name in outputs:
                 if not self.graph.has_node(output_name):
                     raise ValueError("graphkit graph does not have an output "
-                        "node named %s" % output_name)
+                                     "node named %s" % output_name)
                 necessary_nodes |= nx.ancestors(self.graph, output_name)
 
             # Get rid of the unnecessary nodes from the set of necessary ones.
@@ -194,7 +195,7 @@ class Network(object):
         return [step for step in self.steps if step in necessary_nodes]
 
 
-    def compute(self, outputs, named_inputs):
+    def compute(self, outputs, named_inputs, method=None):
         """
         Run the graph. Any inputs to the network must be passed in by name.
 
@@ -214,9 +215,86 @@ class Network(object):
 
         # assert that network has been compiled
         assert self.steps, "network must be compiled before calling compute."
-        assert isinstance(outputs, (list, tuple)) or outputs == None,\
+        assert isinstance(outputs, (list, tuple)) or outputs is None,\
             "The outputs argument must be a list"
 
+
+        # choose a method of execution
+        if method == "parallel":
+            return self._compute_thread_pool_barrier_method(named_inputs,
+                                                            outputs)
+        else:
+            return self._compute_sequential_method(named_inputs,
+                                                   outputs)
+
+
+    def _compute_thread_pool_barrier_method(self, named_inputs, outputs,
+                                            thread_pool_size=10):
+        """
+        This method runs the graph using a parallel pool of thread executors.
+        You may achieve lower total latency if your graph is sufficiently
+        sub divided into operations using this method.
+        """
+        from multiprocessing.dummy import Pool
+
+        # if we have not already created a thread_pool, create one
+        if not hasattr(self, "_pool"):
+            self._pool = Pool(thread_pool_size)
+        pool = self._pool
+
+        cache = {}
+        cache.update(named_inputs)
+        necessary_nodes = self._find_necessary_steps(outputs, named_inputs)
+
+        # this keeps track of all nodes that have already executed
+        has_executed = set()
+
+        # with each loop iteration, we determine a set of operations that can be
+        # scheduled, then schedule them onto a thread pool, then collect their
+        # results onto a memory cache for use upon the next iteration.
+        while True:
+
+            # the upnext list contains a list of operations for scheduling
+            # in the current round of scheduling
+            upnext = []
+            for node in necessary_nodes:
+                # only delete if all successors for the data node have been executed
+                if isinstance(node, DeleteInstruction):
+                    if ready_to_delete_data_node(node,
+                                                 has_executed,
+                                                 self.graph):
+                        if node in cache:
+                            cache.pop(node)
+
+                # continue if this node is anything but an operation node
+                if not isinstance(node, Operation):
+                    continue
+
+                if ready_to_schedule_operation(node, has_executed, self.graph) \
+                        and node not in has_executed:
+                    upnext.append(node)
+
+
+            # stop if no nodes left to schedule, exit out of the loop
+            if len(upnext) == 0:
+                break
+
+            done_iterator = pool.imap_unordered(
+                                lambda op: (op,op._compute(cache)),
+                                upnext)
+            for op, result in done_iterator:
+                cache.update(result)
+                has_executed.add(op)
+
+        if not outputs:
+            return cache
+        else:
+            return {k: cache[k] for k in iter(cache) if k in outputs}
+
+    def _compute_sequential_method(self, named_inputs, outputs):
+        """
+        This method runs the graph one operation at a time in a single thread
+        """
         # start with fresh data cache
         cache = {}
 
@@ -227,7 +305,7 @@ class Network(object):
         # outputs from the provided inputs.
         all_steps = self._find_necessary_steps(outputs, named_inputs)
 
-        self.times={}
+        self.times = {}
         for step in all_steps:
 
             if isinstance(step, Operation):
@@ -349,3 +427,50 @@ class Network(object):
             plt.show()
 
         return g
+
+
+def ready_to_schedule_operation(op, has_executed, graph):
+    """
+    Determines if a Operation is ready to be scheduled for execution based on
+    what has already been executed.
+
+    Args:
+        op:
+            The Operation object to check
+        has_executed: set
+            A set containing all operations that have been executed so far
+        graph:
+            The networkx graph containing the operations and data nodes
+    Returns:
+        A boolean indicating whether the operation may be scheduled for
+        execution based on what has already been executed.
+    """
+    dependencies = set(v for v in nx.ancestors(graph, op) if isinstance(v, Operation))
+    return dependencies.issubset(has_executed)
+
+def ready_to_delete_data_node(name, has_executed, graph):
+    """
+    Determines if a DataPlaceholderNode is ready to be deleted from the
+    cache.
+
+    Args:
+        name:
+            The name of the data node to check
+        has_executed: set
+            A set containing all operations that have been executed so far
+        graph:
+            The networkx graph containing the operations and data nodes
+    Returns:
+        A boolean indicating whether the data node can be deleted or not.
+    """
+    data_node = get_data_node(name, graph)
+    return set(graph.successors(data_node)).issubset(has_executed)
+
+def get_data_node(name, graph):
+    """
+    Gets a data node from a graph using its name
+    """
+    for node in graph.nodes():
+        if node == name and isinstance(node, DataPlaceholderNode):
+            return node
+    return None

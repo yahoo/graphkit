@@ -227,6 +227,59 @@ def test_deleted_optional():
 
 
 
+def test_parallel_execution():
+    import time
+
+    def fn(x):
+        time.sleep(1)
+        print time.time() - t0, "fn"
+        return 1 + x
+
+    def fn2(a,b):
+        time.sleep(1)
+        print time.time() - t0, "fn2"
+        return a+b
+
+    def fn3(z, k=1):
+        time.sleep(1)
+        print time.time() - t0, "fn3"
+        return z + k
+
+    pipeline = compose(name="l", merge=True)(
+
+        # the following should execute in parallel under threaded execution mode
+        operation(name="a", needs="x", provides="ao")(fn),
+        operation(name="b", needs="x", provides="bo")(fn),
+
+        # this should execute after a and b have finished
+        operation(name="c", needs=["ao", "bo"], provides="co")(fn2),
+
+        operation(name="d",
+                  needs=["ao", modifiers.optional("k")],
+                  provides="do")(fn3),
+
+        operation(name="e", needs=["ao", "bo"], provides="eo")(fn2),
+        operation(name="f", needs="eo", provides="fo")(fn),
+        operation(name="g", needs="fo", provides="go")(fn)
+
+
+    )
+
+    t0 = time.time()
+    pipeline.execmethod = "parallel"
+    result_threaded = pipeline({"x": 10}, ["co", "go", "do"])
+    print "threaded result"
+    print result_threaded
+
+    t0 = time.time()
+    pipeline.execmethod = "sequential"
+    result_sequential = pipeline({"x": 10}, ["co", "go", "do"])
+    print "sequential result"
+    print result_sequential
+
+    # make sure results are the same using either method
+    assert result_sequential == result_threaded
+
 ####################################
 # Backwards compatibility
 ####################################
