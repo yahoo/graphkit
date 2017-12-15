@@ -150,7 +150,7 @@ class NetworkOperation(Operation):
         Operation.__init__(self, **kwargs)
 
         # set execution mode to single-threaded sequential by default
-        self._execution_mode = "sequential"
+        self._execution_method = "sequential"
 
     def _compute(self, named_inputs, outputs=None):
         return self.net.compute(outputs, named_inputs, method=self._execution_method)
