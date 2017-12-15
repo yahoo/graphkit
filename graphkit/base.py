@@ -133,6 +133,16 @@ class Operation(object):
             self.__setattr__(k, state[k])
         self._after_init()
 
+    def __repr__(self):
+        """
+        Display more informative names for the Operation class
+        """
+        return u"%s(name='%s', needs=%s, provides=%s)" % \
+            (self.__class__.__name__,
+             self.name,
+             self.needs,
+             self.provides)
+
 
 class NetworkOperation(Operation):
     def __init__(self, **kwargs):
