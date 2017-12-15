@@ -147,14 +147,29 @@ class Operation(object):
 class NetworkOperation(Operation):
     def __init__(self, **kwargs):
         self.net = kwargs.pop('net')
-        self.execmethod = None
         Operation.__init__(self, **kwargs)
 
+        # set execution mode to single-threaded sequential by default
+        self._execution_mode = "sequential"
+
     def _compute(self, named_inputs, outputs=None):
-        return self.net.compute(outputs, named_inputs, method=self.execmethod)
+        return self.net.compute(outputs, named_inputs, method=self._execution_method)
 
     def __call__(self, *args, **kwargs):
         return self._compute(*args, **kwargs)
+
+    def set_execution_method(self, method):
+        """
+        Determine how the network will be executed.
+
+        Args:
+            method: str
+                If "parallel", execute graph operations concurrently
+                using a threadpool.
+        """
+        options = ['parallel', 'sequential']
+        assert method in options
+        self._execution_method = method
 
     def plot(self, filename=None, show=False):
         self.net.plot(filename=filename, show=show)

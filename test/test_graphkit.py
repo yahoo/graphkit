@@ -266,13 +266,13 @@ def test_parallel_execution():
     )
 
     t0 = time.time()
-    pipeline.execmethod = "parallel"
+    pipeline.set_execution_method("parallel")
     result_threaded = pipeline({"x": 10}, ["co", "go", "do"])
     print("threaded result")
     print(result_threaded)
 
     t0 = time.time()
-    pipeline.execmethod = "sequential"
+    pipeline.set_execution_method("sequential")
     result_sequential = pipeline({"x": 10}, ["co", "go", "do"])
     print("sequential result")
     print(result_sequential)
