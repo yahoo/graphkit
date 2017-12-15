@@ -445,7 +445,8 @@ def ready_to_schedule_operation(op, has_executed, graph):
         A boolean indicating whether the operation may be scheduled for
         execution based on what has already been executed.
     """
-    dependencies = set(v for v in nx.ancestors(graph, op) if isinstance(v, Operation))
+    dependencies = set(filter(lambda v: isinstance(v, Operation),
+                              nx.ancestors(graph, op)))
     return dependencies.issubset(has_executed)
 
 def ready_to_delete_data_node(name, has_executed, graph):
