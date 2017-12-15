@@ -238,9 +238,9 @@ class Network(object):
         from multiprocessing.dummy import Pool
 
         # if we have not already created a thread_pool, create one
-        if not hasattr(self, "_pool"):
-            self._pool = Pool(thread_pool_size)
-        pool = self._pool
+        if not hasattr(self, "_thread_pool"):
+            self._thread_pool = Pool(thread_pool_size)
+        pool = self._thread_pool
 
         cache = {}
         cache.update(named_inputs)
