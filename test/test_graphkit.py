@@ -300,7 +300,7 @@ def test_multi_threading():
     pipeline = compose(name="pipeline", merge=True)(
         operation(name="op_a", needs=['a', 'b'], provides='c')(op_a),
         operation(name="op_b", needs=['c', 'b'], provides='d')(op_b),
-        operation(name="op_c", needs=['a', 'b'], provides='e')(op_b),
+        operation(name="op_c", needs=['a', 'b'], provides='e')(op_c),
     )
 
     def infer(i):
