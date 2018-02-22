@@ -280,6 +280,43 @@ def test_parallel_execution():
     # make sure results are the same using either method
     assert result_sequential == result_threaded
 
+def test_multi_threading():
+    import time
+    import random
+    from multiprocessing.dummy import Pool
+
+    def op_a(a, b):
+        time.sleep(random.random()*.02)
+        return a+b
+
+    def op_b(c, b):
+        time.sleep(random.random()*.02)
+        return c+b
+
+    def op_c(a, b):
+        time.sleep(random.random()*.02)
+        return a*b
+
+    pipeline = compose(name="pipeline", merge=True)(
+        operation(name="op_a", needs=['a', 'b'], provides='c')(op_a),
+        operation(name="op_b", needs=['c', 'b'], provides='d')(op_b),
+        operation(name="op_c", needs=['a', 'b'], provides='e')(op_c),
+    )
+
+    def infer(i):
+        # data = open("616039-bradpitt.jpg").read()
+        outputs = ["c", "d", "e"]
+        results = pipeline({"a": 1, "b":2}, outputs)
+        assert tuple(sorted(results.keys())) == tuple(sorted(outputs)), (outputs, results)
+        return results
+
+    N = 100
+    for i in range(20, 200):
+        pool = Pool(i)
+        pool.map(infer, range(N))
+        pool.close()
+
+
 ####################################
 # Backwards compatibility
 ####################################
