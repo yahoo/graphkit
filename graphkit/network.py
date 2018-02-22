@@ -49,6 +49,11 @@ class Network(object):
         # a compiled list of steps to evaluate layers *in order* and free mem.
         self.steps = []
 
+        # This holds a cache of results for the _find_necessary_steps
+        # function, this helps speed up the compute call as well avoid
+        # a multithreading issue that is occuring when accessing the
+        # graph in networkx
+        self._necessary_steps_cache = {}
 
 
     def add_op(self, operation):
@@ -157,6 +162,14 @@ class Network(object):
             provided inputs and requested outputs.
         """
 
+        # return steps if it has already been computed before for this set of inputs and outputs
+        outputs = tuple(sorted(outputs)) if isinstance(outputs, (list, set)) else outputs
+        inputs_keys = tuple(sorted(inputs.keys()))
+        cache_key = (inputs_keys, outputs)
+        if cache_key in self._necessary_steps_cache:
+            return self._necessary_steps_cache[cache_key]
+
+        graph = self.graph
         if not outputs:
 
             # If caller requested all outputs, the necessary nodes are all
@@ -164,8 +177,8 @@ class Network(object):
             # names that aren't in the graph.
             necessary_nodes = set()
             for input_name in iter(inputs):
-                if self.graph.has_node(input_name):
-                    necessary_nodes |= nx.descendants(self.graph, input_name)
+                if graph.has_node(input_name):
+                    necessary_nodes |= nx.descendants(graph, input_name)
 
         else:
 
@@ -175,24 +188,30 @@ class Network(object):
             # in the graph.
             unnecessary_nodes = set()
             for input_name in iter(inputs):
-                if self.graph.has_node(input_name):
-                    unnecessary_nodes |= nx.ancestors(self.graph, input_name)
+                if graph.has_node(input_name):
+                    unnecessary_nodes |= nx.ancestors(graph, input_name)
 
             # Find the nodes we need to be able to compute the requested
             # outputs.  Raise an exception if a requested output doesn't
             # exist in the graph.
             necessary_nodes = set()
             for output_name in outputs:
-                if not self.graph.has_node(output_name):
+                if not graph.has_node(output_name):
                     raise ValueError("graphkit graph does not have an output "
                                      "node named %s" % output_name)
-                necessary_nodes |= nx.ancestors(self.graph, output_name)
+                necessary_nodes |= nx.ancestors(graph, output_name)
 
             # Get rid of the unnecessary nodes from the set of necessary ones.
             necessary_nodes -= unnecessary_nodes
 
+
+        necessary_steps = [step for step in self.steps if step in necessary_nodes]
+
+        # save this result in a precomputed cache for future lookup
+        self._necessary_steps_cache[cache_key] = necessary_steps
+
         # Return an ordered list of the needed steps.
-        return [step for step in self.steps if step in necessary_nodes]
+        return necessary_steps
 
 
     def compute(self, outputs, named_inputs, method=None):
