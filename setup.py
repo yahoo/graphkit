@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 # Copyright 2016, Yahoo Inc.
 # Licensed under the terms of the Apache License, Version 2.0. See the LICENSE file associated with the project for terms.
-
 import os
+import re
+import io
 from setuptools import setup
 
 LONG_DESCRIPTION = """
@@ -13,15 +14,14 @@ those operations.  Such graphs are useful in computer vision, machine learning,
 and many other domains.
 """
 
-# Grab the version as the tag name from the Travis build, or else use a default.
-if os.path.isfile('VERSION'):
-     VERSION = open('VERSION').read()
-else:
-     VERSION = os.environ.get('TRAVIS_TAG', '1.1')
+# Grab the version using convention described by flask
+# https://github.com/pallets/flask/blob/master/setup.py#L10
+with io.open('graphkit/__init__.py', 'rt', encoding='utf8') as f:
+    version = re.search(r'__version__ = \'(.*?)\'', f.read()).group(1)
 
 setup(
      name='graphkit',
-     version=VERSION,
+     version=version,
      description='Lightweight computation graphs for Python',
      long_description=LONG_DESCRIPTION,
      author='Huy Nguyen, Arel Cordero, Pierre Garrigues, Rob Hess, Tobi Baumgartner, Clayton Mellina',
