@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # Copyright 2016, Yahoo Inc.
 # Licensed under the terms of the Apache License, Version 2.0. See the LICENSE file associated with the project for terms.
-
+import os
+import re
 import io
 from setuptools import setup
 
@@ -15,8 +16,6 @@ and many other domains.
 
 # Grab the version using convention described by flask
 # https://github.com/pallets/flask/blob/master/setup.py#L10
-import os
-import re
 with io.open('graphkit/__init__.py', 'rt', encoding='utf8') as f:
     version = re.search(r'__version__ = \'(.*?)\'', f.read()).group(1)
 
