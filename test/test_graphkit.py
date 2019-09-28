@@ -209,18 +209,40 @@ def test_optional():
 
 def test_tokens():
     # Function without return value.
-    def sideeffect(n):
-        n[0] += 2
+    def extend(box):
+        box.extend([1, 2])
+
+    def increment(box):
+        for i in range(len(box)):
+            box[i] += 1
 
     # Designate `a`, `b` as token inp/out arguments.
     graph = compose('mygraph')(
         operation(
-            name='sideeffect',
-            needs=['n', modifiers.token('a')],
-            provides=[modifiers.token('b')])(sideeffect)
+            name='extend',
+            needs=['box', modifiers.token('a')],
+            provides=[modifiers.token('b')])(extend),
+        operation(
+            name='increment',
+            needs=['box', modifiers.token('b')],
+            provides=modifiers.token('c'))(increment),
     )
 
-    assert graph({'n': [0]})['n'] == [2]
+    assert graph({'box': [0]})['box'] == [1, 2, 3]
+
+    # Reverse order of functions.
+    graph = compose('mygraph')(
+        operation(
+            name='increment',
+            needs=['box', modifiers.token('a')],
+            provides=modifiers.token('b'))(increment),
+        operation(
+            name='extend',
+            needs=['box', modifiers.token('b')],
+            provides=[modifiers.token('c')])(extend),
+    )
+
+    assert graph({'box': [0]})['box'] == [1, 1, 2]
 
 
 def test_deleted_optional():
