@@ -9,11 +9,7 @@ file associated with the project for terms.
 """
 
 
-class modifier(str):
-    pass
-
-
-class optional(modifier):
+class optional(str):
     """
     Input values in ``needs`` may be designated as optional using this modifier.
     If this modifier is applied to an input value, that value will be input to
@@ -45,7 +41,7 @@ class optional(modifier):
     pass
 
 
-class token(modifier):
+class token(str):
     """
     Inputs & outputs in ``needs`` & ``provides`` may be designated as *tokens*
     using this modifier.  *Tokens* work as usual while solving the DAG but
