@@ -28,7 +28,10 @@ setup(
      author_email='huyng@yahoo-inc.com',
      url='http://github.com/yahoo/graphkit',
      packages=['graphkit'],
-     install_requires=['networkx'],
+     install_requires=[
+          "networkx; python_version >= '3.5'",
+          "networkx == 2.2; python_version < '3.5'",
+     ],
      extras_require={
           'plot': ['pydot', 'matplotlib']
      },
