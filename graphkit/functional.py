@@ -84,18 +84,20 @@ class operation(Operation):
     def _normalize_kwargs(self, kwargs):
 
         # Allow single value for needs parameter
-        if 'needs' in kwargs and type(kwargs['needs']) == str:
-            assert kwargs['needs'], "empty string provided for `needs` parameters"
-            kwargs['needs'] = [kwargs['needs']]
+        needs = kwargs['needs']
+        if isinstance(needs, str) and not isinstance(needs, optional):
+            assert needs, "empty string provided for `needs` parameters"
+            kwargs['needs'] = [needs]
 
         # Allow single value for provides parameter
-        if 'provides' in kwargs and type(kwargs['provides']) == str:
-            assert kwargs['provides'], "empty string provided for `needs` parameters"
-            kwargs['provides'] = [kwargs['provides']]
+        provides = kwargs.get('provides')
+        if isinstance(provides, str):
+            assert provides, "empty string provided for `needs` parameters"
+            kwargs['provides'] = [provides]
 
         assert kwargs['name'], "operation needs a name"
-        assert type(kwargs['needs']) == list, "no `needs` parameter provided"
-        assert type(kwargs['provides']) == list, "no `provides` parameter provided"
+        assert isinstance(kwargs['needs'], list), "no `needs` parameter provided"
+        assert isinstance(kwargs['provides'], list), "no `provides` parameter provided"
         assert hasattr(kwargs['fn'], '__call__'), "operation was not provided with a callable"
 
         if type(kwargs['params']) is not dict:
