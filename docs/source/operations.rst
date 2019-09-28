@@ -134,3 +134,4 @@ Modifiers on ``operation`` inputs and outputs
 Certain modifiers are available to apply to input or output values in ``needs`` and ``provides``, for example to designate an optional input.  These modifiers are available in the ``graphkit.modifiers`` module:
 
 .. autoclass:: graphkit.modifiers.optional
+.. autoclass:: graphkit.modifiers.token

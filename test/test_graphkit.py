@@ -207,6 +207,21 @@ def test_optional():
     assert 'sum' in results
     assert results['sum'] == sum(named_inputs.values())
 
+def test_tokens():
+    # Function without return value.
+    def sideeffect(n):
+        n[0] += 2
+
+    # Designate `a`, `b` as token inp/out arguments.
+    graph = compose('mygraph')(
+        operation(
+            name='sideeffect',
+            needs=['n', modifiers.token('a')],
+            provides=[modifiers.token('b')])(sideeffect)
+    )
+
+    assert graph({'n': [0]})['n'] == [2]
+
 
 def test_deleted_optional():
     # Test that DeleteInstructions included for optionals do not raise

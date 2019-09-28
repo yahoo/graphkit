@@ -8,7 +8,12 @@ Licensed under the terms of the Apache License, Version 2.0. See the LICENSE
 file associated with the project for terms.
 """
 
-class optional(str):
+
+class modifier(str):
+    pass
+
+
+class optional(modifier):
     """
     Input values in ``needs`` may be designated as optional using this modifier.
     If this modifier is applied to an input value, that value will be input to
@@ -28,7 +33,7 @@ class optional(str):
 
         # Designate c as an optional argument.
         graph = compose('mygraph')(
-            operator(name='myadd', needs=['a', 'b', optional('c')], provides='sum')(myadd)
+            operation(name='myadd', needs=['a', 'b', optional('c')], provides='sum')(myadd)
         )
 
         # The graph works with and without 'c' provided as input.
@@ -36,4 +41,46 @@ class optional(str):
         assert graph({'a': 5, 'b': 2})['sum'] == 7
 
     """
+
+    pass
+
+
+class token(modifier):
+    """
+    Inputs & outputs in ``needs`` & ``provides`` may be designated as *tokens*
+    using this modifier.  *Tokens* work as usual while solving the DAG but
+    they are never assigned any values to/from the ``operation`` functions.
+    Specifically:
+
+    - input tokens are NOT fed into the function;
+    - output tokens are NOT expected from the function.
+
+    Their purpose is to describe functions that have side-effects.
+    Note that an ``operation`` with just a single *token* output return
+    no value at all (it is called only for its side-effects).
+
+    A typical use case is to signify columns required to produce new ones in
+    pandas dataframes::
+
+        from graphkit import operation, compose
+        from graphkit.modifiers import token
+
+        # Function appending a new dataframe column from two pre-existing ones.
+        def addcolumns(df):
+            df['sum'] = df['a'] + df['b']
+
+        # Designate `a`, `b` & `sum` column names as an token arguments.
+        graph = compose('mygraph')(
+            operation(
+                name='addcolumns',
+                needs=['df', token('a'), token('b')],
+                provides=[token('sum')])(addcolumns)
+        )
+
+        # The graph works with and without 'c' provided as input.
+        df = pd.DataFrame({'a': [5], 'b': [2]})
+        assert graph({'df': df})['sum'] == 11
+
+    """
+
     pass

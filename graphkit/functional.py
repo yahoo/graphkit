@@ -5,7 +5,7 @@ from itertools import chain
 
 from .base import Operation, NetworkOperation
 from .network import Network
-from .modifiers import optional
+from .modifiers import modifier, optional, token
 
 
 class FunctionalOperation(Operation):
@@ -14,7 +14,7 @@ class FunctionalOperation(Operation):
         Operation.__init__(self, **kwargs)
 
     def _compute(self, named_inputs, outputs=None):
-        inputs = [named_inputs[d] for d in self.needs if not isinstance(d, optional)]
+        inputs = [named_inputs[d] for d in self.needs if not isinstance(d, modifier)]
 
         # Find any optional inputs in named_inputs.  Get only the ones that
         # are present there, no extra `None`s.
@@ -22,13 +22,21 @@ class FunctionalOperation(Operation):
 
         # Combine params and optionals into one big glob of keyword arguments.
         kwargs = {k: v for d in (self.params, optionals) for k, v in d.items()}
+
         result = self.fn(*inputs, **kwargs)
-        if len(self.provides) == 1:
+
+        # Don't expect token outputs.
+        provides = [n for n in self.provides if not isinstance(n, token)]
+        if not provides:
+            # All outputs were tokens.
+            return {}
+
+        if len(provides) == 1:
             result = [result]
 
-        result = zip(self.provides, result)
+        result = zip(provides, result)
         if outputs:
-            outputs = set(outputs)
+            outputs = set(n for n in outputs if not isinstance(n, token))
             result = filter(lambda x: x[0] in outputs, result)
 
         return dict(result)
