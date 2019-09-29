@@ -375,6 +375,17 @@ class Network(object):
             return {k: cache[k] for k in iter(cache) if k in outputs}
 
 
+    @staticmethod
+    def supported_plot_writers():
+        return {
+            ".png": lambda gplot: gplot.create_png(),
+            ".dot": lambda gplot: gplot.to_string(),
+            ".jpg": lambda gplot: gplot.create_jpeg(),
+            ".jpeg": lambda gplot: gplot.create_jpeg(),
+            ".pdf": lambda gplot: gplot.create_pdf(),
+            ".svg": lambda gplot: gplot.create_svg(),
+        }
+
     def plot(self, filename=None, show=False):
         """
         Plot the graph.
@@ -422,23 +433,16 @@ class Network(object):
 
         # save plot
         if filename:
-            supported_plot_formaters = {
-                ".png": g.create_png,
-                ".dot": g.to_string,
-                ".jpg": g.create_jpeg,
-                ".jpeg": g.create_jpeg,
-                ".pdf": g.create_pdf,
-                ".svg": g.create_svg,
-            }
             _basename, ext = os.path.splitext(filename)
-            plot_formater = supported_plot_formaters.get(ext.lower())
-            if not plot_formater:
-                raise Exception(
+            writers = Network.supported_plot_writers()
+            plot_writer = Network.supported_plot_writers().get(ext.lower())
+            if not plot_writer:
+                raise ValueError(
                     "Unknown file format for saving graph: %s"
-                    "  File extensions must be one of: .png .dot .jpg .jpeg .pdf .svg"
-                    % ext)
+                    "  File extensions must be one of: %s"
+                    % (ext, ' '.join(writers)))
             with open(filename, "wb") as fh:
-                fh.write(plot_formater())
+                fh.write(plot_writer(g))
 
         # display graph via matplotlib
         if show:
