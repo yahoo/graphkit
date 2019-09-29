@@ -435,7 +435,10 @@ class Network(object):
                 elif ext.lower() == ".svg":
                     fh.write(g.create_svg())
                 else:
-                    raise Exception("Unknown file format for saving graph: %s" % ext)
+                    raise Exception(
+                        "Unknown file format for saving graph: %s"
+                        "  File extensions must be one of: .png .dot .jpg .jpeg .pdf .svg"
+                        % ext)
 
         # display graph via matplotlib
         if show:
