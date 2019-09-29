@@ -422,8 +422,8 @@ class Network(object):
 
         # save plot
         if filename:
-            basename, ext = os.path.splitext(filename)
-            with open(filename, "w") as fh:
+            _basename, ext = os.path.splitext(filename)
+            with open(filename, "wb") as fh:
                 if ext.lower() == ".png":
                     fh.write(g.create_png())
                 elif ext.lower() == ".dot":
