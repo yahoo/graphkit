@@ -422,23 +422,23 @@ class Network(object):
 
         # save plot
         if filename:
+            supported_plot_formaters = {
+                ".png": g.create_png,
+                ".dot": g.to_string,
+                ".jpg": g.create_jpeg,
+                ".jpeg": g.create_jpeg,
+                ".pdf": g.create_pdf,
+                ".svg": g.create_svg,
+            }
             _basename, ext = os.path.splitext(filename)
+            plot_formater = supported_plot_formaters.get(ext.lower())
+            if not plot_formater:
+                raise Exception(
+                    "Unknown file format for saving graph: %s"
+                    "  File extensions must be one of: .png .dot .jpg .jpeg .pdf .svg"
+                    % ext)
             with open(filename, "wb") as fh:
-                if ext.lower() == ".png":
-                    fh.write(g.create_png())
-                elif ext.lower() == ".dot":
-                    fh.write(g.to_string())
-                elif ext.lower() in [".jpg", ".jpeg"]:
-                    fh.write(g.create_jpeg())
-                elif ext.lower() == ".pdf":
-                    fh.write(g.create_pdf())
-                elif ext.lower() == ".svg":
-                    fh.write(g.create_svg())
-                else:
-                    raise Exception(
-                        "Unknown file format for saving graph: %s"
-                        "  File extensions must be one of: .png .dot .jpg .jpeg .pdf .svg"
-                        % ext)
+                fh.write(plot_formater())
 
         # display graph via matplotlib
         if show:
