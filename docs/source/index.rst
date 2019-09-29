@@ -69,6 +69,18 @@ Here's a Python script with an example GraphKit computation graph that produces 
 
 As you can see, any function can be used as an operation in GraphKit, even ones imported from system modules!
 
+For debugging, you may plot the workflow with one of these methods::
+
+   graph.net.plot(show=True)               # open a matplotlib window
+   graph.net.plot("path/to/workflow.png")  # supported files: .png .dot .jpg .jpeg .pdf .svg
+
+.. NOTE:: 
+  For plots, ``graphviz`` must be in your PATH, and ``pydot` & ``matplotlib`` python packages installed.
+  You may install both when installing *graphkit* with its `plot` extras::
+ 
+      pip install graphkit[plot]
+
+
 License
 -------
 
