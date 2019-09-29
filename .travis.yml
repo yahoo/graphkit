@@ -4,11 +4,16 @@ python:
   - "2.7"
   - "3.4"
   - "3.5"
+addons:
+  apt:
+    packages:
+      - graphviz
+
 
 install:
   - pip install Sphinx sphinx_rtd_theme codecov packaging
   - "python -c $'import os, packaging.version as version\\nv = version.parse(os.environ.get(\"TRAVIS_TAG\", \"1.0\")).public\\nwith open(\"VERSION\", \"w\") as f: f.write(v)'"
-  - python setup.py install
+  - pip install .[plot]
   - cd docs
   - make clean html
   - cd ..

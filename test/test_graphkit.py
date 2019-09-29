@@ -3,6 +3,10 @@
 
 import math
 import pickle
+import os.path as osp
+import shutil
+import tempfile
+
 
 from pprint import pprint
 from operator import add
@@ -315,6 +319,22 @@ def test_multi_threading():
         pool = Pool(i)
         pool.map(infer, range(N))
         pool.close()
+
+
+def test_plotting():
+    sum_op1 = operation(name='sum_op1', needs=['a', 'b'], provides='sum1')(add)
+    sum_op2 = operation(name='sum_op2', needs=['a', 'b'], provides='sum2')(add)
+    sum_op3 = operation(name='sum_op3', needs=['sum1', 'c'], provides='sum3')(add)
+    net1 = compose(name='my network 1')(sum_op1, sum_op2, sum_op3)
+
+    for ext in ".png .dot .jpg .jpeg .pdf .svg".split():
+        tdir = tempfile.mkdtemp(suffix=ext)
+        png_file = osp.join(tdir, "workflow.png")
+        net1.net.plot(png_file)
+        try:
+            assert osp.exists(png_file)
+        finally:
+            shutil.rmtree(tdir, ignore_errors=True)
 
 
 ####################################
