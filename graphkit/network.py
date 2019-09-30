@@ -8,6 +8,7 @@ import networkx as nx
 from io import StringIO
 
 from .base import Operation
+from . import modifiers
 
 
 class DataPlaceholderNode(str):
@@ -73,9 +74,16 @@ class Network(object):
         # assert layer is only added once to graph
         assert operation not in self.graph.nodes(), "Operation may only be added once"
 
+        # functionalOperations don't have that set.
+        if not operation.net:
+            operation.net = self
+            
         # add nodes and edges to graph describing the data needs for this layer
         for n in operation.needs:
-            self.graph.add_edge(DataPlaceholderNode(n), operation)
+            if isinstance(n, modifiers.optional):
+                self.graph.add_edge(DataPlaceholderNode(n), operation, optional=True)
+            else:
+                self.graph.add_edge(DataPlaceholderNode(n), operation)
 
         # add nodes and edges to graph describing what this layer provides
         for p in operation.provides:
@@ -107,7 +115,7 @@ class Network(object):
         self.steps = []
 
         # create an execution order such that each layer's needs are provided.
-        ordered_nodes = list(nx.dag.topological_sort(self.graph))
+        ordered_nodes = list(nx.topological_sort(self.graph))
 
         # add Operations evaluation steps, and instructions to free data.
         for i, node in enumerate(ordered_nodes):
