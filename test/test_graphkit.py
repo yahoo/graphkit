@@ -5,7 +5,7 @@ import math
 import pickle
 
 from pprint import pprint
-from operator import add
+from operator import add, mul, floordiv
 from numpy.testing import assert_raises
 
 import graphkit.network as network
@@ -69,6 +69,22 @@ def test_network():
 
     # visualize network graph
     # net.plot(show=True)
+
+
+def test_operations_with_partial_inputs_ignored():
+    graph = compose(name="graph")(
+        operation(name="mul", needs=["a", "b1"], provides=["ab"])(mul),
+        operation(name="div", needs=["a", "b2"], provides=["ab"])(floordiv),
+        operation(name="add", needs=["ab", "c"], provides=["ab_plus_c"])(add),
+    )
+    
+    exp = {"a": 10, "b1": 2, "c": 1, "ab": 20, "ab_plus_c": 21}
+    assert graph({"a": 10, "b1": 2, "c": 1}) == exp
+    assert graph({"a": 10, "b1": 2, "c": 1}, outputs=["ab_plus_c"]) == {"ab_plus_c": 21}
+
+    exp = {"a": 10, "b2": 2, "c": 1, "ab": 5, "ab_plus_c": 6}
+    assert graph({"a": 10, "b2": 2, "c": 1}) == exp
+    assert graph({"a": 10, "b2": 2, "c": 1}, outputs=["ab_plus_c"]) == {"ab_plus_c": 6}
 
 
 def test_network_simple_merge():
