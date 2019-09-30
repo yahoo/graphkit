@@ -226,6 +226,30 @@ def test_optional():
     assert results['sum'] == sum(named_inputs.values())
 
 
+def test_optional_per_function():
+    # Test that the same need can be both optional and not on different operations.
+    net = compose(name='partial_optionals')(
+        operation(name='sum', needs=['a', 'b'], provides='a+b')(add),
+        operation(name='sub_opt', needs=['a', modifiers.optional('b')], provides='a+b')
+        (lambda a, b=10: a - b),
+    )
+
+    named_inputs = {'a': 1, 'b': 2}
+    results = net(named_inputs)
+    assert 'a+b' in results
+    assert results['a+b'] == sum(named_inputs.values())
+    results = net(named_inputs, ['a+b'])
+    assert 'a+b' in results
+    assert results['a+b'] == sum(named_inputs.values())
+
+    named_inputs = {'a': 1}
+    results = net(named_inputs)
+    assert 'a+b' in results
+    assert results['a+b'] == -9
+    assert 'a+b' in results
+    assert results['a+b'] == -9
+
+
 def test_deleted_optional():
     # Test that DeleteInstructions included for optionals do not raise
     # exceptions when the corresponding input is not prodided.
