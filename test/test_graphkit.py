@@ -5,7 +5,7 @@ import math
 import pickle
 
 from pprint import pprint
-from operator import add
+from operator import add, sub, floordiv, mul
 from numpy.testing import assert_raises
 
 import graphkit.network as network
@@ -182,6 +182,38 @@ def test_pruning_raises_for_bad_output():
     # that this raises a ValueError.
     assert_raises(ValueError, net, {'a': 1, 'b': 2, 'c': 3, 'd': 4},
         outputs=['sum1', 'sum3', 'sum4'])
+
+
+def test_unsatisfied_operations():
+    # Test that operations with partial inputs are culled and not failing.
+    graph = compose(name="graph")(
+        operation(name="add", needs=["a", "b1"], provides=["a+b1"])(add),
+        operation(name="sub", needs=["a", "b2"], provides=["a-b2"])(sub),
+    )
+    
+    exp = {"a": 10, "b1": 2, "a+b1": 12}
+    assert graph({"a": 10, "b1": 2}) == exp
+    assert graph({"a": 10, "b1": 2}, outputs=["a+b1"]) == {"a+b1": 12}
+
+    exp = {"a": 10, "b2": 2, "a-b2": 8}
+    assert graph({"a": 10, "b2": 2}) == exp
+    assert graph({"a": 10, "b2": 2}, outputs=["a-b2"]) == {"a-b2": 8}
+
+def test_unsatisfied_operations_same_out():
+    # Test unsatisfied pairs of operations providing the same output.
+    graph = compose(name="graph")(
+        operation(name="mul", needs=["a", "b1"], provides=["ab"])(mul),
+        operation(name="div", needs=["a", "b2"], provides=["ab"])(floordiv),
+        operation(name="add", needs=["ab", "c"], provides=["ab_plus_c"])(add),
+    )
+    
+    exp = {"a": 10, "b1": 2, "c": 1, "ab": 20, "ab_plus_c": 21}
+    assert graph({"a": 10, "b1": 2, "c": 1}) == exp
+    assert graph({"a": 10, "b1": 2, "c": 1}, outputs=["ab_plus_c"]) == {"ab_plus_c": 21}
+
+    exp = {"a": 10, "b2": 2, "c": 1, "ab": 5, "ab_plus_c": 6}
+    assert graph({"a": 10, "b2": 2, "c": 1}) == exp
+    assert graph({"a": 10, "b2": 2, "c": 1}, outputs=["ab_plus_c"]) == {"ab_plus_c": 6}
 
 
 def test_optional():
