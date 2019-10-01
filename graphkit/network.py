@@ -126,19 +126,16 @@ class Network(object):
                 # Add instructions to delete predecessors as possible.  A
                 # predecessor may be deleted if it is a data placeholder that
                 # is no longer needed by future Operations.
-                for predecessor in self.graph.predecessors(node):
+                for need in self.graph.pred[node]:
                     if self._debug:
-                        print("checking if node %s can be deleted" % predecessor)
-                    predecessor_still_needed = False
+                        print("checking if node %s can be deleted" % need)
                     for future_node in ordered_nodes[i+1:]:
-                        if isinstance(future_node, Operation):
-                            if predecessor in future_node.needs:
-                                predecessor_still_needed = True
-                                break
-                    if not predecessor_still_needed:
+                        if isinstance(future_node, Operation) and need in future_node.needs:
+                            break
+                    else:
                         if self._debug:
-                            print("  adding delete instruction for %s" % predecessor)
-                        self.steps.append(DeleteInstruction(predecessor))
+                            print("  adding delete instruction for %s" % need)
+                        self.steps.append(DeleteInstruction(need))
 
             else:
                 raise TypeError("Unrecognized network graph node")
