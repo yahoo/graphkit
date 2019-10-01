@@ -5,7 +5,10 @@ import time
 import os
 import networkx as nx
 
+from collections import defaultdict
 from io import StringIO
+from itertools import chain
+
 
 from boltons.setutils import IndexedSet as iset
 
@@ -138,66 +141,45 @@ class Network(object):
                         self.steps.append(DeleteInstruction(need))
 
             else:
-                raise TypeError("Unrecognized network graph node")
+                raise TypeError("Unrecognized network graph node %s" % type(node))
 
 
-    def _collect_satisfiable_needs(self, operation, inputs, satisfiables, visited):
+    def _collect_unsatisfiable_operations(self, necessary_nodes, inputs):
         """
-        Recusrively check if operation inputs are given/calculated (satisfied), or not.
+        Traverse ordered graph and mark satisfied needs on each operation,
 
-        :param satisfiables:
-            the set to populate with satisfiable operations
+        collecting those missing at least one.
+        Since the graph is ordered, as soon as we're on an operation,
+        all its needs have been accounted, so we can get its satisfaction.  
 
-        :param visited:
-            a cache of operations & needs, not to visit them again
-        :return:
-            true if opearation is satisfiable
+        :param necessary_nodes:
+            the subset of the graph to consider but WITHOUT the initial data
+            (because that is what :meth:`_find_necessary_steps()` can gives us...)
+        :param inputs:
+            an iterable of the names of the input values
+        return:
+            a list of unsatisfiable operations
         """
-        assert isinstance(operation, Operation), (
-            "Expected Operation, got:",
-            type(operation),
-        )
+        G = self.graph  # shortcut
+        ok_data = set(inputs)  # to collect producible data
+        op_satisfaction = defaultdict(set)  # to collect operation satisfiable needs
+        unsatisfiables = []  # to collect operations with partial needs
+        # We also need inputs to mark op_satisfaction.
+        nodes = chain(necessary_nodes, inputs)  # note that `inputs` are plain strings
+        for node in nx.topological_sort(G.subgraph(nodes)):
+            if isinstance(node, Operation):
+                real_needs = set(n for n in node.needs if not isinstance(n, optional))
+                if real_needs.issubset(op_satisfaction[node]):
+                    # mark all future data-provides as ok
+                    ok_data.update(G.adj[node])
+                else:
+                    unsatisfiables.append(node)
+            elif isinstance(node, (DataPlaceholderNode, str)) and node in ok_data:
+                # mark satisfied-needs on all future operations
+                for future_op in G.adj[node]:
+                    op_satisfaction[future_op].add(node)
 
-        if operation in visited:
-            return visited[operation]
-
-
-        def is_need_satisfiable(need):
-            if need in visited:
-                return visited[need]
-
-            if need in inputs:
-                satisfied = True
-            else:
-                need_providers = list(self.graph.predecessors(need))
-                satisfied = bool(need_providers) and any(
-                    self._collect_satisfiable_needs(op, inputs, satisfiables, visited)
-                    for op in need_providers
-                )
-            visited[need] = satisfied
-
-            return satisfied
-
-        satisfied = all(
-            is_need_satisfiable(need)
-            for need in operation.needs
-            if not isinstance(need, optional)
-        )
-        if satisfied:
-            satisfiables.add(operation)
-        visited[operation] = satisfied
-
-        return satisfied
-
-
-    def _collect_satisfiable_operations(self, nodes, inputs):
-        satisfiables = set()  # unordered, not iterated
-        visited = {}
-        for node in nodes:
-            if node not in visited and isinstance(node, Operation):
-                self._collect_satisfiable_needs(node, inputs, satisfiables, visited)
-
-        return satisfiables
+        return unsatisfiables
 
 
     def _find_necessary_steps(self, outputs, inputs):
@@ -264,12 +246,10 @@ class Network(object):
             necessary_nodes -= unnecessary_nodes
 
         # Drop (un-satifiable) operations with partial inputs.
-        # See https://github.com/yahoo/graphkit/pull/18
+        # See yahoo/graphkit#18
         #
-        satisfiables = self._collect_satisfiable_operations(necessary_nodes, inputs)
-        for node in list(necessary_nodes):
-            if isinstance(node, Operation) and node not in satisfiables:
-                necessary_nodes.remove(node)
+        unsatisfiables = self._collect_unsatisfiable_operations(necessary_nodes, inputs)
+        necessary_nodes -= set(unsatisfiables)
 
         necessary_steps = [step for step in self.steps if step in necessary_nodes]
 
