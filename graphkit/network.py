@@ -7,6 +7,8 @@ import networkx as nx
 
 from io import StringIO
 
+from boltons.setutils import IndexedSet as iset
+
 from .base import Operation
 
 
@@ -107,7 +109,7 @@ class Network(object):
         self.steps = []
 
         # create an execution order such that each layer's needs are provided.
-        ordered_nodes = list(nx.dag.topological_sort(self.graph))
+        ordered_nodes = iset(nx.topological_sort(self.graph))
 
         # add Operations evaluation steps, and instructions to free data.
         for i, node in enumerate(ordered_nodes):
@@ -163,7 +165,7 @@ class Network(object):
         """
 
         # return steps if it has already been computed before for this set of inputs and outputs
-        outputs = tuple(sorted(outputs)) if isinstance(outputs, (list, set)) else outputs
+        outputs = tuple(sorted(outputs)) if isinstance(outputs, (list, set, iset)) else outputs
         inputs_keys = tuple(sorted(inputs.keys()))
         cache_key = (inputs_keys, outputs)
         if cache_key in self._necessary_steps_cache:
@@ -175,7 +177,7 @@ class Network(object):
             # If caller requested all outputs, the necessary nodes are all
             # nodes that are reachable from one of the inputs.  Ignore input
             # names that aren't in the graph.
-            necessary_nodes = set()
+            necessary_nodes = set()  # unordered, not iterated
             for input_name in iter(inputs):
                 if graph.has_node(input_name):
                     necessary_nodes |= nx.descendants(graph, input_name)
@@ -186,7 +188,7 @@ class Network(object):
             # are made unecessary because we were provided with an input that's
             # deeper into the network graph.  Ignore input names that aren't
             # in the graph.
-            unnecessary_nodes = set()
+            unnecessary_nodes = set()  # unordered, not iterated
             for input_name in iter(inputs):
                 if graph.has_node(input_name):
                     unnecessary_nodes |= nx.ancestors(graph, input_name)
@@ -194,7 +196,7 @@ class Network(object):
             # Find the nodes we need to be able to compute the requested
             # outputs.  Raise an exception if a requested output doesn't
             # exist in the graph.
-            necessary_nodes = set()
+            necessary_nodes = set()  # unordered, not iterated
             for output_name in outputs:
                 if not graph.has_node(output_name):
                     raise ValueError("graphkit graph does not have an output "
@@ -266,7 +268,7 @@ class Network(object):
         necessary_nodes = self._find_necessary_steps(outputs, named_inputs)
 
         # this keeps track of all nodes that have already executed
-        has_executed = set()
+        has_executed = set()  # unordered, not iterated
 
         # with each loop iteration, we determine a set of operations that can be
         # scheduled, then schedule them onto a thread pool, then collect their
@@ -464,6 +466,7 @@ def ready_to_schedule_operation(op, has_executed, graph):
         A boolean indicating whether the operation may be scheduled for
         execution based on what has already been executed.
     """
+    # unordered, not iterated
     dependencies = set(filter(lambda v: isinstance(v, Operation),
                               nx.ancestors(graph, op)))
     return dependencies.issubset(has_executed)
