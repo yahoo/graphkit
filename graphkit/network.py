@@ -307,11 +307,12 @@ class Network(object):
         :returns: a dictionary of output data objects, keyed by name.
         """
 
-        # assert that network has been compiled
-        assert self.steps, "network must be compiled before calling compute."
         assert isinstance(outputs, (list, tuple)) or outputs is None,\
             "The outputs argument must be a list"
 
+        # Compile lazily here.
+        if not self.steps:
+            self.compile()
 
         # choose a method of execution
         if method == "parallel":

@@ -209,6 +209,5 @@ class compose(object):
         net = Network()
         for op in operations:
             net.add_op(op)
-        net.compile()
 
         return NetworkOperation(name=self.name, needs=needs, provides=provides, params={}, net=net)
