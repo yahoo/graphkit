@@ -31,6 +31,7 @@ setup(
      install_requires=[
           "networkx; python_version >= '3.5'",
           "networkx == 2.2; python_version < '3.5'",
+          "boltons"  # for IndexSet
      ],
      extras_require={
           'plot': ['pydot', 'matplotlib']
