@@ -27,8 +27,8 @@ class DataPlaceholderNode(str):
 
 class DeleteInstruction(str):
     """
-    An instruction in the compiled list of operation steps to free or delete
-    a Data instance from the Network's cache after it is no longer needed.
+    An instruction in the *execution plan* to free or delete a Data instance
+    from the Network's cache after it is no longer needed.
     """
     def __repr__(self):
         return 'DeleteInstruction("%s")' % self
@@ -41,24 +41,33 @@ class Network(object):
     and pass data through.
 
     The computation, ie the execution of the *operations* for given *inputs*
-    and asked *outputs* is based on 4 data-structures:
+    and asked *outputs* is based on 3 data-structures:
 
-    - The `networkx` :attr:`graph` DAG, containing interchanging layers of
+    - The ``networkx`` :attr:`graph` DAG, containing interchanging layers of
       :class:`Operation` and :class:`DataPlaceholderNode` nodes.
-      They are layed out and connected by :meth:`add_OP`.
+      They are layed out and connected by repeated calls of :meth:`add_OP`.
 
-    - the :attr:`steps` list holding all operation nodes in *execution order*.
-      It is constructed in :meth:`compile()` after all nodes have been added
-      into the `graph`.
+      When the computation starts, :meth:`compile()` extracts a *DAG subgraph*
+      by *pruning* nodes based on given inputs and requested outputs.
+      This subgraph is used to decide the `execution_plan` (see below), and
+      and is cached in :attr:`_cached_execution_plans` across runs with
+      thre inputs/outputs as key.
 
-    - The ``necessary_steps`` list which is the *DAG solution* of each run, and
-      is always a subset of :attr:`steps`.
-      It is computed by :meth:`_find_necessary_steps()` and cached in
-      :attr:`_necessary_steps_cache` across runs with the same inputs/outputs.
+    - the :attr:`execution_plan` lists the operation-nodes & *instructions*
+      needed to run a complete  computation.
+      It is built in :meth:`_build_execution_plan()` based on the subgraph
+      extracted above. The *instructions* items achieve the following:
+
+      - :class:`DeleteInstruction`: delete items from values-cache as soon as
+        they are not needed further down the dag, to reduce memory footprint
+        while computing.
+
+      - :class:`PinInstruction`: avoid overwritting any given intermediate
+        inputs, and still allow their producing operations to run.
 
     - the :var:`cache` local-var, initialized on each run of both
       ``_compute_xxx`` methods (for parallel or sequential executions), to
-      holding all given input & generated (aka intermediate) data values.
+      hold all given input & generated (aka intermediate) data values.
     """
 
     def __init__(self, **kwargs):
@@ -85,8 +94,8 @@ class Network(object):
     def add_op(self, operation):
         """
         Adds the given operation and its data requirements to the network graph
-        based on the name of the operation, the names of the operation's needs, and
-        the names of the data it provides.
+        based on the name of the operation, the names of the operation's needs,
+        and the names of the data it provides.
 
         :param Operation operation: Operation object to add.
         """
@@ -125,9 +134,12 @@ class Network(object):
     def _build_execution_plan(self, dag):
         """
         Create the list of operation-nodes & *instructions* evaluating all
-
+        
         operations & instructions needed a) to free memory and b) avoid
         overwritting given intermediate inputs.
+
+        :param dag:
+            as shrinked by :meth:`compile()`
 
         In the list :class:`DeleteInstructions` steps (DA) are inserted between
         operation nodes to reduce the memory footprint of cached results.
@@ -227,9 +239,10 @@ class Network(object):
             from one of the provided inputs.
 
         :param iterable inputs:
-            A dictionary mapping names to values for all provided inputs.
+            The inputs names of all given inputs.
 
         :return:
+            the subgraph comprising the solution
 
         """
         graph = self.graph
@@ -280,9 +293,17 @@ class Network(object):
 
     def compile(self, outputs=(), inputs=()):
         """
-        See :meth:`_solve_dag()` for parameters and description
+        Solve dag, set the :attr:`execution_plan` and cache it.
 
-        Handles caching of solved dag and sets the :attr:`execution_plan`.
+        See :meth:`_solve_dag()` for description
+
+        :param iterable outputs:
+            A list of desired output names.  This can also be ``None``, in which
+            case the necessary steps are all graph nodes that are reachable
+            from one of the provided inputs.
+
+        :param dict inputs:
+            The inputs names of all given inputs.
         """
 
         # return steps if it has already been computed before for this set of inputs and outputs
