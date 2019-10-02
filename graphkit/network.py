@@ -72,14 +72,14 @@ class Network(object):
         # this holds the timing information for eache layer
         self.times = {}
 
-        # a compiled list of steps to evaluate layers *in order* and free mem.
-        self.steps = []
+        #: The list of operation-nodes & *instructions* needed to evaluate
+        #: the given inputs & asked outputs, free memory and avoid overwritting
+        #: any given intermediate inputs.
+        self.execution_plan = []
 
-        # This holds a cache of results for the _find_necessary_steps
-        # function, this helps speed up the compute call as well avoid
-        # a multithreading issue that is occuring when accessing the
-        # graph in networkx
-        self._necessary_steps_cache = {}
+        #: Speed up :meth:`compile()` call and avoid a multithreading issue(?)
+        #: that is occuring when accessing the dag in networkx.
+        self._cached_execution_plans = {}
 
 
     def add_op(self, operation):
@@ -107,28 +107,27 @@ class Network(object):
         for p in operation.provides:
             self.graph.add_edge(operation, DataPlaceholderNode(p))
 
-        # clear compiled steps (must recompile after adding new layers)
-        self.steps = []
+
+    def list_layers(self, debug=False):
+        # Make a generic plan.
+        plan = self._build_execution_plan(self.graph)
+        return [n for n in plan if debug or isinstance(n, Operation)]
 
 
-    def list_layers(self):
-        assert self.steps, "network must be compiled before listing layers."
-        return [(s.name, s) for s in self.steps if isinstance(s, Operation)]
+    def show_layers(self, debug=False, ret=False):
+        """Shows info (name, needs, and provides) about all operations in this dag."""
+        s = "\n".join(repr(n) for n in self.list_layers(debug=debug))
+        if ret:
+            return s
+        else:
+            print(s)
 
-
-    def show_layers(self):
-        """Shows info (name, needs, and provides) about all layers in this network."""
-        for name, step in self.list_layers():
-            print("layer_name: ", name)
-            print("\t", "needs: ", step.needs)
-            print("\t", "provides: ", step.provides)
-            print("")
-
-
-    def compile(self, dag):
+    def _build_execution_plan(self, dag):
         """
-        Create a list of operations to evaluate layers and free memory asap
+        Create the list of operation-nodes & *instructions* evaluating all
 
+        operations & instructions needed a) to free memory and b) avoid
+        overwritting given intermediate inputs.
 
         In the list :class:`DeleteInstructions` steps (DA) are inserted between
         operation nodes to reduce the memory footprint of cached results.
@@ -136,10 +135,10 @@ class Network(object):
         further down the DAG.
         Note that since the *cache* is not reused across `compute()` invocations,
         any memory-reductions are for as long as a single computation runs.
+
         """
 
-        # clear compiled steps
-        self.steps = []
+        plan = []
 
         # create an execution order such that each layer's needs are provided.
         ordered_nodes = iset(nx.topological_sort(dag))
@@ -152,8 +151,7 @@ class Network(object):
 
             elif isinstance(node, Operation):
 
-                # add layer to list of steps
-                self.steps.append(node)
+                plan.append(node)
 
                 # Add instructions to delete predecessors as possible.  A
                 # predecessor may be deleted if it is a data placeholder that
@@ -167,11 +165,12 @@ class Network(object):
                     else:
                         if self._debug:
                             print("  adding delete instruction for %s" % need)
-                        self.steps.append(DeleteInstruction(need))
+                        plan.append(DeleteInstruction(need))
 
             else:
-                raise TypeError("Unrecognized network graph node %s" % type(node))
+                raise AssertionError("Unrecognized network graph node %r" % node)
 
+        return plan
 
     def _collect_unsatisfiable_operations(self, necessary_nodes, inputs):
         """
@@ -183,7 +182,7 @@ class Network(object):
 
         :param necessary_nodes:
             the subset of the graph to consider but WITHOUT the initial data
-            (because that is what :meth:`_find_necessary_steps()` can gives us...)
+            (because that is what :meth:`compile()` can gives us...)
         :param inputs:
             an iterable of the names of the input values
         return:
@@ -203,42 +202,36 @@ class Network(object):
                     ok_data.update(G.adj[node])
                 else:
                     unsatisfiables.append(node)
-            elif isinstance(node, (DataPlaceholderNode, str)) and node in ok_data:
-                # mark satisfied-needs on all future operations
-                for future_op in G.adj[node]:
-                    op_satisfaction[future_op].add(node)
+            elif isinstance(node, (DataPlaceholderNode, str)): # `str` are givens
+                  if node in ok_data:
+                    # mark satisfied-needs on all future operations
+                    for future_op in G.adj[node]:
+                        op_satisfaction[future_op].add(node)
+            else:
+                raise AssertionError("Unrecognized network graph node %r" % node)
 
         return unsatisfiables
 
 
-    def _find_necessary_steps(self, outputs, inputs):
+    def _solve_dag(self, outputs, inputs):
         """
-        Determines what graph steps need to pe run to get to the requested
+        Determines what graph steps need to run to get to the requested
         outputs from the provided inputs.  Eliminates steps that come before
         (in topological order) any inputs that have been provided.  Also
         eliminates steps that are not on a path from the provided inputs to
         the requested outputs.
 
-        :param list outputs:
+        :param iterable outputs:
             A list of desired output names.  This can also be ``None``, in which
             case the necessary steps are all graph nodes that are reachable
             from one of the provided inputs.
 
-        :param dict inputs:
+        :param iterable inputs:
             A dictionary mapping names to values for all provided inputs.
 
-        :returns:
-            Returns a list of all the steps that need to be run for the
-            provided inputs and requested outputs.
+        :return:
+
         """
-
-        # return steps if it has already been computed before for this set of inputs and outputs
-        outputs = tuple(sorted(outputs)) if isinstance(outputs, (list, set, iset)) else outputs
-        inputs_keys = tuple(sorted(inputs.keys()))
-        cache_key = (inputs_keys, outputs)
-        if cache_key in self._necessary_steps_cache:
-            return self._necessary_steps_cache[cache_key]
-
         graph = self.graph
         if not outputs:
 
@@ -280,14 +273,31 @@ class Network(object):
         unsatisfiables = self._collect_unsatisfiable_operations(necessary_nodes, inputs)
         necessary_nodes -= set(unsatisfiables)
 
-        self.compile(self.graph.subgraph(necessary_nodes))
-        necessary_steps = [step for step in self.steps if step in necessary_nodes]
+        shrinked_dag = graph.subgraph(necessary_nodes)
 
-        # save this result in a precomputed cache for future lookup
-        self._necessary_steps_cache[cache_key] = necessary_steps
+        return shrinked_dag
 
-        # Return an ordered list of the needed steps.
-        return necessary_steps
+
+    def compile(self, outputs=(), inputs=()):
+        """
+        See :meth:`_solve_dag()` for parameters and description
+
+        Handles caching of solved dag and sets the :attr:`execution_plan`.
+        """
+
+        # return steps if it has already been computed before for this set of inputs and outputs
+        if outputs is not None and not isinstance(outputs, str):
+            outputs = tuple(sorted(outputs))
+        inputs_keys = tuple(sorted(inputs))
+        cache_key = (inputs_keys, outputs)
+        if cache_key in self._cached_execution_plans:
+            self.execution_plan = self._cached_execution_plans[cache_key]
+        else:
+            dag = self._solve_dag(outputs, inputs)
+            plan = self._build_execution_plan(dag)
+            # save this result in a precomputed cache for future lookup
+            self.execution_plan = self._cached_execution_plans[cache_key] = plan
+
 
 
     def compute(self, outputs, named_inputs, method=None):
@@ -311,17 +321,31 @@ class Network(object):
         assert isinstance(outputs, (list, tuple)) or outputs is None,\
             "The outputs argument must be a list"
 
+        # start with fresh data cache
+        cache = {}
+        cache.update(named_inputs)
+        self.compile(outputs, named_inputs.keys())
+
         # choose a method of execution
         if method == "parallel":
-            return self._compute_thread_pool_barrier_method(named_inputs,
-                                                            outputs)
+            self._compute_thread_pool_barrier_method(cache)
         else:
-            return self._compute_sequential_method(named_inputs,
-                                                   outputs)
+            self._compute_sequential_method(cache, outputs)
+
+        if not outputs:
+            # Return the whole cache as output, including input and
+            # intermediate data nodes.
+            return cache
+
+        else:
+            # Filter outputs to just return what's needed.
+            # Note: list comprehensions exist in python 2.7+
+            return dict(i for i in cache.items() if i[0] in outputs)
 
 
-    def _compute_thread_pool_barrier_method(self, named_inputs, outputs,
-                                            thread_pool_size=10):
+    def _compute_thread_pool_barrier_method(
+        self, cache, thread_pool_size=10
+    ):
         """
         This method runs the graph using a parallel pool of thread executors.
         You may achieve lower total latency if your graph is sufficiently
@@ -334,9 +358,6 @@ class Network(object):
             self._thread_pool = Pool(thread_pool_size)
         pool = self._thread_pool
 
-        cache = {}
-        cache.update(named_inputs)
-        necessary_nodes = self._find_necessary_steps(outputs, named_inputs)
 
         # this keeps track of all nodes that have already executed
         has_executed = set()  # unordered, not iterated
@@ -349,7 +370,7 @@ class Network(object):
             # the upnext list contains a list of operations for scheduling
             # in the current round of scheduling
             upnext = []
-            for node in necessary_nodes:
+            for node in self.execution_plan:
                 # only delete if all successors for the data node have been executed
                 if isinstance(node, DeleteInstruction):
                     if ready_to_delete_data_node(node,
@@ -378,27 +399,13 @@ class Network(object):
                 cache.update(result)
                 has_executed.add(op)
 
-        if not outputs:
-            return cache
-        else:
-            return {k: cache[k] for k in iter(cache) if k in outputs}
 
-    def _compute_sequential_method(self, named_inputs, outputs):
+    def _compute_sequential_method(self, cache, outputs):
         """
         This method runs the graph one operation at a time in a single thread
         """
-        # start with fresh data cache
-        cache = {}
-
-        # add inputs to data cache
-        cache.update(named_inputs)
-
-        # Find the subset of steps we need to run to get to the requested
-        # outputs from the provided inputs.
-        all_steps = self._find_necessary_steps(outputs, named_inputs)
-
         self.times = {}
-        for step in all_steps:
+        for step in self.execution_plan:
 
             if isinstance(step, Operation):
 
@@ -435,17 +442,7 @@ class Network(object):
                         cache.pop(step)
 
             else:
-                raise TypeError("Unrecognized instruction.")
-
-        if not outputs:
-            # Return the whole cache as output, including input and
-            # intermediate data nodes.
-            return cache
-
-        else:
-            # Filter outputs to just return what's needed.
-            # Note: list comprehensions exist in python 2.7+
-            return {k: cache[k] for k in iter(cache) if k in outputs}
+                raise AssertionError("Unrecognized instruction.%r" % step)
 
 
     def plot(self, filename=None, show=False):

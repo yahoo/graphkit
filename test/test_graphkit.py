@@ -361,19 +361,19 @@ def test_deleteinstructs_vary_with_inputs():
     exp = inp.copy(); exp.update({"aa": 2, "ab": 5, "asked": 7})
     res = netop(inp)
     assert res == exp  # ok
-    steps11 = netop.net.steps
+    steps11 = netop.net.execution_plan
     res = netop(inp, outputs=["asked"])
     assert res == filtdict(exp, "asked")  # ok
-    steps12 = netop.net.steps
+    steps12 = netop.net.execution_plan
 
     inp = {"a": 2}
     exp = inp.copy(); exp.update({"aa": 2, "asked": 12})
     res = netop(inp)
     assert res == exp  # ok
-    steps21 = netop.net.steps
+    steps21 = netop.net.execution_plan
     res = netop(inp, outputs=["asked"])
     assert res == filtdict(exp, "asked")  # ok
-    steps22 = netop.net.steps
+    steps22 = netop.net.execution_plan
 
     assert steps11 == steps12
     assert steps21 == steps22

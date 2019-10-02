@@ -190,7 +190,9 @@ class compose(object):
             merge_set = iset()  # Preseve given node order.
             for op in operations:
                 if isinstance(op, NetworkOperation):
-                    net_ops = filter(lambda x: isinstance(x, Operation), op.net.steps)
+                    op.net.compile()
+                    net_ops = filter(lambda x: isinstance(x, Operation),
+                                     op.net.execution_plan)
                     merge_set.update(net_ops)
                 else:
                     merge_set.add(op)
@@ -205,7 +207,7 @@ class compose(object):
         needs = order_preserving_uniquifier(chain(*[op.needs for op in operations]),
                                             set(provides))  # unordered, not iterated
 
-        # compile network
+        # Build network
         net = Network()
         for op in operations:
             net.add_op(op)
