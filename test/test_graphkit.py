@@ -195,6 +195,18 @@ def test_pruning_not_overrides_given_intermediate():
     assert graph({"a": 5, "overriden": 1, "c": 2}) == {"a": 5, "overriden": 1, "c": 2, "asked": 3}  # FAILs
 
 
+def test_pruning_with_given_intermediate_and_asked_out():
+    # Test pruning intermidate data is the same when outputs are (not) asked .
+    graph = compose(name="graph")(
+        operation(name="unjustly pruned", needs=["given-1"], provides=["a"])(lambda a: a),
+        operation(name="shortcuted", needs=["a", "b"], provides=["given-2"])(add),
+        operation(name="good_op", needs=["a", "given-2"], provides=["asked"])(add),
+    )
+
+    assert graph({"given-1": 5, "b": 2, "given-2": 2}) == {"given-1": 5, "b": 2, "given-2": 7, "a": 5, "b": 2, "asked": 12}  # that ok # FAILS!
+    assert graph({"given-1": 5, "b": 2, "given-2": 2}, ["asked"]) == {"asked": 12}  # FAILS!
+
+
 def test_optional():
     # Test that optional() needs work as expected.
 
