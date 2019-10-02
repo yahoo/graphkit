@@ -184,6 +184,17 @@ def test_pruning_raises_for_bad_output():
         outputs=['sum1', 'sum3', 'sum4'])
 
 
+def test_pruning_not_overrides_given_intermediate():
+    # Test #25: not overriding intermediate data when an output is not asked
+    graph = compose(name="graph")(
+        operation(name="unjustly run", needs=["a"], provides=["overriden"])(lambda a: a),
+        operation(name="op", needs=["overriden", "c"], provides=["asked"])(add),
+    )
+
+    assert graph({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == {"asked": 3}  # that"s ok
+    assert graph({"a": 5, "overriden": 1, "c": 2}) == {"a": 5, "overriden": 1, "c": 2, "asked": 3}  # FAILs
+
+
 def test_optional():
     # Test that optional() needs work as expected.
 
