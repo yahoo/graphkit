@@ -125,7 +125,7 @@ class Network(object):
             print("")
 
 
-    def compile(self):
+    def compile(self, dag):
         """
         Create a list of operations to evaluate layers and free memory asap
 
@@ -142,7 +142,7 @@ class Network(object):
         self.steps = []
 
         # create an execution order such that each layer's needs are provided.
-        ordered_nodes = iset(nx.topological_sort(self.graph))
+        ordered_nodes = iset(nx.topological_sort(dag))
 
         # add Operations evaluation steps, and instructions to free data.
         for i, node in enumerate(ordered_nodes):
@@ -280,6 +280,7 @@ class Network(object):
         unsatisfiables = self._collect_unsatisfiable_operations(necessary_nodes, inputs)
         necessary_nodes -= set(unsatisfiables)
 
+        self.compile(self.graph.subgraph(necessary_nodes))
         necessary_steps = [step for step in self.steps if step in necessary_nodes]
 
         # save this result in a precomputed cache for future lookup
@@ -309,10 +310,6 @@ class Network(object):
 
         assert isinstance(outputs, (list, tuple)) or outputs is None,\
             "The outputs argument must be a list"
-
-        # Compile lazily here.
-        if not self.steps:
-            self.compile()
 
         # choose a method of execution
         if method == "parallel":
