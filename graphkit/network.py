@@ -27,7 +27,7 @@ class DataPlaceholderNode(str):
 
 class DeleteInstruction(str):
     """
-    An instruction for the compiled list of evaluation steps to free or delete
+    An instruction in the compiled list of operation steps to free or delete
     a Data instance from the Network's cache after it is no longer needed.
     """
     def __repr__(self):
@@ -39,6 +39,26 @@ class Network(object):
     This is the main network implementation. The class contains all of the
     code necessary to weave together operations into a directed-acyclic-graph (DAG)
     and pass data through.
+
+    The computation, ie the execution of the *operations* for given *inputs*
+    and asked *outputs* is based on 4 data-structures:
+
+    - The `networkx` :attr:`graph` DAG, containing interchanging layers of
+      :class:`Operation` and :class:`DataPlaceholderNode` nodes.
+      They are layed out and connected by :meth:`add_OP`.
+
+    - the :attr:`steps` list holding all operation nodes in *execution order*.
+      It is constructed in :meth:`compile()` after all nodes have been added
+      into the `graph`.
+
+    - The ``necessary_steps`` list which is the *DAG solution* of each run, and
+      is always a subset of :attr:`steps`.
+      It is computed by :meth:`_find_necessary_steps()` and cached in
+      :attr:`_necessary_steps_cache` across runs with the same inputs/outputs.
+
+    - the :var:`cache` local-var, initialized on each run of both
+      ``_compute_xxx`` methods (for parallel or sequential executions), to
+      holding all given input & generated (aka intermediate) data values.
     """
 
     def __init__(self, **kwargs):
@@ -106,8 +126,17 @@ class Network(object):
 
 
     def compile(self):
-        """Create a set of steps for evaluating layers
-           and freeing memory as necessary"""
+        """
+        Create a list of operations to evaluate layers and free memory asap
+
+
+        In the list :class:`DeleteInstructions` steps (DA) are inserted between
+        operation nodes to reduce the memory footprint of cached results.
+        A DA is inserted whenever a *need* is not used by any other *operation*
+        further down the DAG.
+        Note that since the *cache* is not reused across `compute()` invocations,
+        any memory-reductions are for as long as a single computation runs.
+        """
 
         # clear compiled steps
         self.steps = []
@@ -150,7 +179,7 @@ class Network(object):
 
         collecting those missing at least one.
         Since the graph is ordered, as soon as we're on an operation,
-        all its needs have been accounted, so we can get its satisfaction.  
+        all its needs have been accounted, so we can get its satisfaction.
 
         :param necessary_nodes:
             the subset of the graph to consider but WITHOUT the initial data
