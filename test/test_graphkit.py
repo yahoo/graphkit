@@ -270,7 +270,7 @@ def test_pruning_with_given_intermediate_and_asked_out():
     assert netop({"given-1": 5, "b": 2, "given-2": 2}) == exp
     # FAILS
     # - on v1.2.4 with KeyError: 'a',
-    # - on #19 (unsatisfied) with no result.
+    # - on #18 (unsatisfied) with no result.
     assert netop({"given-1": 5, "b": 2, "given-2": 2}, ["asked"]) == filtdict(exp, "asked")
 
 
@@ -347,6 +347,38 @@ def test_deleted_optional():
     results = net({'a': 4, 'b': 3}, outputs=['sum2'])
     assert 'sum2' in results
 
+
+def test_deleteinstructs_vary_with_inputs():
+    # Check #21: DeleteInstructions positions vary when inputs change.
+    netop = compose(name="netop")(
+        operation(name="a free without b", needs=["a"], provides=["aa"])(identity),
+        operation(name="satisfiable", needs=["a", "b"], provides=["ab"])(add),
+        operation(name="optional ab", needs=["aa", modifiers.optional("ab")], provides=["asked"])
+        (lambda a, ab=10: a + ab),
+    )
+
+    inp = {"a": 2, "b": 3}
+    exp = inp.copy(); exp.update({"aa": 2, "ab": 5, "asked": 7})
+    res = netop(inp)
+    assert res == exp  # ok
+    steps11 = netop.net.steps
+    res = netop(inp, outputs=["asked"])
+    assert res == filtdict(exp, "asked")  # ok
+    steps12 = netop.net.steps
+
+    inp = {"a": 2}
+    exp = inp.copy(); exp.update({"aa": 2, "asked": 12})
+    res = netop(inp)
+    assert res == exp  # ok
+    steps21 = netop.net.steps
+    res = netop(inp, outputs=["asked"])
+    assert res == filtdict(exp, "asked")  # ok
+    steps22 = netop.net.steps
+
+    assert steps11 == steps12
+    assert steps21 == steps22
+    assert steps11 != steps21  # FAILs in v1.2.4 + #18
+    assert steps12 != steps22  # FAILs in v1.2.4 + #18
 
 
 def test_parallel_execution():
