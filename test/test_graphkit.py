@@ -12,6 +12,21 @@ import graphkit.network as network
 import graphkit.modifiers as modifiers
 from graphkit import operation, compose, Operation
 
+
+def identity(x):
+    return x
+
+
+def filtdict(d, *keys):
+    """
+    Keep dict items with the given keys
+
+    >>> filtdict({"a": 1, "b": 2}, "b")
+    {"b": 2}
+    """
+    return type(d)(i for i in d.items() if i[0] in keys)
+
+
 def test_network():
 
     # Sum operation, late-bind compute function
@@ -185,58 +200,110 @@ def test_pruning_raises_for_bad_output():
 
 
 def test_pruning_not_overrides_given_intermediate():
-    # Test #25: not overriding intermediate data when an output is not asked
-    graph = compose(name="graph")(
-        operation(name="unjustly run", needs=["a"], provides=["overriden"])(lambda a: a),
+    # Test #25: v1.2.4 overrides intermediate data when no output asked
+    netop = compose(name="netop")(
+        operation(name="unjustly run", needs=["a"], provides=["overriden"])(identity),
         operation(name="op", needs=["overriden", "c"], provides=["asked"])(add),
     )
 
-    assert graph({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == {"asked": 3}  # that"s ok
-    assert graph({"a": 5, "overriden": 1, "c": 2}) == {"a": 5, "overriden": 1, "c": 2, "asked": 3}  # FAILs
+    exp = {"a": 5, "overriden": 1, "c": 2, "asked": 3}
+    # v1.2.4.ok
+    assert netop({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+    # FAILs
+    # - on v1.2.4 with (overriden, asked): = (5, 7) instead of (1, 3)
+    # - on #18(unsatisfied) + #23(ordered-sets) with (overriden, asked) = (5, 7) instead of (1, 3)
+    assert netop({"a": 5, "overriden": 1, "c": 2}) == exp
+
+
+def test_pruning_multiouts_not_override_intermediates1():
+    # Test #25: v.1.2.4 overrides intermediate data when a previous operation
+    # must run for its other outputs (outputs asked or not)
+    netop = compose(name="netop")(
+        operation(name="must run", needs=["a"], provides=["overriden", "calced"])
+        (lambda x: (x, 2 * x)),
+        operation(name="add", needs=["overriden", "calced"], provides=["asked"])(add),
+    )
+
+    exp = {"a": 5, "overriden": 1, "calced": 10, "asked": 11}
+    # FAILs
+    # - on v1.2.4 with (overriden, asked) = (5, 15) instead of (1, 11)
+    # - on #18(unsatisfied) + #23(ordered-sets) like v1.2.4.
+    assert netop({"a": 5, "overriden": 1}) == exp
+    # FAILs
+    # - on v1.2.4 with KeyError: 'e',
+    # - on #18(unsatisfied) + #23(ordered-sets) with empty result.
+    assert netop({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+
+
+def test_pruning_multiouts_not_override_intermediates2():
+    # Test #25: v.1.2.4 overrides intermediate data when a previous operation
+    # must run for its other outputs (outputs asked or not)
+    netop = compose(name="netop")(
+        operation(name="must run", needs=["a"], provides=["overriden", "e"])
+        (lambda x: (x, 2 * x)),
+        operation(name="op1", needs=["overriden", "c"], provides=["d"])(add),
+        operation(name="op2", needs=["d", "e"], provides=["asked"])(mul),
+    )
+
+    exp = {"a": 5, "overriden": 1, "c": 2, "asked": 3}
+    # FAILs
+    # - on v1.2.4 with (overriden, asked) = (5, 70) instead of (1, 13)
+    # - on #18(unsatisfied) + #23(ordered-sets) like v1.2.4.
+    assert netop({"a": 5, "overriden": 1, "c": 2}) == exp
+    # FAILs
+    # - on v1.2.4 with KeyError: 'e',
+    # - on #18(unsatisfied) + #23(ordered-sets) with empty result.
+    assert netop({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
 
 
 def test_pruning_with_given_intermediate_and_asked_out():
-    # Test pruning intermidate data is the same when outputs are (not) asked .
-    graph = compose(name="graph")(
-        operation(name="unjustly pruned", needs=["given-1"], provides=["a"])(lambda a: a),
+    # Test #24: v1.2.4 does not prune before given intermediate data when
+    # outputs not asked, but does so when output asked.
+    netop = compose(name="netop")(
+        operation(name="unjustly pruned", needs=["given-1"], provides=["a"])(identity),
         operation(name="shortcuted", needs=["a", "b"], provides=["given-2"])(add),
         operation(name="good_op", needs=["a", "given-2"], provides=["asked"])(add),
     )
 
-    assert graph({"given-1": 5, "b": 2, "given-2": 2}) == {"given-1": 5, "b": 2, "given-2": 7, "a": 5, "b": 2, "asked": 12}  # that ok # FAILS!
-    assert graph({"given-1": 5, "b": 2, "given-2": 2}, ["asked"]) == {"asked": 12}  # FAILS!
+    exp = {"given-1": 5, "b": 2, "given-2": 7, "a": 5, "asked": 12}
+    # v1.2.4 is ok
+    assert netop({"given-1": 5, "b": 2, "given-2": 2}) == exp
+    # FAILS
+    # - on v1.2.4 with KeyError: 'a',
+    # - on #19 (unsatisfied) with no result.
+    assert netop({"given-1": 5, "b": 2, "given-2": 2}, ["asked"]) == filtdict(exp, "asked")
 
 
 def test_unsatisfied_operations():
     # Test that operations with partial inputs are culled and not failing.
-    graph = compose(name="graph")(
+    netop = compose(name="netop")(
         operation(name="add", needs=["a", "b1"], provides=["a+b1"])(add),
         operation(name="sub", needs=["a", "b2"], provides=["a-b2"])(sub),
     )
-    
+
     exp = {"a": 10, "b1": 2, "a+b1": 12}
-    assert graph({"a": 10, "b1": 2}) == exp
-    assert graph({"a": 10, "b1": 2}, outputs=["a+b1"]) == {"a+b1": 12}
+    assert netop({"a": 10, "b1": 2}) == exp
+    assert netop({"a": 10, "b1": 2}, outputs=["a+b1"]) == filtdict(exp, "a+b1")
 
     exp = {"a": 10, "b2": 2, "a-b2": 8}
-    assert graph({"a": 10, "b2": 2}) == exp
-    assert graph({"a": 10, "b2": 2}, outputs=["a-b2"]) == {"a-b2": 8}
+    assert netop({"a": 10, "b2": 2}) == exp
+    assert netop({"a": 10, "b2": 2}, outputs=["a-b2"]) == filtdict(exp, "a-b2")
 
 def test_unsatisfied_operations_same_out():
     # Test unsatisfied pairs of operations providing the same output.
-    graph = compose(name="graph")(
+    netop = compose(name="netop")(
         operation(name="mul", needs=["a", "b1"], provides=["ab"])(mul),
         operation(name="div", needs=["a", "b2"], provides=["ab"])(floordiv),
         operation(name="add", needs=["ab", "c"], provides=["ab_plus_c"])(add),
     )
-    
+
     exp = {"a": 10, "b1": 2, "c": 1, "ab": 20, "ab_plus_c": 21}
-    assert graph({"a": 10, "b1": 2, "c": 1}) == exp
-    assert graph({"a": 10, "b1": 2, "c": 1}, outputs=["ab_plus_c"]) == {"ab_plus_c": 21}
+    assert netop({"a": 10, "b1": 2, "c": 1}) == exp
+    assert netop({"a": 10, "b1": 2, "c": 1}, outputs=["ab_plus_c"]) == filtdict(exp, "ab_plus_c")
 
     exp = {"a": 10, "b2": 2, "c": 1, "ab": 5, "ab_plus_c": 6}
-    assert graph({"a": 10, "b2": 2, "c": 1}) == exp
-    assert graph({"a": 10, "b2": 2, "c": 1}, outputs=["ab_plus_c"]) == {"ab_plus_c": 6}
+    assert netop({"a": 10, "b2": 2, "c": 1}) == exp
+    assert netop({"a": 10, "b2": 2, "c": 1}, outputs=["ab_plus_c"]) == filtdict(exp, "ab_plus_c")
 
 
 def test_optional():
