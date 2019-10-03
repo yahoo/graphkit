@@ -6,7 +6,8 @@ import pickle
 
 from pprint import pprint
 from operator import add
-from numpy.testing import assert_raises
+
+import pytest
 
 import graphkit.network as network
 import graphkit.modifiers as modifiers
@@ -180,9 +181,10 @@ def test_pruning_raises_for_bad_output():
 
     # Request two outputs we can compute and one we can't compute.  Assert
     # that this raises a ValueError.
-    assert_raises(ValueError, net, {'a': 1, 'b': 2, 'c': 3, 'd': 4},
-        outputs=['sum1', 'sum3', 'sum4'])
-
+    with pytest.raises(ValueError) as exinfo:
+        net({'a': 1, 'b': 2, 'c': 3, 'd': 4},
+            outputs=['sum1', 'sum3', 'sum4'])
+    assert exinfo.match('sum4')
 
 def test_optional():
     # Test that optional() needs work as expected.
