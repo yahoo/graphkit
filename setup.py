@@ -34,9 +34,9 @@ setup(
      ],
      extras_require={
           'plot': ['pydot', 'matplotlib'],
-          'test': ['pydot', 'matplotlib', 'pytest'],
+          'test': ['pydot', 'matplotlib', 'pytest', "pytest-cov"],
      },
-     tests_require=['pytest'],
+     tests_require=['pytest', "pytest-cov"],
      license='Apache-2.0',
      keywords=['graph', 'computation graph', 'DAG', 'directed acyclical graph'],
      classifiers=[

@@ -8,13 +8,13 @@ python:
 install:
   - pip install Sphinx sphinx_rtd_theme codecov packaging
   - "python -c $'import os, packaging.version as version\\nv = version.parse(os.environ.get(\"TRAVIS_TAG\", \"1.0\")).public\\nwith open(\"VERSION\", \"w\") as f: f.write(v)'"
-  - python setup.py install
+  - pip install -e .[test]
   - cd docs
   - make clean html
   - cd ..
 
 script:
-  - python setup.py nosetests --with-coverage --cover-package=graphkit
+  - pytest -v --cov=graphkit
 
 deploy:
   provider: pypi
