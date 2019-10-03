@@ -245,7 +245,7 @@ def test_pruning_multiouts_not_override_intermediates2():
         operation(name="op2", needs=["d", "e"], provides=["asked"])(mul),
     )
 
-    exp = {"a": 5, "overriden": 1, "c": 2, "asked": 3}
+    exp = {"a": 5, "overriden": 1, "c": 2, "d": 3, "e": 10, "asked": 30}
     # FAILs
     # - on v1.2.4 with (overriden, asked) = (5, 70) instead of (1, 13)
     # - on #18(unsatisfied) + #23(ordered-sets) like v1.2.4.
@@ -265,12 +265,13 @@ def test_pruning_with_given_intermediate_and_asked_out():
         operation(name="good_op", needs=["a", "given-2"], provides=["asked"])(add),
     )
 
-    exp = {"given-1": 5, "b": 2, "given-2": 7, "a": 5, "asked": 12}
+    exp = {"given-1": 5, "b": 2, "given-2": 2, "a": 5, "asked": 7}
     # v1.2.4 is ok
     assert netop({"given-1": 5, "b": 2, "given-2": 2}) == exp
     # FAILS
     # - on v1.2.4 with KeyError: 'a',
     # - on #18 (unsatisfied) with no result.
+    # FIXED on #18+#26 (new dag solver).
     assert netop({"given-1": 5, "b": 2, "given-2": 2}, ["asked"]) == filtdict(exp, "asked")
 
 
