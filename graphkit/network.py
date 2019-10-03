@@ -108,6 +108,9 @@ class Network(object):
         # assert layer is only added once to graph
         assert operation not in self.graph.nodes(), "Operation may only be added once"
 
+        ## Invalidate old plans.
+        self._cached_execution_plans = {}
+
         # add nodes and edges to graph describing the data needs for this layer
         for n in operation.needs:
             self.graph.add_edge(DataPlaceholderNode(n), operation)
