@@ -13,6 +13,11 @@ import graphkit.modifiers as modifiers
 from graphkit import operation, compose, Operation
 
 
+def scream(*args, **kwargs):
+    raise AssertionError(
+        "Must not have run!\n    args: %s\n  kwargs: %s", (args, kwargs))
+
+
 def identity(x):
     return x
 
@@ -200,9 +205,9 @@ def test_pruning_raises_for_bad_output():
 
 
 def test_pruning_not_overrides_given_intermediate():
-    # Test #25: v1.2.4 overrides intermediate data when no output asked
+    # Test #25: v1.2.4 overwrites intermediate data when no output asked
     netop = compose(name="netop")(
-        operation(name="unjustly run", needs=["a"], provides=["overriden"])(identity),
+        operation(name="unjustly run", needs=["a"], provides=["overriden"])(scream),
         operation(name="op", needs=["overriden", "c"], provides=["asked"])(add),
     )
 
@@ -212,11 +217,24 @@ def test_pruning_not_overrides_given_intermediate():
     # FAILs
     # - on v1.2.4 with (overriden, asked): = (5, 7) instead of (1, 3)
     # - on #18(unsatisfied) + #23(ordered-sets) with (overriden, asked) = (5, 7) instead of (1, 3)
+    # FIXED on #26
     assert netop({"a": 5, "overriden": 1, "c": 2}) == exp
+
+    ## Test OVERWITES
+    #
+    overwrites = {}
+    netop.set_overwrites_collector(overwrites)
+    assert netop({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+    assert overwrites == {}  # unjust must have been pruned
+    
+    overwrites = {}
+    netop.set_overwrites_collector(overwrites)
+    assert netop({"a": 5, "overriden": 1, "c": 2}) == exp
+    assert overwrites == {}  # unjust must have been pruned
 
 
 def test_pruning_multiouts_not_override_intermediates1():
-    # Test #25: v.1.2.4 overrides intermediate data when a previous operation
+    # Test #25: v.1.2.4 overwrites intermediate data when a previous operation
     # must run for its other outputs (outputs asked or not)
     netop = compose(name="netop")(
         operation(name="must run", needs=["a"], provides=["overriden", "calced"])
@@ -228,11 +246,30 @@ def test_pruning_multiouts_not_override_intermediates1():
     # FAILs
     # - on v1.2.4 with (overriden, asked) = (5, 15) instead of (1, 11)
     # - on #18(unsatisfied) + #23(ordered-sets) like v1.2.4.
+    # FIXED on #26
     assert netop({"a": 5, "overriden": 1}) == exp
     # FAILs
     # - on v1.2.4 with KeyError: 'e',
     # - on #18(unsatisfied) + #23(ordered-sets) with empty result.
+    # FIXED on #26
     assert netop({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+
+    ## Test OVERWITES
+    #
+    overwrites = {}
+    netop.set_overwrites_collector(overwrites)
+    assert netop({"a": 5, "overriden": 1}) == exp
+    assert overwrites == {'overriden': 5}
+
+    overwrites = {}
+    netop.set_overwrites_collector(overwrites)
+    assert netop({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+    assert overwrites == {'overriden': 5}
+
+    # ## Test parallel
+    # netop.set_execution_method("parallel")
+    # assert netop({"a": 5, "overriden": 1}) == exp
+    # assert netop({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
 
 
 def test_pruning_multiouts_not_override_intermediates2():
@@ -249,11 +286,25 @@ def test_pruning_multiouts_not_override_intermediates2():
     # FAILs
     # - on v1.2.4 with (overriden, asked) = (5, 70) instead of (1, 13)
     # - on #18(unsatisfied) + #23(ordered-sets) like v1.2.4.
+    # FIXED on #26
     assert netop({"a": 5, "overriden": 1, "c": 2}) == exp
     # FAILs
     # - on v1.2.4 with KeyError: 'e',
     # - on #18(unsatisfied) + #23(ordered-sets) with empty result.
     assert netop({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+    # FIXED on #26
+
+    ## Test OVERWITES
+    #
+    overwrites = {}
+    netop.set_overwrites_collector(overwrites)
+    assert netop({"a": 5, "overriden": 1, "c": 2}) == exp
+    assert overwrites == {'overriden': 5}
+
+    overwrites = {}
+    netop.set_overwrites_collector(overwrites)
+    assert netop({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+    assert overwrites == {'overriden': 5}
 
 
 def test_pruning_with_given_intermediate_and_asked_out():
@@ -274,6 +325,17 @@ def test_pruning_with_given_intermediate_and_asked_out():
     # FIXED on #18+#26 (new dag solver).
     assert netop({"given-1": 5, "b": 2, "given-2": 2}, ["asked"]) == filtdict(exp, "asked")
 
+    ## Test OVERWITES
+    #
+    overwrites = {}
+    netop.set_overwrites_collector(overwrites)
+    assert netop({"given-1": 5, "b": 2, "given-2": 2}) == exp
+    assert overwrites == {}
+
+    overwrites = {}
+    netop.set_overwrites_collector(overwrites)
+    assert netop({"given-1": 5, "b": 2, "given-2": 2}, ["asked"]) == filtdict(exp, "asked")
+    assert overwrites == {}
 
 def test_unsatisfied_operations():
     # Test that operations with partial inputs are culled and not failing.

@@ -34,6 +34,18 @@ class DeleteInstruction(str):
         return 'DeleteInstruction("%s")' % self
 
 
+class PinInstruction(str):
+    """
+    An instruction in the *execution plan* not to store the newly compute value
+    into network's values-cache but to pin it instead to some given value.
+    It is used ensure that given intermediate values are not overwritten when
+    their providing functions could not be avoided, because their other outputs
+    are needed elesewhere.
+    """
+    def __repr__(self):
+        return 'PinInstruction("%s")' % self
+
+
 class Network(object):
     """
     This is the main network implementation. The class contains all of the
@@ -41,7 +53,7 @@ class Network(object):
     and pass data through.
 
     The computation, ie the execution of the *operations* for given *inputs*
-    and asked *outputs* is based on 3 data-structures:
+    and asked *outputs* is based on 4 data-structures:
 
     - The ``networkx`` :attr:`graph` DAG, containing interchanging layers of
       :class:`Operation` and :class:`DataPlaceholderNode` nodes.
@@ -68,6 +80,12 @@ class Network(object):
     - the :var:`cache` local-var, initialized on each run of both
       ``_compute_xxx`` methods (for parallel or sequential executions), to
       hold all given input & generated (aka intermediate) data values.
+
+    - the :var:`overwrites` local-var, initialized on each run of both
+      ``_compute_xxx`` methods (for parallel or sequential executions), to
+      hold values calculated but overwritten (aka "pinned") by intermediate
+      input-values.
+
     """
 
     def __init__(self, **kwargs):
@@ -122,7 +140,7 @@ class Network(object):
 
     def list_layers(self, debug=False):
         # Make a generic plan.
-        plan = self._build_execution_plan(self.graph)
+        plan = self._build_execution_plan(self.graph, ())
         return [n for n in plan if debug or isinstance(n, Operation)]
 
 
@@ -134,7 +152,7 @@ class Network(object):
         else:
             print(s)
 
-    def _build_execution_plan(self, dag):
+    def _build_execution_plan(self, dag, inputs):
         """
         Create the list of operation-nodes & *instructions* evaluating all
 
@@ -142,7 +160,7 @@ class Network(object):
         overwritting given intermediate inputs.
 
         :param dag:
-            the original dag but "shrinked", not "broken"
+            The original dag, pruned; not broken.
 
         In the list :class:`DeleteInstructions` steps (DA) are inserted between
         operation nodes to reduce the memory footprint of cached results.
@@ -158,11 +176,15 @@ class Network(object):
         # create an execution order such that each layer's needs are provided.
         ordered_nodes = iset(nx.topological_sort(dag))
 
-        # add Operations evaluation steps, and instructions to free data.
+        # Add Operations evaluation steps, and instructions to free and "pin"
+        # data.
         for i, node in enumerate(ordered_nodes):
 
             if isinstance(node, DataPlaceholderNode):
-                continue
+                if node in inputs and dag.pred[node]:
+                    # Command pinning only when there is another operation
+                    # generating this data as output.
+                    plan.append(PinInstruction(node))
 
             elif isinstance(node, Operation):
 
@@ -291,13 +313,11 @@ class Network(object):
             broken_dag = broken_dag.subgraph(ending_in_outputs | set(outputs))
 
 
-        # Prune (un-satifiable) operations with partial inputs.
-        # See yahoo/graphkit#18
-        #
+        # Prune unsatisfied operations (those with partial inputs or no outputs).
         unsatisfied = self._collect_unsatisfied_operations(broken_dag, inputs)
-        shrinked_dag = dag.subgraph(broken_dag.nodes - unsatisfied)
+        pruned_dag = dag.subgraph(broken_dag.nodes - unsatisfied)
 
-        plan = self._build_execution_plan(shrinked_dag)
+        plan = self._build_execution_plan(pruned_dag, inputs)
 
         return plan
 
@@ -331,7 +351,8 @@ class Network(object):
 
 
 
-    def compute(self, outputs, named_inputs, method=None):
+    def compute(
+        self, outputs, named_inputs, method=None, overwrites_collector=None):
         """
         Run the graph. Any inputs to the network must be passed in by name.
 
@@ -350,6 +371,10 @@ class Network(object):
             Set when invoking a composed graph or by
             :meth:`~NetworkOperation.set_execution_method()`.
 
+        :param overwrites_collector:
+            (optional) a mutable dict to be fillwed with named values.
+            If missing, values are simply discarded.
+
         :returns: a dictionary of output data objects, keyed by name.
         """
 
@@ -364,23 +389,34 @@ class Network(object):
 
         # choose a method of execution
         if method == "parallel":
-            self._compute_thread_pool_barrier_method(cache)
+            self._compute_thread_pool_barrier_method(
+                cache, overwrites_collector, named_inputs)
         else:
-            self._compute_sequential_method(cache, outputs)
+            self._compute_sequential_method(
+                cache, overwrites_collector, named_inputs, outputs)
 
         if not outputs:
             # Return the whole cache as output, including input and
             # intermediate data nodes.
-            return cache
+            result = cache
 
         else:
             # Filter outputs to just return what's needed.
             # Note: list comprehensions exist in python 2.7+
-            return dict(i for i in cache.items() if i[0] in outputs)
+            result = dict(i for i in cache.items() if i[0] in outputs)
+
+        return result
+
+
+    def _pin_data_in_cache(self, value_name, cache, inputs, overwrites):
+        value_name = str(value_name)
+        if overwrites is not None:
+            overwrites[value_name] = cache[value_name]
+        cache[value_name] = inputs[value_name]
 
 
     def _compute_thread_pool_barrier_method(
-        self, cache, thread_pool_size=10
+        self, cache, overwrites, inputs, thread_pool_size=10
     ):
         """
         This method runs the graph using a parallel pool of thread executors.
@@ -436,7 +472,7 @@ class Network(object):
                 has_executed.add(op)
 
 
-    def _compute_sequential_method(self, cache, outputs):
+    def _compute_sequential_method(self, cache, overwrites, inputs, outputs):
         """
         This method runs the graph one operation at a time in a single thread
         """
@@ -477,6 +513,8 @@ class Network(object):
                             print("removing data '%s' from cache." % step)
                         cache.pop(step)
 
+            elif isinstance(step, PinInstruction):
+                self._pin_data_in_cache(step, cache, inputs, overwrites)
             else:
                 raise AssertionError("Unrecognized instruction.%r" % step)
 

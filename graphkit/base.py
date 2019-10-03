@@ -1,5 +1,10 @@
 # Copyright 2016, Yahoo Inc.
 # Licensed under the terms of the Apache License, Version 2.0. See the LICENSE file associated with the project for terms.
+try:
+    from collections import abc
+except ImportError:
+    import collections as abc
+
 
 class Data(object):
     """
@@ -151,9 +156,12 @@ class NetworkOperation(Operation):
 
         # set execution mode to single-threaded sequential by default
         self._execution_method = "sequential"
+        self._overwrites_collector = None
 
     def _compute(self, named_inputs, outputs=None):
-        return self.net.compute(outputs, named_inputs, method=self._execution_method)
+        return self.net.compute(
+            outputs, named_inputs, method=self._execution_method,
+            overwrites_collector=self._overwrites_collector)
 
     def __call__(self, *args, **kwargs):
         return self._compute(*args, **kwargs)
@@ -162,14 +170,34 @@ class NetworkOperation(Operation):
         """
         Determine how the network will be executed.
 
-        Args:
-            method: str
-                If "parallel", execute graph operations concurrently
-                using a threadpool.
+        :param str method:
+            If "parallel", execute graph operations concurrently
+            using a threadpool.
         """
-        options = ['parallel', 'sequential']
-        assert method in options
+        choices = ['parallel', 'sequential']
+        if method not in choices:
+            raise ValueError(
+                "Invalid computation method %r!  Must be one of %s"
+                (method, choices))
         self._execution_method = method
+
+    def set_overwrites_collector(self, collector):
+        """
+        Asks to put all *overwrites* into the `collector` after computing
+
+        An "overwrites" is intermediate value calculated but NOT stored
+        into the results, becaues it has been given also as an intemediate
+        input value, and the operation that would overwrite it MUST run for
+        its other results.
+
+        :param collector:
+            a mutable dict to be fillwed with named values
+        """
+        if collector is not None and not isinstance(collector, abc.MutableMapping):
+            raise ValueError(
+                "Overwrites collector was not a MutableMapping, but: %r"
+                % collector)
+        self._overwrites_collector = collector
 
     def plot(self, filename=None, show=False):
         self.net.plot(filename=filename, show=show)
