@@ -33,7 +33,8 @@ setup(
           "networkx == 2.2; python_version < '3.5'",
      ],
      extras_require={
-          'plot': ['pydot', 'matplotlib']
+          'plot': ['pydot', 'matplotlib'],
+          'test': ['pydot', 'matplotlib', 'pytest'],
      },
      tests_require=['pytest'],
      license='Apache-2.0',
