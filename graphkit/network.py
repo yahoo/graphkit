@@ -1,8 +1,9 @@
 # Copyright 2016, Yahoo Inc.
 # Licensed under the terms of the Apache License, Version 2.0. See the LICENSE file associated with the project for terms.
 
-import time
+import io
 import os
+import time
 import networkx as nx
 
 from io import StringIO
@@ -505,7 +506,7 @@ def plot_graph(graph, filename=None, show=False):
     # display graph via matplotlib
     if show:
         png = g.create_png()
-        sio = StringIO(png)
+        sio = io.BytesIO(png)
         img = mpimg.imread(sio)
         plt.imshow(img, aspect="equal")
         plt.show()
