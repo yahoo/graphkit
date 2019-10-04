@@ -375,84 +375,14 @@ class Network(object):
             return {k: cache[k] for k in iter(cache) if k in outputs}
 
 
-    @staticmethod
-    def supported_plot_writers():
-        return {
-            ".png": lambda gplot: gplot.create_png(),
-            ".dot": lambda gplot: gplot.to_string(),
-            ".jpg": lambda gplot: gplot.create_jpeg(),
-            ".jpeg": lambda gplot: gplot.create_jpeg(),
-            ".pdf": lambda gplot: gplot.create_pdf(),
-            ".svg": lambda gplot: gplot.create_svg(),
-        }
-
     def plot(self, filename=None, show=False):
         """
-        Plot the graph.
+        Plot a *Graphviz* graph and return it, if no other argument provided.
 
-        params:
-        :param str filename:
-            Write the output to a png, pdf, or graphviz dot file. The extension
-            controls the output format.
-
-        :param boolean show:
-            If this is set to True, use matplotlib to show the graph diagram
-            (Default: False)
-
-        :returns:
-            An instance of the pydot graph
-
+        Supported arguments: filename, show
+        See :func:`network.plot_graph()` 
         """
-        import pydot
-        import matplotlib.pyplot as plt
-        import matplotlib.image as mpimg
-
-        assert self.graph is not None
-
-        def get_node_name(a):
-            if isinstance(a, DataPlaceholderNode):
-                return a
-            return a.name
-
-        g = pydot.Dot(graph_type="digraph")
-
-        # draw nodes
-        for nx_node in self.graph.nodes():
-            if isinstance(nx_node, DataPlaceholderNode):
-                node = pydot.Node(name=nx_node, shape="rect")
-            else:
-                node = pydot.Node(name=nx_node.name, shape="circle")
-            g.add_node(node)
-
-        # draw edges
-        for src, dst in self.graph.edges():
-            src_name = get_node_name(src)
-            dst_name = get_node_name(dst)
-            edge = pydot.Edge(src=src_name, dst=dst_name)
-            g.add_edge(edge)
-
-        # save plot
-        if filename:
-            _basename, ext = os.path.splitext(filename)
-            writers = Network.supported_plot_writers()
-            plot_writer = Network.supported_plot_writers().get(ext.lower())
-            if not plot_writer:
-                raise ValueError(
-                    "Unknown file format for saving graph: %s"
-                    "  File extensions must be one of: %s"
-                    % (ext, ' '.join(writers)))
-            with open(filename, "wb") as fh:
-                fh.write(plot_writer(g))
-
-        # display graph via matplotlib
-        if show:
-            png = g.create_png()
-            sio = StringIO(png)
-            img = mpimg.imread(sio)
-            plt.imshow(img, aspect="equal")
-            plt.show()
-
-        return g
+        return plot_graph(self.graph, filename=filename, show=show)
 
 
 def ready_to_schedule_operation(op, has_executed, graph):
@@ -501,3 +431,83 @@ def get_data_node(name, graph):
         if node == name and isinstance(node, DataPlaceholderNode):
             return node
     return None
+
+
+def supported_plot_writers():
+    return {
+        ".png": lambda gplot: gplot.create_png(),
+        ".dot": lambda gplot: gplot.to_string(),
+        ".jpg": lambda gplot: gplot.create_jpeg(),
+        ".jpeg": lambda gplot: gplot.create_jpeg(),
+        ".pdf": lambda gplot: gplot.create_pdf(),
+        ".svg": lambda gplot: gplot.create_svg(),
+    }
+
+
+def plot_graph(graph, filename=None, show=False):
+    """
+    Plot a *Graphviz* graph and return it, if no other argument provided.
+
+    :param graph:
+        what to plot
+    :param str filename:
+        Write the output to a png, pdf, or graphviz dot file. The extension
+        controls the output format.
+    :param boolean show:
+        If this is set to True, use matplotlib to show the graph diagram
+        (Default: False)
+
+    :returns:
+        An instance of the pydot graph
+
+    """
+    import pydot
+    import matplotlib.pyplot as plt
+    import matplotlib.image as mpimg
+
+    assert graph is not None
+
+    def get_node_name(a):
+        if isinstance(a, DataPlaceholderNode):
+            return a
+        return a.name
+
+    g = pydot.Dot(graph_type="digraph")
+
+    # draw nodes
+    for nx_node in graph.nodes():
+        if isinstance(nx_node, DataPlaceholderNode):
+            node = pydot.Node(name=nx_node, shape="rect")
+        else:
+            node = pydot.Node(name=nx_node.name, shape="circle")
+        g.add_node(node)
+
+    # draw edges
+    for src, dst in graph.edges():
+        src_name = get_node_name(src)
+        dst_name = get_node_name(dst)
+        edge = pydot.Edge(src=src_name, dst=dst_name)
+        g.add_edge(edge)
+
+    # save plot
+    if filename:
+        _basename, ext = os.path.splitext(filename)
+        writers = Network.supported_plot_writers()
+        plot_writer = Network.supported_plot_writers().get(ext.lower())
+        if not plot_writer:
+            raise ValueError(
+                "Unknown file format for saving graph: %s"
+                "  File extensions must be one of: %s"
+                % (ext, ' '.join(writers)))
+        with open(filename, "wb") as fh:
+            fh.write(plot_writer(g))
+
+    # display graph via matplotlib
+    if show:
+        png = g.create_png()
+        sio = StringIO(png)
+        img = mpimg.imread(sio)
+        plt.imshow(img, aspect="equal")
+        plt.show()
+
+    return g

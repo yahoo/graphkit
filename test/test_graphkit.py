@@ -327,7 +327,7 @@ def test_plotting():
     sum_op3 = operation(name='sum_op3', needs=['sum1', 'c'], provides='sum3')(add)
     net1 = compose(name='my network 1')(sum_op1, sum_op2, sum_op3)
 
-    for ext in network.Network.supported_plot_writers():
+    for ext in network.supported_plot_writers():
         tdir = tempfile.mkdtemp(suffix=ext)
         png_file = osp.join(tdir, "workflow.png")
         net1.net.plot(png_file)
@@ -342,7 +342,7 @@ def test_plotting():
         assert "Unknown file format" in str(ex)
 
         ## Check help msg lists all siupported formats
-        for ext in network.Network.supported_plot_writers():
+        for ext in network.supported_plot_writers():
             assert ext in str(ex)
 
 
