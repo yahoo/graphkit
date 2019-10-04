@@ -233,6 +233,19 @@ def test_pruning_not_overrides_given_intermediate():
     assert pipeline({"a": 5, "overriden": 1, "c": 2}) == exp
     assert overwrites == {}  # unjust must have been pruned
 
+    ## Test Parallel
+    #
+    pipeline.set_execution_method("parallel")
+    overwrites = {}
+    pipeline.set_overwrites_collector(overwrites)
+    #assert pipeline({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+    assert overwrites == {}  # unjust must have been pruned
+
+    overwrites = {}
+    pipeline.set_overwrites_collector(overwrites)
+    assert pipeline({"a": 5, "overriden": 1, "c": 2}) == exp
+    assert overwrites == {}  # unjust must have been pruned
+
 
 def test_pruning_multiouts_not_override_intermediates1():
     # Test #25: v.1.2.4 overwrites intermediate data when a previous operation
@@ -348,9 +361,9 @@ def test_pruning_with_given_intermediate_and_asked_out():
     ## Test parallel
     #  FAIL! in #26!
     #
-    # pipeline.set_execution_method("parallel")
-    # assert pipeline({"given-1": 5, "b": 2, "given-2": 2}) == exp
-    # assert pipeline({"given-1": 5, "b": 2, "given-2": 2}, ["asked"]) == filtdict(exp, "asked")
+    pipeline.set_execution_method("parallel")
+    assert pipeline({"given-1": 5, "b": 2, "given-2": 2}) == exp
+    assert pipeline({"given-1": 5, "b": 2, "given-2": 2}, ["asked"]) == filtdict(exp, "asked")
 
 def test_unsatisfied_operations():
     # Test that operations with partial inputs are culled and not failing.
@@ -395,16 +408,17 @@ def test_unsatisfied_operations_same_out():
     assert pipeline({"a": 10, "b2": 2, "c": 1}, outputs=["ab_plus_c"]) == filtdict(exp, "ab_plus_c")
 
     ## Test parallel
-    #  FAIL! in #26
     #
-    # pipeline.set_execution_method("parallel")
-    # exp = {"a": 10, "b1": 2, "c": 1, "ab": 20, "ab_plus_c": 21}
-    # assert pipeline({"a": 10, "b1": 2, "c": 1}) == exp
-    # assert pipeline({"a": 10, "b1": 2, "c": 1}, outputs=["ab_plus_c"]) == filtdict(exp, "ab_plus_c")
-
-    # exp = {"a": 10, "b2": 2, "c": 1, "ab": 5, "ab_plus_c": 6}
-    # assert pipeline({"a": 10, "b2": 2, "c": 1}) == exp
-    # assert pipeline({"a": 10, "b2": 2, "c": 1}, outputs=["ab_plus_c"]) == filtdict(exp, "ab_plus_c")
+    #  FAIL! in #26
+    pipeline.set_execution_method("parallel")
+    exp = {"a": 10, "b1": 2, "c": 1, "ab": 20, "ab_plus_c": 21}
+    assert pipeline({"a": 10, "b1": 2, "c": 1}) == exp
+    assert pipeline({"a": 10, "b1": 2, "c": 1}, outputs=["ab_plus_c"]) == filtdict(exp, "ab_plus_c")
+    #
+    #  FAIL! in #26
+    exp = {"a": 10, "b2": 2, "c": 1, "ab": 5, "ab_plus_c": 6}
+    assert pipeline({"a": 10, "b2": 2, "c": 1}) == exp
+    assert pipeline({"a": 10, "b2": 2, "c": 1}, outputs=["ab_plus_c"]) == filtdict(exp, "ab_plus_c")
 
 
 def test_optional():
@@ -654,6 +668,7 @@ class Pow(Operation):
             p = math.pow(a, y)
             outputs.append(p)
         return outputs
+
 
 def test_backwards_compatibility():
 
