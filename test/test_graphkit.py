@@ -77,11 +77,11 @@ def test_network():
     # Running the network
     #
 
-    # get all outputs
-    pprint(net({'a': 1, 'b': 2}))
+    # # get all outputs
+    # pprint(net({'a': 1, 'b': 2}))
 
-    # get specific outputs
-    pprint(net({'a': 1, 'b': 2}, outputs=["sum_ab_times_b"]))
+    # # get specific outputs
+    # pprint(net({'a': 1, 'b': 2}, outputs=["sum_ab_times_b"]))
 
     # start with inputs already computed
     pprint(net({"sum_ab": 1, "b": 2}, outputs=["sum_ab_times_b"]))
@@ -479,19 +479,19 @@ def test_deleteinstructs_vary_with_inputs():
     exp = inp.copy(); exp.update({"aa": 2, "ab": 5, "asked": 7})
     res = pipeline(inp)
     assert res == exp  # ok
-    steps11 = pipeline.net.execution_plan
+    steps11 = pipeline.compile(inp).steps
     res = pipeline(inp, outputs=["asked"])
     assert res == filtdict(exp, "asked")  # ok
-    steps12 = pipeline.net.execution_plan
+    steps12 = pipeline.compile(inp, ["asked"]).steps
 
     inp = {"a": 2}
     exp = inp.copy(); exp.update({"aa": 2, "asked": 12})
     res = pipeline(inp)
     assert res == exp  # ok
-    steps21 = pipeline.net.execution_plan
+    steps21 = pipeline.compile(inp).steps
     res = pipeline(inp, outputs=["asked"])
     assert res == filtdict(exp, "asked")  # ok
-    steps22 = pipeline.net.execution_plan
+    steps22 = pipeline.compile(inp, ["asked"]).steps
 
     # When no outs, no del-instructs.
     assert steps11 != steps12

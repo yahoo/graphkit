@@ -190,22 +190,15 @@ class compose(object):
             merge_set = iset()  # Preseve given node order.
             for op in operations:
                 if isinstance(op, NetworkOperation):
-                    op.net.compile()
-                    net_ops = filter(lambda x: isinstance(x, Operation),
-                                     op.net.execution_plan)
-                    merge_set.update(net_ops)
+                    plan = op.net.compile()
+                    merge_set.update(s for s in plan.steps
+                                     if isinstance(s, Operation))
                 else:
                     merge_set.add(op)
             operations = merge_set
 
-        def order_preserving_uniquifier(seq, seen=None):
-            seen = seen if seen else set()  # unordered, not iterated
-            seen_add = seen.add
-            return [x for x in seq if not (x in seen or seen_add(x))]
-
-        provides = order_preserving_uniquifier(chain(*[op.provides for op in operations]))
-        needs = order_preserving_uniquifier(chain(*[op.needs for op in operations]),
-                                            set(provides))  # unordered, not iterated
+        provides = iset(chain(*[op.provides for op in operations]))
+        needs = iset(chain(*[op.needs for op in operations])) - provides
 
         # Build network
         net = Network()

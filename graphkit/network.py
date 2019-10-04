@@ -1,11 +1,74 @@
 # Copyright 2016, Yahoo Inc.
 # Licensed under the terms of the Apache License, Version 2.0. See the LICENSE file associated with the project for terms.
-"""" The main implementation of the network of operations & data to compute. """
-import time
+""""
+The main implementation of the network of operations & data to compute.
+
+The execution of network *operations* (aka computation) is splitted
+in 2 phases:
+
+- COMPILE: prune unsatisfied nodes, sort dag topologically & solve it, and
+    derive the *execution steps* (see below) based on the given *inputs*
+    and asked *outputs*.
+
+- EXECUTE: sequential or parallel invocation of the underlying functions
+    of the operations with arguments from the ``solution``.
+
+Computations are based on 5 data-structures:
+
+:attr:`Network.graph`
+    A ``networkx`` graph (yet a DAG) containing interchanging layers of
+    :class:`Operation` and :class:`DataPlaceholderNode` nodes.
+    They are layed out and connected by repeated calls of
+    :meth:`~Network.add_OP`.
+
+    The computation starts with :meth:`~Network._prune_graph()` extracting
+    a *DAG subgraph* by *pruning* its nodes based on given inputs and
+    requested outputs in :meth:`~Network.compute()`.
+
+:attr:`ExecutionPlan.dag`
+    An directed-acyclic-graph containing the *pruned* nodes as build by
+    :meth:`~Network._prune_graph()`. This pruned subgraph is used to decide
+    the :attr:`ExecutionPlan.steps` (below).
+    The containing :class:`ExecutionPlan.steps` instance is cached
+    in :attr:`_cached_plans` across runs with inputs/outputs as key.
+
+:attr:`ExecutionPlan.steps`
+    It is the list of the operation-nodes only
+    from the dag (above), topologically sorted, and interspersed with
+    *instructions steps* needed to complete the run.
+    It is built by :meth:`~Network._build_execution_steps()` based on
+    the subgraph dag extracted above.
+    The containing :class:`ExecutionPlan.steps` instance is cached
+    in :attr:`_cached_plans` across runs with inputs/outputs as key.
+
+    The *instructions* items achieve the following:
+
+    - :class:`DeleteInstruction`: delete items from `solution` as soon as
+        they are not needed further down the dag, to reduce memory footprint
+        while computing.
+
+    - :class:`PinInstruction`: avoid overwritting any given intermediate
+        inputs, and still allow their providing operations to run
+        (because they are needed for their other outputs).
+
+:var solution:
+    a local-var in :meth:`~Network.compute()`, initialized on each run
+    to hold the values of the given inputs, generated (intermediate) data,
+    and output values.
+    It is returned as is if no specific outputs requested;  no data-eviction
+    happens then.
+
+:arg overwrites:
+    The optional argument given to :meth:`~Network.compute()` to colect the
+    intermediate *calculated* values that are overwritten by intermediate
+    (aka "pinned") input-values.
+"""
+import logging
 import os
+import time
 import networkx as nx
 
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from io import StringIO
 from itertools import chain
 
@@ -15,6 +78,8 @@ from boltons.setutils import IndexedSet as iset
 from .base import Operation
 from .modifiers import optional
 
+
+log = logging.getLogger(__name__)
 
 class DataPlaceholderNode(str):
     """
@@ -26,10 +91,10 @@ class DataPlaceholderNode(str):
 
 class DeleteInstruction(str):
     """
-    Execution step to delete a computed value from the network's ``cache``.
+    Execution step to delete a computed value from the `solution`.
 
-    It is an :attr:`Network.execution_plan` step for the data-node `str` that
-    frees its data-value from ``cache`` after it is no longer needed,
+    It's a step in :attr:`ExecutionPlan.steps` for the data-node `str` that
+    frees its data-value from `solution` after it is no longer needed,
     to reduce memory footprint while computing the pipeline.
     """
     def __repr__(self):
@@ -38,12 +103,12 @@ class DeleteInstruction(str):
 
 class PinInstruction(str):
     """
-    Execution step to replace a computed value in the ``cache`` from the inputs,
+    Execution step to replace a computed value in the `solution` from the inputs,
 
     and to store the computed one in the ``overwrites`` instead
-    (both ``cache`` & ``overwrites`` are local-vars in :meth:`Network.compute()`).
+    (both `solution` & ``overwrites`` are local-vars in :meth:`~Network.compute()`).
 
-    It is an :attr:`Network.execution_plan` step for the data-node `str` that
+    It's a step in :attr:`ExecutionPlan.steps` for the data-node `str` that
     ensures the corresponding intermediate input-value is not overwritten when
     its providing function(s) could not be pruned, because their other outputs
     are needed elesewhere.
@@ -56,89 +121,22 @@ class Network(object):
     """
     Assemble operations & data into a directed-acyclic-graph (DAG) to run them.
 
-    The execution of the contained *operations* in the dag (the computation)
-    is splitted in 2 phases:
-
-    - COMPILE: prune unsatisfied nodes, sort dag topologically & solve it, and
-      derive the *execution plan* (see below) based on the given *inputs*
-      and asked *outputs*.
-
-    - EXECUTE: sequential or parallel invocation of the underlying functions
-      of the operations with arguments from the ``cache``.
-
-    is based on 5 data-structures:
-
-    :ivar graph:
-        A ``networkx`` DAG containing interchanging layers of
-        :class:`Operation` and :class:`DataPlaceholderNode` nodes.
-        They are layed out and connected by repeated calls of :meth:`add_OP`.
-
-        The computation starts with :meth:`_prune_dag()` extracting
-        a *DAG subgraph* by *pruning* its nodes based on given inputs and
-        requested outputs in :meth:`compute()`.
-    :ivar execution_dag:
-        It contains the nodes of the *pruned dag* from the last call to
-        :meth:`compile()`. This pruned subgraph is used to decide
-        the :attr:`execution_plan` (below).
-        It is cached in :attr:`_cached_compilations` across runs with
-        inputs/outputs as key.
-
-    :ivar execution_plan:
-        It is the list of the operation-nodes only
-        from the dag (above), topologically sorted, and interspersed with
-        *instructions steps* needed to complete the run.
-        It is built by :meth:`_build_execution_plan()` based on the subgraph dag
-        extracted above.
-        It is cached in :attr:`_cached_compilations` across runs with
-        inputs/outputs as key.
-
-        The *instructions* items achieve the following:
-
-        - :class:`DeleteInstruction`: delete items from values-cache as soon as
-          they are not needed further down the dag, to reduce memory footprint
-          while computing.
-
-        - :class:`PinInstruction`: avoid overwritting any given intermediate
-          inputs, and still allow their providing operations to run
-          (because they are needed for their other outputs).
-
-    :var cache:
-        a local-var in :meth:`compute()`, initialized on each run
-        to hold the values of the given inputs, generated (intermediate) data,
-        and output values.
-        It is returned as is if no specific outputs requested;  no data-eviction
-        happens then.
-
-    :arg overwrites:
-        The optional argument given to :meth:`compute()` to colect the
-        intermediate *calculated* values that are overwritten by intermediate
-        (aka "pinned") input-values.
-
     """
 
     def __init__(self, **kwargs):
-        """
-        """
-
         # directed graph of layer instances and data-names defining the net.
         self.graph = nx.DiGraph()
-        self._debug = kwargs.get("debug", False)
 
-        # this holds the timing information for eache layer
+        # this holds the timing information for each layer
         self.times = {}
-
-        #: The list of operation-nodes & *instructions* needed to evaluate
-        #: the given inputs & asked outputs, free memory and avoid overwritting
-        #: any given intermediate inputs.
-        self.execution_plan = ()
-
-        #: Pruned graph of the last compilation.
-        self.execution_dag = ()
 
         #: Speed up :meth:`compile()` call and avoid a multithreading issue(?)
         #: that is occuring when accessing the dag in networkx.
-        self._cached_compilations = {}
+        self._cached_plans = {}
 
+        #: the execution_plan of the last call to :meth:`compile()`,
+        #: for debugging purposes.
+        self._last_plan = None
 
     def add_op(self, operation):
         """
@@ -157,9 +155,7 @@ class Network(object):
         # assert layer is only added once to graph
         assert operation not in self.graph.nodes, "Operation may only be added once"
 
-        self.execution_dag = None
-        self.execution_plan = None
-        self._cached_compilations = {}
+        self._cached_plans = {}
 
         # add nodes and edges to graph describing the data needs for this layer
         for n in operation.needs:
@@ -171,8 +167,9 @@ class Network(object):
 
 
     def list_layers(self, debug=False):
+        ## TODO: move to ExecutionPlan
         # Make a generic plan.
-        plan = self._build_execution_plan(self.graph, ())
+        plan = self.compile()
         return [n for n in plan if debug or isinstance(n, Operation)]
 
 
@@ -184,7 +181,7 @@ class Network(object):
         else:
             print(s)
 
-    def _build_execution_plan(self, dag, inputs, outputs):
+    def _build_execution_steps(self, dag, inputs, outputs):
         """
         Create the list of operation-nodes & *instructions* evaluating all
 
@@ -197,15 +194,15 @@ class Network(object):
             outp-names to decide whether to add (and which) del-instructions
 
         In the list :class:`DeleteInstructions` steps (DA) are inserted between
-        operation nodes to reduce the memory footprint of cached results.
+        operation nodes to reduce the memory footprint of solution.
         A DA is inserted whenever a *need* is not used by any other *operation*
         further down the DAG.
-        Note that since the *cache* is not reused across `compute()` invocations,
+        Note that since the `solutions` are not shared across `compute()` calls,
         any memory-reductions are for as long as a single computation runs.
 
         """
 
-        plan = []
+        steps = []
 
         # create an execution order such that each layer's needs are provided.
         ordered_nodes = iset(nx.topological_sort(dag))
@@ -218,12 +215,12 @@ class Network(object):
                 if node in inputs and dag.pred[node]:
                     # Command pinning only when there is another operation
                     # generating this data as output.
-                    plan.append(PinInstruction(node))
+                    steps.append(PinInstruction(node))
 
             elif isinstance(node, Operation):
-                plan.append(node)
+                steps.append(node)
 
-                # Keep all values in cache if not specific outputs asked.
+                # Keep all values in solution if not specific outputs asked.
                 if not outputs:
                     continue
 
@@ -231,8 +228,7 @@ class Network(object):
                 # predecessor may be deleted if it is a data placeholder that
                 # is no longer needed by future Operations.
                 for need in self.graph.pred[node]:
-                    if self._debug:
-                        print("checking if node %s can be deleted" % need)
+                    log.debug("checking if node %s can be deleted", need)
                     for future_node in ordered_nodes[i+1:]:
                         if (
                             isinstance(future_node, Operation)
@@ -241,14 +237,13 @@ class Network(object):
                             break
                     else:
                         if need not in outputs:
-                            if self._debug:
-                                print("  adding delete instruction for %s" % need)
-                            plan.append(DeleteInstruction(need))
+                            log.debug("  adding delete instruction for %s", need)
+                            steps.append(DeleteInstruction(need))
 
             else:
                 raise AssertionError("Unrecognized network graph node %r" % node)
 
-        return plan
+        return steps
 
     def _collect_unsatisfied_operations(self, dag, inputs):
         """
@@ -261,7 +256,7 @@ class Network(object):
           all its needs have been accounted, so we can get its satisfaction.
 
         - Their provided outputs are not linked to any data in the dag.
-          An operation might not have any output link when :meth:`_prune_dag()`
+          An operation might not have any output link when :meth:`_prune_graph()`
           has broken them, due to given intermediate inputs.
 
         :param dag:
@@ -303,7 +298,7 @@ class Network(object):
         return unsatisfied
 
 
-    def _prune_dag(self, outputs, inputs):
+    def _prune_graph(self, outputs, inputs):
         """
         Determines what graph steps need to run to get to the requested
         outputs from the provided inputs. :
@@ -341,8 +336,10 @@ class Network(object):
         # (unless they are also used elsewhere).
         # To discover which ones to prune, we break their incoming edges
         # and they will drop out while collecting ancestors from the outputs.
+        broken_edges = set()  # unordered, not iterated
         for given in graph_inputs:
-            broken_dag.remove_edges_from(list(broken_dag.in_edges(given)))
+            broken_edges.update(broken_dag.in_edges(given))
+        broken_dag.remove_edges_from(broken_edges)
 
         if outputs:
             # If caller requested specific outputs, we can prune any
@@ -355,62 +352,75 @@ class Network(object):
 
         # Prune unsatisfied operations (those with partial inputs or no outputs).
         unsatisfied = self._collect_unsatisfied_operations(broken_dag, inputs)
-        pruned_dag = dag.subgraph(self.graph.nodes - unsatisfied)
+        # Clone it so that it is picklable.
+        pruned_dag = dag.subgraph(self.graph.nodes - unsatisfied).copy()
 
-        return pruned_dag.copy()  # clone so that it is picklable
+        return pruned_dag, tuple(broken_edges)
 
-
-    def compile(self, outputs=(), inputs=()):
+    def compile(self, inputs=(), outputs=()):
         """
-        Solve dag, set the :attr:`execution_plan`, and cache it.
+        Create or get from cache an execution-plan for the given inputs/outputs.
 
-        See :meth:`_prune_dag()` for detailed description.
+        See :meth:`_prune_graph()` and :meth:`_build_execution_steps()`
+        for detailed description.
 
-        :param iterable outputs:
-            A list of desired output names.  This can also be ``None``, in which
-            case the necessary steps are all graph nodes that are reachable
-            from one of the provided inputs.
+        :param inputs:
+            An iterable with the names of all the given inputs.
 
-        :param dict inputs:
-            The input names of all given inputs.
+        :param outputs:
+            (optional) An iterable or the name of the output name(s).
+            If missing, requested outputs assumed all graph reachable nodes
+            from one of the given inputs.
+
+        :return:
+            the cached or fresh new execution-plan
         """
+        # outputs must be iterable
+        if not outputs:
+            outputs = ()
+        elif isinstance(outputs, str):
+            outputs = (outputs, )
 
-        # return steps if it has already been computed before for this set of inputs and outputs
-        if outputs is not None and not isinstance(outputs, str):
-            outputs = tuple(sorted(outputs))
-        inputs_keys = tuple(sorted(inputs))
-        cache_key = (inputs_keys, outputs)
-
-        if cache_key in self._cached_compilations:
-            dag, plan = self._cached_compilations[cache_key]
+        # Make a stable cache-key
+        cache_key = (tuple(sorted(inputs)), tuple(sorted(outputs)))
+        if cache_key in self._cached_plans:
+            # An execution plan has been compiled before
+            # for the same inputs & outputs.
+            plan = self._cached_plans[cache_key]
         else:
-            dag = self._prune_dag(outputs, inputs)
-            plan = self._build_execution_plan(dag, inputs, outputs)
+            # Build a new execution plan for the given inputs & outputs.
+            #
+            pruned_dag, broken_edges = self._prune_graph(outputs, inputs)
+            steps = self._build_execution_steps(pruned_dag, inputs, outputs)
+            plan = ExecutionPlan(
+                self,
+                tuple(inputs),
+                outputs,
+                pruned_dag,
+                tuple(broken_edges),
+                tuple(steps),
+            )
 
             # Cache compilation results to speed up future runs
             # with different values (but same number of inputs/outputs).
-            self._cached_compilations[cache_key] = dag, plan
+            self._cached_plans[cache_key] = plan
 
-        ## TODO: Extract into Solution class
-        self.execution_dag = dag
-        self.execution_plan = plan
-
-
+        return plan
 
     def compute(
-        self, outputs, named_inputs, method=None, overwrites_collector=None):
+        self, named_inputs, outputs, method=None, overwrites_collector=None):
         """
         Solve & execute the graph, sequentially or parallel.
 
-        :param list output: The names of the data node you'd like to have returned
-                            once all necessary computations are complete.
-                            If you set this variable to ``None``, all
-                            data nodes will be kept and returned at runtime.
+        :param dict named_inputs:
+            A dict of key/value pairs where the keys represent the data nodes
+            you want to populate, and the values are the concrete values you
+            want to set for the data node.
 
-        :param dict named_inputs: A dict of key/value pairs where the keys
-                                  represent the data nodes you want to populate,
-                                  and the values are the concrete values you
-                                  want to set for the data node.
+        :param list output:
+            once all necessary computations are complete.
+            If you set this variable to ``None``, all data nodes will be kept
+            and returned at runtime.
 
         :param method:
             if ``"parallel"``, launches multi-threading.
@@ -427,144 +437,22 @@ class Network(object):
         assert isinstance(outputs, (list, tuple)) or outputs is None,\
             "The outputs argument must be a list"
 
-        # start with fresh data cache & overwrites
-        cache = named_inputs.copy()
+        # Build the execution plan.
+        plan = self.compile(named_inputs.keys(), outputs)
 
-        # Build and set :attr:`execution_plan`.
-        self.compile(outputs, named_inputs.keys())
+        # start with fresh data solution.
+        solution = dict(named_inputs)
 
-        # choose a method of execution
-        if method == "parallel":
-            self._execute_thread_pool_barrier_method(
-                cache, overwrites_collector, named_inputs)
-        else:
-            self._execute_sequential_method(
-                cache, overwrites_collector, named_inputs)
+        plan.execute(solution, overwrites_collector, method)
 
-        if not outputs:
-            # Return the whole cache as output, including input and
-            # intermediate data nodes.
-            result = cache
+        if outputs:
+            # Filter outputs to just return what's requested.
+            # Otherwise, eturn the whole solution as output,
+            # including input and intermediate data nodes.
+            # TODO: assert no other outputs exists due to DelInstructs.
+            solution = dict(i for i in solution.items() if i[0] in outputs)
 
-        else:
-            # Filter outputs to just return what's needed.
-            # Note: list comprehensions exist in python 2.7+
-            result = dict(i for i in cache.items() if i[0] in outputs)
-
-        return result
-
-
-    def _pin_data_in_cache(self, value_name, cache, inputs, overwrites):
-        value_name = str(value_name)
-        if overwrites is not None:
-            overwrites[value_name] = cache[value_name]
-        cache[value_name] = inputs[value_name]
-
-
-    def _execute_thread_pool_barrier_method(
-        self, cache, overwrites, inputs, thread_pool_size=10
-    ):
-        """
-        This method runs the graph using a parallel pool of thread executors.
-        You may achieve lower total latency if your graph is sufficiently
-        sub divided into operations using this method.
-        """
-        from multiprocessing.dummy import Pool
-
-        # if we have not already created a thread_pool, create one
-        if not hasattr(self, "_thread_pool"):
-            self._thread_pool = Pool(thread_pool_size)
-        pool = self._thread_pool
-
-
-        # this keeps track of all nodes that have already executed
-        executed_nodes = set()  # unordered, not iterated
-
-        # with each loop iteration, we determine a set of operations that can be
-        # scheduled, then schedule them onto a thread pool, then collect their
-        # results onto a memory cache for use upon the next iteration.
-        while True:
-
-            # the upnext list contains a list of operations for scheduling
-            # in the current round of scheduling
-            upnext = []
-            for node in self.execution_plan:
-                if (
-                    isinstance(node, Operation)
-                    and self._can_schedule_operation(node, executed_nodes)
-                    and node not in executed_nodes
-                ):
-                    upnext.append(node)
-                elif isinstance(node, DeleteInstruction):
-                    # Only delete if all successors for the data node
-                    # have been executed.
-                    # An optional need may not have a value in the cache.
-                    if (
-                        node in cache
-                        and self._can_evict_value(node, executed_nodes)
-                    ):
-                        if self._debug:
-                            print("removing data '%s' from cache." % node)
-                        del cache[node]
-                elif isinstance(node, PinInstruction):
-                    # Always and repeatedely pin the value, even if not all
-                    # providers of the data have executed.
-                    # An optional need may not have a value in the cache.
-                    if node in cache:
-                        self._pin_data_in_cache(node, cache, inputs, overwrites)
-
-
-            # stop if no nodes left to schedule, exit out of the loop
-            if len(upnext) == 0:
-                break
-
-            done_iterator = pool.imap_unordered(
-                                lambda op: (op,op._compute(cache)),
-                                upnext)
-            for op, result in done_iterator:
-                cache.update(result)
-                executed_nodes.add(op)
-
-
-    def _execute_sequential_method(self, cache, overwrites, inputs):
-        """
-        This method runs the graph one operation at a time in a single thread
-        """
-        self.times = {}
-        for step in self.execution_plan:
-
-            if isinstance(step, Operation):
-
-                if self._debug:
-                    print("-"*32)
-                    print("executing step: %s" % step.name)
-
-                # time execution...
-                t0 = time.time()
-
-                # compute layer outputs
-                layer_outputs = step._compute(cache)
-
-                # add outputs to cache
-                cache.update(layer_outputs)
-
-                # record execution time
-                t_complete = round(time.time() - t0, 5)
-                self.times[step.name] = t_complete
-                if self._debug:
-                    print("step completion time: %s" % t_complete)
-
-            elif isinstance(step, DeleteInstruction):
-                # Cache value may be missing if it is optional.
-                if step in cache:
-                    if self._debug:
-                        print("removing data '%s' from cache." % step)
-                    del cache[step]
-
-            elif isinstance(step, PinInstruction):
-                self._pin_data_in_cache(step, cache, inputs, overwrites)
-            else:
-                raise AssertionError("Unrecognized instruction.%r" % step)
+        return solution
 
 
     def plot(self, filename=None, show=False):
@@ -640,6 +528,46 @@ class Network(object):
         return g
 
 
+class ExecutionPlan(namedtuple("_ExecPlan",
+                               "net inputs outputs dag broken_edges steps")):
+    """
+    The result of the network's compilation phase.
+
+    Note the execution plan's attributes are on purpose immutable tuples.
+
+    :ivar net:
+        The parent :class:`Network`
+
+    :ivar inputs:
+        A tuple with the names of the given inputs used to construct the plan.
+
+    :ivar outputs:
+        A (possibly empy) tuple with the names of the requested outputs
+        used to construct the plan.
+
+    :ivar dag:
+        The regular (not broken) *pruned* subgraph of net-graph.
+
+    :ivar broken_edges:
+        Tuple of broken incoming edges to given data.
+
+    :ivar steps:
+        The tuple of operation-nodes & *instructions* needed to evaluate
+        the given inputs & asked outputs, free memory and avoid overwritting
+        any given intermediate inputs.
+    """
+    @property
+    def broken_dag(self):
+        return nx.restricted_view(self.dag, nodes=(), edges=self.broken_edges)
+
+    def get_data_node(self, name):
+        """
+        Retuen the data node from a graph using its name, or None.
+        """
+        node = self.dag.nodes[name]
+        if isinstance(node, DataPlaceholderNode):
+            return node
+
     def _can_schedule_operation(self, op, executed_nodes):
         """
         Determines if a Operation is ready to be scheduled for execution
@@ -654,15 +582,15 @@ class Network(object):
             A boolean indicating whether the operation may be scheduled for
             execution based on what has already been executed.
         """
-        # unordered, not iterated
-        dependencies = set(n for n in nx.ancestors(self.execution_dag, op)
+        # Use `broken_dag` to allow executing operations after given inputs
+        # regardless of whether their producers have yet to run.
+        dependencies = set(n for n in nx.ancestors(self.broken_dag, op)
                            if isinstance(n, Operation))
         return dependencies.issubset(executed_nodes)
 
-
     def _can_evict_value(self, name, executed_nodes):
         """
-        Determines if a DataPlaceholderNode is ready to be deleted from cache.
+        Determines if a DataPlaceholderNode is ready to be deleted from solution.
 
         :param name:
             The name of the data node to check
@@ -672,13 +600,142 @@ class Network(object):
             A boolean indicating whether the data node can be deleted or not.
         """
         data_node = self.get_data_node(name)
+        # Use `broken_dag` not to block a successor waiting for this data,
+        # since in any case will use a given input, not some pipe of this data.
         return data_node and set(
-            self.execution_dag.successors(data_node)).issubset(executed_nodes)
+            self.broken_dag.successors(data_node)).issubset(executed_nodes)
 
-    def get_data_node(self, name):
+    def _pin_data_in_solution(self, value_name, solution, inputs, overwrites):
+        value_name = str(value_name)
+        if overwrites is not None:
+            overwrites[value_name] = solution[value_name]
+        solution[value_name] = inputs[value_name]
+
+    def _execute_thread_pool_barrier_method(self, inputs, solution, overwrites,
+                                            thread_pool_size=10
+    ):
         """
-        Retuen the data node from a graph using its name, or None.
+        This method runs the graph using a parallel pool of thread executors.
+        You may achieve lower total latency if your graph is sufficiently
+        sub divided into operations using this method.
         """
-        node = self.graph.nodes[name]
-        if isinstance(node, DataPlaceholderNode):
-            return node
+        from multiprocessing.dummy import Pool
+
+        # if we have not already created a thread_pool, create one
+        if not hasattr(self.net, "_thread_pool"):
+            self.net._thread_pool = Pool(thread_pool_size)
+        pool = self.net._thread_pool
+
+
+        # this keeps track of all nodes that have already executed
+        executed_nodes = set()  # unordered, not iterated
+
+        # with each loop iteration, we determine a set of operations that can be
+        # scheduled, then schedule them onto a thread pool, then collect their
+        # results onto a memory solution for use upon the next iteration.
+        while True:
+
+            # the upnext list contains a list of operations for scheduling
+            # in the current round of scheduling
+            upnext = []
+            for node in self.steps:
+                if (
+                    isinstance(node, Operation)
+                    and self._can_schedule_operation(node, executed_nodes)
+                    and node not in executed_nodes
+                ):
+                    upnext.append(node)
+                elif isinstance(node, DeleteInstruction):
+                    # Only delete if all successors for the data node
+                    # have been executed.
+                    # An optional need may not have a value in the solution.
+                    if (
+                        node in solution
+                        and self._can_evict_value(node, executed_nodes)
+                    ):
+                        log.debug("removing data '%s' from solution.", node)
+                        del solution[node]
+                elif isinstance(node, PinInstruction):
+                    # Always and repeatedely pin the value, even if not all
+                    # providers of the data have executed.
+                    # An optional need may not have a value in the solution.
+                    if node in solution:
+                        self._pin_data_in_solution(
+                            node, solution, inputs, overwrites)
+
+
+            # stop if no nodes left to schedule, exit out of the loop
+            if len(upnext) == 0:
+                break
+
+            done_iterator = pool.imap_unordered(
+                                lambda op: (op,op._compute(solution)),
+                                upnext)
+            for op, result in done_iterator:
+                solution.update(result)
+                executed_nodes.add(op)
+
+
+    def _execute_sequential_method(self, inputs, solution, overwrites):
+        """
+        This method runs the graph one operation at a time in a single thread
+        """
+        self.times = {}
+        for step in self.steps:
+
+            if isinstance(step, Operation):
+
+                log.debug("%sexecuting step: %s", "-"*32, step.name)
+
+                # time execution...
+                t0 = time.time()
+
+                # compute layer outputs
+                layer_outputs = step._compute(solution)
+
+                # add outputs to solution
+                solution.update(layer_outputs)
+
+                # record execution time
+                t_complete = round(time.time() - t0, 5)
+                self.times[step.name] = t_complete
+                log.debug("step completion time: %s", t_complete)
+
+            elif isinstance(step, DeleteInstruction):
+                # Cache value may be missing if it is optional.
+                if step in solution:
+                    log.debug("removing data '%s' from solution.", step)
+                    del solution[step]
+
+            elif isinstance(step, PinInstruction):
+                self._pin_data_in_solution(step, solution, inputs, overwrites)
+            else:
+                raise AssertionError("Unrecognized instruction.%r" % step)
+
+    def execute(self, solution, overwrites=None, method=None):
+        """
+        :param solution:
+            a mutable maping to collect the results and that must contain also
+            the given input values for at least the compulsory inputs that
+            were specified when the plan was built (but cannot enforce that!).
+
+        :param overwrites:
+            (optional) a mutable dict to collect calculated-but-discarded values
+            because they were "pinned" by input vaules.
+            If missing, the overwrites values are simply discarded.
+        """
+
+        # choose a method of execution
+        executor = (self._execute_thread_pool_barrier_method
+                    if method == "parallel" else
+                    self._execute_sequential_method)
+
+        # clone and keep orignal inputs in solution intact
+        executor(dict(solution), solution, overwrites)
+
+        # return it, but caller can also see the results in `solution` dict.
+        return solution
+
+# TODO: maybe class Solution(object):
+#     values = {}
+#     overwrites = None

@@ -160,11 +160,14 @@ class NetworkOperation(Operation):
 
     def _compute(self, named_inputs, outputs=None):
         return self.net.compute(
-            outputs, named_inputs, method=self._execution_method,
+            named_inputs, outputs, method=self._execution_method,
             overwrites_collector=self._overwrites_collector)
 
     def __call__(self, *args, **kwargs):
         return self._compute(*args, **kwargs)
+        
+    def compile(self, *args, **kwargs):
+        return self.net.compile(*args, **kwargs)
 
     def set_execution_method(self, method):
         """
