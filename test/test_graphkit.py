@@ -11,6 +11,7 @@ from numpy.testing import assert_raises
 import graphkit.network as network
 import graphkit.modifiers as modifiers
 from graphkit import operation, compose, Operation
+from graphkit.network import DeleteInstruction
 
 
 def scream(*args, **kwargs):
@@ -206,37 +207,37 @@ def test_pruning_raises_for_bad_output():
 
 def test_pruning_not_overrides_given_intermediate():
     # Test #25: v1.2.4 overwrites intermediate data when no output asked
-    netop = compose(name="netop")(
+    pipeline = compose(name="pipeline")(
         operation(name="unjustly run", needs=["a"], provides=["overriden"])(scream),
         operation(name="op", needs=["overriden", "c"], provides=["asked"])(add),
     )
 
     exp = {"a": 5, "overriden": 1, "c": 2, "asked": 3}
     # v1.2.4.ok
-    assert netop({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+    assert pipeline({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
     # FAILs
     # - on v1.2.4 with (overriden, asked): = (5, 7) instead of (1, 3)
     # - on #18(unsatisfied) + #23(ordered-sets) with (overriden, asked) = (5, 7) instead of (1, 3)
     # FIXED on #26
-    assert netop({"a": 5, "overriden": 1, "c": 2}) == exp
+    assert pipeline({"a": 5, "overriden": 1, "c": 2}) == exp
 
     ## Test OVERWITES
     #
     overwrites = {}
-    netop.set_overwrites_collector(overwrites)
-    assert netop({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+    pipeline.set_overwrites_collector(overwrites)
+    assert pipeline({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
     assert overwrites == {}  # unjust must have been pruned
-    
+
     overwrites = {}
-    netop.set_overwrites_collector(overwrites)
-    assert netop({"a": 5, "overriden": 1, "c": 2}) == exp
+    pipeline.set_overwrites_collector(overwrites)
+    assert pipeline({"a": 5, "overriden": 1, "c": 2}) == exp
     assert overwrites == {}  # unjust must have been pruned
 
 
 def test_pruning_multiouts_not_override_intermediates1():
     # Test #25: v.1.2.4 overwrites intermediate data when a previous operation
     # must run for its other outputs (outputs asked or not)
-    netop = compose(name="netop")(
+    pipeline = compose(name="pipeline")(
         operation(name="must run", needs=["a"], provides=["overriden", "calced"])
         (lambda x: (x, 2 * x)),
         operation(name="add", needs=["overriden", "calced"], provides=["asked"])(add),
@@ -247,35 +248,36 @@ def test_pruning_multiouts_not_override_intermediates1():
     # - on v1.2.4 with (overriden, asked) = (5, 15) instead of (1, 11)
     # - on #18(unsatisfied) + #23(ordered-sets) like v1.2.4.
     # FIXED on #26
-    assert netop({"a": 5, "overriden": 1}) == exp
+    assert pipeline({"a": 5, "overriden": 1}) == exp
     # FAILs
     # - on v1.2.4 with KeyError: 'e',
     # - on #18(unsatisfied) + #23(ordered-sets) with empty result.
     # FIXED on #26
-    assert netop({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+    assert pipeline({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
 
     ## Test OVERWITES
     #
     overwrites = {}
-    netop.set_overwrites_collector(overwrites)
-    assert netop({"a": 5, "overriden": 1}) == exp
+    pipeline.set_overwrites_collector(overwrites)
+    assert pipeline({"a": 5, "overriden": 1}) == exp
     assert overwrites == {'overriden': 5}
 
     overwrites = {}
-    netop.set_overwrites_collector(overwrites)
-    assert netop({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+    pipeline.set_overwrites_collector(overwrites)
+    assert pipeline({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
     assert overwrites == {'overriden': 5}
 
-    # ## Test parallel
-    # netop.set_execution_method("parallel")
-    # assert netop({"a": 5, "overriden": 1}) == exp
-    # assert netop({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+    ## Test parallel
+    #
+    pipeline.set_execution_method("parallel")
+    assert pipeline({"a": 5, "overriden": 1}) == exp
+    assert pipeline({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
 
 
 def test_pruning_multiouts_not_override_intermediates2():
     # Test #25: v.1.2.4 overrides intermediate data when a previous operation
     # must run for its other outputs (outputs asked or not)
-    netop = compose(name="netop")(
+    pipeline = compose(name="pipeline")(
         operation(name="must run", needs=["a"], provides=["overriden", "e"])
         (lambda x: (x, 2 * x)),
         operation(name="op1", needs=["overriden", "c"], provides=["d"])(add),
@@ -287,30 +289,36 @@ def test_pruning_multiouts_not_override_intermediates2():
     # - on v1.2.4 with (overriden, asked) = (5, 70) instead of (1, 13)
     # - on #18(unsatisfied) + #23(ordered-sets) like v1.2.4.
     # FIXED on #26
-    assert netop({"a": 5, "overriden": 1, "c": 2}) == exp
+    assert pipeline({"a": 5, "overriden": 1, "c": 2}) == exp
     # FAILs
     # - on v1.2.4 with KeyError: 'e',
     # - on #18(unsatisfied) + #23(ordered-sets) with empty result.
-    assert netop({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+    assert pipeline({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
     # FIXED on #26
 
     ## Test OVERWITES
     #
     overwrites = {}
-    netop.set_overwrites_collector(overwrites)
-    assert netop({"a": 5, "overriden": 1, "c": 2}) == exp
+    pipeline.set_overwrites_collector(overwrites)
+    assert pipeline({"a": 5, "overriden": 1, "c": 2}) == exp
     assert overwrites == {'overriden': 5}
 
     overwrites = {}
-    netop.set_overwrites_collector(overwrites)
-    assert netop({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+    pipeline.set_overwrites_collector(overwrites)
+    assert pipeline({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
     assert overwrites == {'overriden': 5}
+
+    ## Test parallel
+    #
+    pipeline.set_execution_method("parallel")
+    assert pipeline({"a": 5, "overriden": 1, "c": 2}) == exp
+    assert pipeline({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
 
 
 def test_pruning_with_given_intermediate_and_asked_out():
     # Test #24: v1.2.4 does not prune before given intermediate data when
     # outputs not asked, but does so when output asked.
-    netop = compose(name="netop")(
+    pipeline = compose(name="pipeline")(
         operation(name="unjustly pruned", needs=["given-1"], provides=["a"])(identity),
         operation(name="shortcuted", needs=["a", "b"], provides=["given-2"])(add),
         operation(name="good_op", needs=["a", "given-2"], provides=["asked"])(add),
@@ -318,55 +326,83 @@ def test_pruning_with_given_intermediate_and_asked_out():
 
     exp = {"given-1": 5, "b": 2, "given-2": 2, "a": 5, "asked": 7}
     # v1.2.4 is ok
-    assert netop({"given-1": 5, "b": 2, "given-2": 2}) == exp
+    assert pipeline({"given-1": 5, "b": 2, "given-2": 2}) == exp
     # FAILS
     # - on v1.2.4 with KeyError: 'a',
     # - on #18 (unsatisfied) with no result.
     # FIXED on #18+#26 (new dag solver).
-    assert netop({"given-1": 5, "b": 2, "given-2": 2}, ["asked"]) == filtdict(exp, "asked")
+    assert pipeline({"given-1": 5, "b": 2, "given-2": 2}, ["asked"]) == filtdict(exp, "asked")
 
     ## Test OVERWITES
     #
     overwrites = {}
-    netop.set_overwrites_collector(overwrites)
-    assert netop({"given-1": 5, "b": 2, "given-2": 2}) == exp
+    pipeline.set_overwrites_collector(overwrites)
+    assert pipeline({"given-1": 5, "b": 2, "given-2": 2}) == exp
     assert overwrites == {}
 
     overwrites = {}
-    netop.set_overwrites_collector(overwrites)
-    assert netop({"given-1": 5, "b": 2, "given-2": 2}, ["asked"]) == filtdict(exp, "asked")
+    pipeline.set_overwrites_collector(overwrites)
+    assert pipeline({"given-1": 5, "b": 2, "given-2": 2}, ["asked"]) == filtdict(exp, "asked")
     assert overwrites == {}
+
+    ## Test parallel
+    #
+    pipeline.set_execution_method("parallel")
+    assert pipeline({"given-1": 5, "b": 2, "given-2": 2}) == exp
+    assert pipeline({"given-1": 5, "b": 2, "given-2": 2}, ["asked"]) == filtdict(exp, "asked")
 
 def test_unsatisfied_operations():
     # Test that operations with partial inputs are culled and not failing.
-    netop = compose(name="netop")(
+    pipeline = compose(name="pipeline")(
         operation(name="add", needs=["a", "b1"], provides=["a+b1"])(add),
         operation(name="sub", needs=["a", "b2"], provides=["a-b2"])(sub),
     )
 
     exp = {"a": 10, "b1": 2, "a+b1": 12}
-    assert netop({"a": 10, "b1": 2}) == exp
-    assert netop({"a": 10, "b1": 2}, outputs=["a+b1"]) == filtdict(exp, "a+b1")
+    assert pipeline({"a": 10, "b1": 2}) == exp
+    assert pipeline({"a": 10, "b1": 2}, outputs=["a+b1"]) == filtdict(exp, "a+b1")
 
     exp = {"a": 10, "b2": 2, "a-b2": 8}
-    assert netop({"a": 10, "b2": 2}) == exp
-    assert netop({"a": 10, "b2": 2}, outputs=["a-b2"]) == filtdict(exp, "a-b2")
+    assert pipeline({"a": 10, "b2": 2}) == exp
+    assert pipeline({"a": 10, "b2": 2}, outputs=["a-b2"]) == filtdict(exp, "a-b2")
+
+    ## Test parallel
+    #
+    pipeline.set_execution_method("parallel")
+    exp = {"a": 10, "b1": 2, "a+b1": 12}
+    assert pipeline({"a": 10, "b1": 2}) == exp
+    assert pipeline({"a": 10, "b1": 2}, outputs=["a+b1"]) == filtdict(exp, "a+b1")
+
+    exp = {"a": 10, "b2": 2, "a-b2": 8}
+    assert pipeline({"a": 10, "b2": 2}) == exp
+    assert pipeline({"a": 10, "b2": 2}, outputs=["a-b2"]) == filtdict(exp, "a-b2")
 
 def test_unsatisfied_operations_same_out():
     # Test unsatisfied pairs of operations providing the same output.
-    netop = compose(name="netop")(
+    pipeline = compose(name="pipeline")(
         operation(name="mul", needs=["a", "b1"], provides=["ab"])(mul),
         operation(name="div", needs=["a", "b2"], provides=["ab"])(floordiv),
         operation(name="add", needs=["ab", "c"], provides=["ab_plus_c"])(add),
     )
 
     exp = {"a": 10, "b1": 2, "c": 1, "ab": 20, "ab_plus_c": 21}
-    assert netop({"a": 10, "b1": 2, "c": 1}) == exp
-    assert netop({"a": 10, "b1": 2, "c": 1}, outputs=["ab_plus_c"]) == filtdict(exp, "ab_plus_c")
+    assert pipeline({"a": 10, "b1": 2, "c": 1}) == exp
+    assert pipeline({"a": 10, "b1": 2, "c": 1}, outputs=["ab_plus_c"]) == filtdict(exp, "ab_plus_c")
 
     exp = {"a": 10, "b2": 2, "c": 1, "ab": 5, "ab_plus_c": 6}
-    assert netop({"a": 10, "b2": 2, "c": 1}) == exp
-    assert netop({"a": 10, "b2": 2, "c": 1}, outputs=["ab_plus_c"]) == filtdict(exp, "ab_plus_c")
+    assert pipeline({"a": 10, "b2": 2, "c": 1}) == exp
+    assert pipeline({"a": 10, "b2": 2, "c": 1}, outputs=["ab_plus_c"]) == filtdict(exp, "ab_plus_c")
+
+    ## Test parallel
+    #
+    pipeline.set_execution_method("parallel")
+    exp = {"a": 10, "b1": 2, "c": 1, "ab": 20, "ab_plus_c": 21}
+    assert pipeline({"a": 10, "b1": 2, "c": 1}) == exp
+    assert pipeline({"a": 10, "b1": 2, "c": 1}, outputs=["ab_plus_c"]) == filtdict(exp, "ab_plus_c")
+
+    exp = {"a": 10, "b2": 2, "c": 1, "ab": 5, "ab_plus_c": 6}
+    assert pipeline({"a": 10, "b2": 2, "c": 1}) == exp
+    assert pipeline({"a": 10, "b2": 2, "c": 1}, outputs=["ab_plus_c"]) == filtdict(exp, "ab_plus_c")
 
 
 def test_optional():
@@ -413,7 +449,10 @@ def test_deleted_optional():
 
 def test_deleteinstructs_vary_with_inputs():
     # Check #21: DeleteInstructions positions vary when inputs change.
-    netop = compose(name="netop")(
+    def count_deletions(steps):
+        return sum(isinstance(n, DeleteInstruction) for n in steps)
+
+    pipeline = compose(name="pipeline")(
         operation(name="a free without b", needs=["a"], provides=["aa"])(identity),
         operation(name="satisfiable", needs=["a", "b"], provides=["ab"])(add),
         operation(name="optional ab", needs=["aa", modifiers.optional("ab")], provides=["asked"])
@@ -422,43 +461,56 @@ def test_deleteinstructs_vary_with_inputs():
 
     inp = {"a": 2, "b": 3}
     exp = inp.copy(); exp.update({"aa": 2, "ab": 5, "asked": 7})
-    res = netop(inp)
+    res = pipeline(inp)
     assert res == exp  # ok
-    steps11 = netop.net.execution_plan
-    res = netop(inp, outputs=["asked"])
+    steps11 = pipeline.net.execution_plan
+    res = pipeline(inp, outputs=["asked"])
     assert res == filtdict(exp, "asked")  # ok
-    steps12 = netop.net.execution_plan
+    steps12 = pipeline.net.execution_plan
 
     inp = {"a": 2}
     exp = inp.copy(); exp.update({"aa": 2, "asked": 12})
-    res = netop(inp)
+    res = pipeline(inp)
     assert res == exp  # ok
-    steps21 = netop.net.execution_plan
-    res = netop(inp, outputs=["asked"])
+    steps21 = pipeline.net.execution_plan
+    res = pipeline(inp, outputs=["asked"])
     assert res == filtdict(exp, "asked")  # ok
-    steps22 = netop.net.execution_plan
+    steps22 = pipeline.net.execution_plan
 
-    assert steps11 == steps12
-    assert steps21 == steps22
-    assert steps11 != steps21  # FAILs in v1.2.4 + #18
-    assert steps12 != steps22  # FAILs in v1.2.4 + #18
+    # When no outs, no del-instructs.
+    assert steps11 != steps12
+    assert count_deletions(steps11) == 0
+    assert steps21 != steps22
+    assert count_deletions(steps21) == 0
+
+    # Check steps vary with inputs
+    #
+    # FAILs in v1.2.4 + #18, PASS in #26
+    assert steps11 != steps21
+
+    # Check deletes vary with inputs
+    #
+    # FAILs in v1.2.4 + #18, PASS in #26
+    assert count_deletions(steps12) != count_deletions(steps22)
 
 
 def test_parallel_execution():
     import time
 
+    delay = 0.5
+
     def fn(x):
-        time.sleep(1)
+        time.sleep(delay)
         print("fn %s" % (time.time() - t0))
         return 1 + x
 
     def fn2(a,b):
-        time.sleep(1)
+        time.sleep(delay)
         print("fn2 %s" % (time.time() - t0))
         return a+b
 
     def fn3(z, k=1):
-        time.sleep(1)
+        time.sleep(delay)
         print("fn3 %s" % (time.time() - t0))
         return z + k
 
@@ -527,8 +579,8 @@ def test_multi_threading():
         assert tuple(sorted(results.keys())) == tuple(sorted(outputs)), (outputs, results)
         return results
 
-    N = 100
-    for i in range(20, 200):
+    N = 33
+    for i in range(13, 61):
         pool = Pool(i)
         pool.map(infer, range(N))
         pool.close()
