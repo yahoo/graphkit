@@ -172,7 +172,7 @@ class NetworkOperation(Operation):
         self._execution_method = method
 
     def plot(self, filename=None, show=False):
-        self.net.plot(filename=filename, show=show)
+        return self.net.plot(filename=filename, show=show)
 
     def __getstate__(self):
         state = Operation.__getstate__(self)
