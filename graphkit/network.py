@@ -54,54 +54,65 @@ class PinInstruction(str):
 
 class Network(object):
     """
-    Assemble operations & data into a directed-acyclic-graph (DAG) and run them
+    Assemble operations & data into a directed-acyclic-graph (DAG) to run them.
 
-    based on the given input values and requested outputs.
+    The execution of the contained *operations* in the dag (the computation)
+    is splitted in 2 phases:
 
-    The execution of *operations* (a computation) is splitted in 2 phases:
-
-    - COMPILE: prune, sort topologically the nodes in the dag, solve it, and
+    - COMPILE: prune unsatisfied nodes, sort dag topologically & solve it, and
       derive the *execution plan* (see below) based on the given *inputs*
       and asked *outputs*.
 
     - EXECUTE: sequential or parallel invocation of the underlying functions
-      of the operations.
+      of the operations with arguments from the ``cache``.
 
-    is based on 4 data-structures:
+    is based on 5 data-structures:
 
-    - the ``networkx`` :attr:`graph` DAG, containing interchanging layers of
-      :class:`Operation` and :class:`DataPlaceholderNode` nodes.
-      They are layed out and connected by repeated calls of :meth:`add_OP`.
+    :ivar graph:
+        A ``networkx`` DAG containing interchanging layers of
+        :class:`Operation` and :class:`DataPlaceholderNode` nodes.
+        They are layed out and connected by repeated calls of :meth:`add_OP`.
 
-      The computation starts with :meth:`_solve_dag()` extracting
-      a *DAG subgraph* by *pruning* nodes based on given inputs and
-      requested outputs.
-      This subgraph is used to decide the `execution_plan` (see below), and
-      and is cached in :attr:`_cached_execution_plans` across runs with
-      inputs/outputs as key.
+        The computation starts with :meth:`_prune_dag()` extracting
+        a *DAG subgraph* by *pruning* its nodes based on given inputs and
+        requested outputs in :meth:`compute()`.
+    :ivar execution_dag:
+        It contains the nodes of the *pruned dag* from the last call to
+        :meth:`compile()`. This pruned subgraph is used to decide
+        the :attr:`execution_plan` (below).
+        It is cached in :attr:`_cached_compilations` across runs with
+        inputs/outputs as key.
 
-    - the :attr:`execution_plan` is the list of the operation-nodes only
-      from the dag (above), topologically sorted, and interspersed with
-      *instructions steps* needed to complete the run.
-      It is built by :meth:`_build_execution_plan()` based on the subgraph dag
-      extracted above. The *instructions* items achieve the following:
+    :ivar execution_plan:
+        It is the list of the operation-nodes only
+        from the dag (above), topologically sorted, and interspersed with
+        *instructions steps* needed to complete the run.
+        It is built by :meth:`_build_execution_plan()` based on the subgraph dag
+        extracted above.
+        It is cached in :attr:`_cached_compilations` across runs with
+        inputs/outputs as key.
 
-      - :class:`DeleteInstruction`: delete items from values-cache as soon as
-        they are not needed further down the dag, to reduce memory footprint
-        while computing.
+        The *instructions* items achieve the following:
 
-      - :class:`PinInstruction`: avoid overwritting any given intermediate
-        inputs, and still allow their providing operations to run
-        (because they are needed for their other outputs).
+        - :class:`DeleteInstruction`: delete items from values-cache as soon as
+          they are not needed further down the dag, to reduce memory footprint
+          while computing.
 
-    - the :var:`cache` local-var in :meth:`compute()`, initialized on each run
-      to hold the values of the given inputs, generated (aka intermediate) data,
-      and output values.
+        - :class:`PinInstruction`: avoid overwritting any given intermediate
+          inputs, and still allow their providing operations to run
+          (because they are needed for their other outputs).
 
-    - the :var:`overwrites` local-var, initialized on each run of both
-      ``_compute_xxx`` methods (for parallel or sequential executions), to
-      hold values calculated but overwritten (aka "pinned") by intermediate
-      input-values.
+    :var cache:
+        a local-var in :meth:`compute()`, initialized on each run
+        to hold the values of the given inputs, generated (intermediate) data,
+        and output values.
+        It is returned as is if no specific outputs requested;  no data-eviction
+        happens then.
+
+    :arg overwrites:
+        The optional argument given to :meth:`compute()` to colect the
+        intermediate *calculated* values that are overwritten by intermediate
+        (aka "pinned") input-values.
 
     """
 
@@ -119,11 +130,14 @@ class Network(object):
         #: The list of operation-nodes & *instructions* needed to evaluate
         #: the given inputs & asked outputs, free memory and avoid overwritting
         #: any given intermediate inputs.
-        self.execution_plan = []
+        self.execution_plan = ()
+
+        #: Pruned graph of the last compilation.
+        self.execution_dag = ()
 
         #: Speed up :meth:`compile()` call and avoid a multithreading issue(?)
         #: that is occuring when accessing the dag in networkx.
-        self._cached_execution_plans = {}
+        self._cached_compilations = {}
 
 
     def add_op(self, operation):
@@ -143,8 +157,9 @@ class Network(object):
         # assert layer is only added once to graph
         assert operation not in self.graph.nodes, "Operation may only be added once"
 
-        ## Invalidate old plans.
-        self._cached_execution_plans = {}
+        self.execution_dag = None
+        self.execution_plan = None
+        self._cached_compilations = {}
 
         # add nodes and edges to graph describing the data needs for this layer
         for n in operation.needs:
@@ -246,11 +261,11 @@ class Network(object):
           all its needs have been accounted, so we can get its satisfaction.
 
         - Their provided outputs are not linked to any data in the dag.
-          An operation might not have any output link when :meth:`_solve_dag()`
+          An operation might not have any output link when :meth:`_prune_dag()`
           has broken them, due to given intermediate inputs.
 
         :param dag:
-            the graph to consider
+            a graph with broken edges those arriving to existing inputs
         :param inputs:
             an iterable of the names of the input values
         return:
@@ -288,13 +303,12 @@ class Network(object):
         return unsatisfied
 
 
-    def _solve_dag(self, outputs, inputs):
+    def _prune_dag(self, outputs, inputs):
         """
         Determines what graph steps need to run to get to the requested
-        outputs from the provided inputs.  Eliminates steps that come before
-        (in topological order) any inputs that have been provided.  Also
-        eliminates steps that are not on a path from the provided inputs to
-        the requested outputs.
+        outputs from the provided inputs. :
+        - Eliminate steps that are not on a path arriving to requested outputs.
+        - Eliminate unsatisfied operations: partial inputs or no outputs needed.
 
         :param iterable outputs:
             A list of desired output names.  This can also be ``None``, in which
@@ -305,7 +319,7 @@ class Network(object):
             The inputs names of all given inputs.
 
         :return:
-            the *execution plan*
+            the *pruned_dag*
         """
         dag = self.graph
 
@@ -341,18 +355,16 @@ class Network(object):
 
         # Prune unsatisfied operations (those with partial inputs or no outputs).
         unsatisfied = self._collect_unsatisfied_operations(broken_dag, inputs)
-        pruned_dag = dag.subgraph(broken_dag.nodes - unsatisfied)
+        pruned_dag = dag.subgraph(self.graph.nodes - unsatisfied)
 
-        plan = self._build_execution_plan(pruned_dag, inputs, outputs)
-
-        return plan
+        return pruned_dag.copy()  # clone so that it is picklable
 
 
     def compile(self, outputs=(), inputs=()):
         """
         Solve dag, set the :attr:`execution_plan`, and cache it.
 
-        See :meth:`_solve_dag()` for detailed description.
+        See :meth:`_prune_dag()` for detailed description.
 
         :param iterable outputs:
             A list of desired output names.  This can also be ``None``, in which
@@ -368,12 +380,20 @@ class Network(object):
             outputs = tuple(sorted(outputs))
         inputs_keys = tuple(sorted(inputs))
         cache_key = (inputs_keys, outputs)
-        if cache_key in self._cached_execution_plans:
-            self.execution_plan = self._cached_execution_plans[cache_key]
+
+        if cache_key in self._cached_compilations:
+            dag, plan = self._cached_compilations[cache_key]
         else:
-            plan = self._solve_dag(outputs, inputs)
-            # save this result in a precomputed cache for future lookup
-            self.execution_plan = self._cached_execution_plans[cache_key] = plan
+            dag = self._prune_dag(outputs, inputs)
+            plan = self._build_execution_plan(dag, inputs, outputs)
+
+            # Cache compilation results to speed up future runs
+            # with different values (but same number of inputs/outputs).
+            self._cached_compilations[cache_key] = dag, plan
+
+        ## TODO: Extract into Solution class
+        self.execution_dag = dag
+        self.execution_plan = plan
 
 
 
@@ -492,7 +512,6 @@ class Network(object):
                     # An optional need may not have a value in the cache.
                     if node in cache:
                         self._pin_data_in_cache(node, cache, inputs, overwrites)
-
 
 
             # stop if no nodes left to schedule, exit out of the loop
@@ -636,7 +655,7 @@ class Network(object):
             execution based on what has already been executed.
         """
         # unordered, not iterated
-        dependencies = set(n for n in nx.ancestors(self.graph, op)
+        dependencies = set(n for n in nx.ancestors(self.execution_dag, op)
                            if isinstance(n, Operation))
         return dependencies.issubset(executed_nodes)
 
@@ -654,7 +673,7 @@ class Network(object):
         """
         data_node = self.get_data_node(name)
         return data_node and set(
-            self.graph.successors(data_node)).issubset(executed_nodes)
+            self.execution_dag.successors(data_node)).issubset(executed_nodes)
 
     def get_data_node(self, name):
         """
