@@ -107,6 +107,31 @@ def test_network_deep_merge():
     pprint(net3({'a': 1, 'b': 2, 'c': 4}))
 
 
+def test_plotting():
+    sum_op1 = operation(name='sum_op1', needs=['a', 'b'], provides='sum1')(add)
+    sum_op2 = operation(name='sum_op2', needs=['a', 'b'], provides='sum2')(add)
+    sum_op3 = operation(name='sum_op3', needs=['sum1', 'c'], provides='sum3')(add)
+    net1 = compose(name='my network 1')(sum_op1, sum_op2, sum_op3)
+
+    for ext in network.supported_plot_writers():
+        tdir = tempfile.mkdtemp(suffix=ext)
+        png_file = osp.join(tdir, "workflow.png")
+        net1.net.plot(png_file)
+        try:
+            assert osp.exists(png_file)
+        finally:
+            shutil.rmtree(tdir, ignore_errors=True)
+    try:
+        net1.net.plot('bad.format')
+        assert False, "Should had failed writting arbitrary file format!"
+    except ValueError as ex:
+        assert "Unknown file format" in str(ex)
+
+        ## Check help msg lists all siupported formats
+        for ext in network.supported_plot_writers():
+            assert ext in str(ex)
+
+
 def test_input_based_pruning():
     # Tests to make sure we don't need to pass graph inputs if we're provided
     # with data further downstream in the graph as an input.
@@ -319,31 +344,6 @@ def test_multi_threading():
         pool = Pool(i)
         pool.map(infer, range(N))
         pool.close()
-
-
-def test_plotting():
-    sum_op1 = operation(name='sum_op1', needs=['a', 'b'], provides='sum1')(add)
-    sum_op2 = operation(name='sum_op2', needs=['a', 'b'], provides='sum2')(add)
-    sum_op3 = operation(name='sum_op3', needs=['sum1', 'c'], provides='sum3')(add)
-    net1 = compose(name='my network 1')(sum_op1, sum_op2, sum_op3)
-
-    for ext in network.supported_plot_writers():
-        tdir = tempfile.mkdtemp(suffix=ext)
-        png_file = osp.join(tdir, "workflow.png")
-        net1.net.plot(png_file)
-        try:
-            assert osp.exists(png_file)
-        finally:
-            shutil.rmtree(tdir, ignore_errors=True)
-    try:
-        net1.net.plot('bad.format')
-        assert False, "Should had failed writting arbitrary file format!"
-    except ValueError as ex:
-        assert "Unknown file format" in str(ex)
-
-        ## Check help msg lists all siupported formats
-        for ext in network.supported_plot_writers():
-            assert ext in str(ex)
 
 
 ####################################
