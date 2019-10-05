@@ -450,6 +450,23 @@ def plot_graph(graph, filename=None, show=False, steps=None,
     """
     Plot a *Graphviz* graph/steps and return it, if no other argument provided.
 
+    Legend:
+
+    NODES:
+
+    - **circle**: function
+    - **house**: input (given)
+    - **inversed-house**: output (asked)
+    - **polygon**: given both as input & asked as output (what?)
+    - **square**: intermediate data (neither given nor asked)
+    - **red frame**: delete-instruction (to free up memory)
+
+    ARROWS
+
+    - **solid black arrows**: dependencies (target ``need`` source, 
+      sources ``provide`` target)
+    - **green-dotted arrows**: execution steps labeled in succession
+
     :param graph:
         what to plot
     :param str filename:
@@ -470,6 +487,18 @@ def plot_graph(graph, filename=None, show=False, steps=None,
 
     :returns:
         An instance of the pydot graph
+
+    **Example:**
+
+    >>> netop = compose(name="netop")(
+    ...     operation(name="add", needs=["a", "b1"], provides=["ab1"])(add),
+    ...     operation(name="sub", needs=["a", optional("b2")], provides=["ab2"])(lambda a, b=1: a-b),
+    ...     operation(name="abb", needs=["ab1", "ab2"], provides=["asked"])(add),
+    ... )
+
+    >>> inputs = {'a': 1, 'b1': 2}
+    >>> solution=netop(inputs)
+    >>> netop.plot('plot.svg', inputs=inputs, solution=solution, outputs=['asked', 'b1']);
 
     """
     import pydot

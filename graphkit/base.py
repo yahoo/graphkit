@@ -173,6 +173,11 @@ class NetworkOperation(Operation):
 
     def plot(self, filename=None, show=False,
             inputs=None, outputs=None, solution=None):
+        """
+        Plot a *Graphviz* graph and return it, if no other argument provided.
+
+        See :func:`network.plot_graph()` for arguments, legend, and example code.
+        """
         return self.net.plot(filename, show, inputs, outputs, solution)
 
     def __getstate__(self):
