@@ -174,9 +174,26 @@ class NetworkOperation(Operation):
     def plot(self, filename=None, show=False,
             inputs=None, outputs=None, solution=None):
         """
-        Plot a *Graphviz* graph and return it, if no other argument provided.
+        :param str filename:
+            Write diagram into a file.
+            The extension must be one of: ``.png .dot .jpg .jpeg .pdf .svg``
+            Prefer ``.pdf`` or ``.svg`` to see solution-values in tooltips.
+        :param boolean show:
+            If it evaluates to true, opens the  diagram in a  matplotlib window.
+        :param inputs:
+            an optional name list, any nodes in there are plotted
+            as a "house"
+        :param outputs:
+            an optional name list, any nodes in there are plotted
+            as an "inverted-house"
+        :param solution:
+            an optional dict with values to annotate nodes
+            (currently content not shown, but node drawn as "filled")
 
-        See :func:`network.plot_graph()` for arguments, legend, and example code.
+        :return:
+            An instance of the :mod`pydot` graph
+
+        See :func:`network.plot_graph()` for the plot legend and example code.
         """
         return self.net.plot(filename, show, inputs, outputs, solution)
 

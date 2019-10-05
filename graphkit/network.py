@@ -381,7 +381,26 @@ class Network(object):
         """
         Plot a *Graphviz* graph and return it, if no other argument provided.
 
-        See :func:`network.plot_graph()` for arguments, legend, and example code.
+        :param str filename:
+            Write diagram into a file.
+            The extension must be one of: ``.png .dot .jpg .jpeg .pdf .svg``
+            Prefer ``.pdf`` or ``.svg`` to see solution-values in tooltips.
+        :param boolean show:
+            If it evaluates to true, opens the  diagram in a  matplotlib window.
+        :param inputs:
+            an optional name list, any nodes in there are plotted
+            as a "house"
+        :param outputs:
+            an optional name list, any nodes in there are plotted
+            as an "inverted-house"
+        :param solution:
+            an optional dict with values to annotate nodes
+            (currently content not shown, but node drawn as "filled")
+
+        :return:
+            An instance of the :mod`pydot` graph
+
+        See :func:`network.plot_graph` for the plot legend and example code.
         """
         return plot_graph(self.graph, filename, show, self.steps,
                           inputs, outputs, solution)
@@ -476,24 +495,25 @@ def plot_graph(graph, filename=None, show=False, steps=None,
     :param graph:
         what to plot
     :param str filename:
-        Write the output to a file.
+        Write diagram into a file.
         The extension must be one of: ``.png .dot .jpg .jpeg .pdf .svg``
         Prefer ``.pdf`` or ``.svg`` to see solution-values in tooltips.
     :param boolean show:
-        If this is set to True, use matplotlib to show the graph diagram
-        (Default: False)
+        If it evaluates to true, opens the  diagram in a  matplotlib window.
     :param steps:
         a list of nodes & instructions to overlay on the diagram
     :param inputs:
-        an optional list, any nodes in there are plotted as `"house"
-        <https://graphviz.gitlab.io/_pages/doc/info/shapes.html)>`_
+        an optional name list, any nodes in there are plotted
+        as a "house"
     :param outputs:
-        an optional list, any nodes in there are plotted as `"invhouse"
-    :param outputs:
-        an optional dict, any values in there are included in the node-name
+        an optional name list, any nodes in there are plotted
+        as an "inverted-house"
+    :param solution:
+        an optional dict with values to annotate nodes
+        (currently content not shown, but node drawn as "filled")
 
-    :returns:
-        An instance of the pydot graph
+    :return:
+        An instance of the :mod`pydot` graph
 
     **Example:**
 
@@ -530,6 +550,7 @@ def plot_graph(graph, filename=None, show=False, steps=None,
                 kw = {'color': 'red', 'penwidth': 2}
 
             # SHAPE change if in inputs/outputs.
+            # tip: https://graphviz.gitlab.io/_pages/doc/info/shapes.html
             shape="rect"
             if inputs and outputs and nx_node in inputs and nx_node in outputs:
                 shape="hexagon"
