@@ -197,7 +197,7 @@ class NetworkOperation(Operation):
         :return:
             An instance of the :mod`pydot` graph
 
-        See :func:`network.plot_graph()` for the plot legend and example code.
+        See :func:`graphkit.plot.plot_graph()` for the plot legend and example code.
         """
         return self.net.plot(filename, show, jupyter, inputs, outputs, solution)
 
