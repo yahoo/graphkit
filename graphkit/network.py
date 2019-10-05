@@ -455,6 +455,7 @@ def get_data_node(name, graph):
 
 
 def supported_plot_formats():
+    """return automatically all `pydot` extensions withlike ``.png``"""
     import pydot
 
     return [".%s" % f for f in pydot.Dot().formats]
@@ -524,8 +525,6 @@ def plot_graph(graph, filename=None, show=False, steps=None,
 
     """
     import pydot
-    import matplotlib.pyplot as plt
-    import matplotlib.image as mpimg
 
     assert graph is not None
 
@@ -610,6 +609,9 @@ def plot_graph(graph, filename=None, show=False, steps=None,
 
     # display graph via matplotlib
     if show:
+        import matplotlib.pyplot as plt
+        import matplotlib.image as mpimg
+
         png = g.create_png()
         sio = io.BytesIO(png)
         img = mpimg.imread(sio)

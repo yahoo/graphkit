@@ -117,7 +117,8 @@ def test_plotting():
     solution=pipeline(inputs)
 
     # ...not working on my PC ...
-    forbidden_formats = ".dia .hpgl .mif .pcl .pic .vtx .xlib".split()
+    forbidden_formats = ".dia .hpgl .mif .mp .pcl .pic .vtx .xlib".split()
+
     tdir = tempfile.mkdtemp()
     counter = 0
     try:
