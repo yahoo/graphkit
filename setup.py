@@ -19,6 +19,16 @@ and many other domains.
 with io.open('graphkit/__init__.py', 'rt', encoding='utf8') as f:
     version = re.search(r'__version__ = \'(.*?)\'', f.read()).group(1)
 
+plot_reqs = [
+     "ipython; python_version >= '3.5'",     # to test jupyter plot.
+     "matplotlib",   # to test plot
+     "pydot",        # to test plot
+]
+test_reqs = plot_reqs + [
+     "pytest",
+     "pytest-cov",
+]
+
 setup(
      name='graphkit',
      version=version,
@@ -33,16 +43,10 @@ setup(
           "networkx == 2.2; python_version < '3.5'",
      ],
      extras_require={
-          'plot': ['pydot', 'matplotlib'],
-          'test': ['pydot', 'matplotlib', 'pytest', "pytest-cov"],
+          'plot': plot_reqs,
+          'test': test_reqs,
      },
-     tests_require=[
-          "pytest",
-          "pytest-cov",
-          "ipython; python_version >= '3.5'",     # to test jupyter plot.
-          "pydot",       # to test plot
-          "matplotlib"   # to test plot
-     ],
+     tests_require=test_reqs,
      license='Apache-2.0',
      keywords=['graph', 'computation graph', 'DAG', 'directed acyclical graph'],
      classifiers=[
