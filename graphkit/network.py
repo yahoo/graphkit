@@ -496,6 +496,7 @@ def plot_graph(graph, filename=None, show=False, steps=None,
         call :func:`network.supported_plot_formats()` for more.
     :param boolean show:
         If it evaluates to true, opens the  diagram in a  matplotlib window.
+        If it equals ``-1``, it plots but does not open the Window.
     :param steps:
         a list of nodes & instructions to overlay on the diagram
     :param inputs:
@@ -616,6 +617,7 @@ def plot_graph(graph, filename=None, show=False, steps=None,
         sio = io.BytesIO(png)
         img = mpimg.imread(sio)
         plt.imshow(img, aspect="equal")
-        plt.show()
+        if show != -1:
+            plt.show()
 
     return g

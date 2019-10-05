@@ -5,6 +5,7 @@ import math
 import pickle
 import os.path as osp
 import shutil
+import sys
 import tempfile
 
 
@@ -137,6 +138,17 @@ def test_plotting():
             assert osp.exists(fpath)
     finally:
         shutil.rmtree(tdir, ignore_errors=True)
+
+    ## Don't open matplotlib window.
+    #
+    if sys.version_info < (3, 5):
+        # On PY< 3.5 it fails with:
+        #   nose.proxy.TclError: no display name and no $DISPLAY environment variable
+        # eg https://travis-ci.org/ankostis/graphkit/jobs/593957996
+        import matplotlib
+        matplotlib.use("Agg")
+    # do not open window in headless travis
+    assert pipeline.plot(show=-1)
 
     try:
         pipeline.plot('bad.format')

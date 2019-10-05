@@ -35,7 +35,11 @@ setup(
      extras_require={
           'plot': ['pydot', 'matplotlib']
      },
-     tests_require=['numpy'],
+     tests_require=[
+          "numpy",
+          "pydot",       # to test plot
+          "matplotlib"   # to test plot
+     ],
      license='Apache-2.0',
      keywords=['graph', 'computation graph', 'DAG', 'directed acyclical graph'],
      classifiers=[
