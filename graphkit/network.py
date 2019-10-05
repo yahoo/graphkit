@@ -375,14 +375,15 @@ class Network(object):
             return {k: cache[k] for k in iter(cache) if k in outputs}
 
 
-    def plot(self, filename=None, show=False):
+    def plot(self, filename=None, show=False,
+             inputs=None, outputs=None, solution=None):
         """
         Plot a *Graphviz* graph and return it, if no other argument provided.
 
-        Supported arguments: filename, show
         See :func:`network.plot_graph()` 
         """
-        return plot_graph(self.graph, filename, show, self.steps)
+        return plot_graph(self.graph, filename, show, self.steps,
+                          inputs, outputs, solution)
 
 
 def ready_to_schedule_operation(op, has_executed, graph):
@@ -444,7 +445,8 @@ def supported_plot_writers():
     }
 
 
-def plot_graph(graph, filename=None, show=False, steps=None):
+def plot_graph(graph, filename=None, show=False, steps=None,
+               inputs=None, outputs=None, solution=None):
     """
     Plot a *Graphviz* graph/steps and return it, if no other argument provided.
 
@@ -458,6 +460,13 @@ def plot_graph(graph, filename=None, show=False, steps=None):
         (Default: False)
     :param steps:
         a list of nodes & instructions to overlay on the diagram
+    :param inputs:
+        an optional list, any nodes in there are plotted as `"house"
+        <https://graphviz.gitlab.io/_pages/doc/info/shapes.html)>`_
+    :param outputs:
+        an optional list, any nodes in there are plotted as `"invhouse"
+    :param outputs:
+        an optional dict, any values in there are included in the node-name
 
     :returns:
         An instance of the pydot graph
@@ -480,9 +489,25 @@ def plot_graph(graph, filename=None, show=False, steps=None):
     for nx_node in graph.nodes:
         kw = {}
         if isinstance(nx_node, DataPlaceholderNode):
+            # Only DeleteInstructions data in steps.
             if nx_node in steps:
                 kw = {'color': 'red', 'style': 'bold'}
-            node = pydot.Node(name=nx_node, shape="rect", **kw)
+                
+            # SHAPE change if in inputs/outputs.
+            shape="rect"
+            if inputs and nx_node in inputs:
+                shape="invhouse"
+            if outputs and nx_node in outputs:
+                if inputs and nx_node in inputs:
+                    shape="polygon"
+                else:
+                    shape="house"
+
+            # LABEL change from solution.
+            name = str(nx_node)
+            if solution and nx_node in solution:
+                name = "%s: %s" % (nx_node, solution.get(nx_node))
+            node = pydot.Node(name=nx_node, label=name, shape=shape, **kw)
         else:
             if nx_node in steps:
                 kw = {'style': 'bold'}
@@ -511,8 +536,8 @@ def plot_graph(graph, filename=None, show=False, steps=None):
     # save plot
     if filename:
         _basename, ext = os.path.splitext(filename)
-        writers = Network.supported_plot_writers()
-        plot_writer = Network.supported_plot_writers().get(ext.lower())
+        writers = supported_plot_writers()
+        plot_writer = supported_plot_writers().get(ext.lower())
         if not plot_writer:
             raise ValueError(
                 "Unknown file format for saving graph: %s"

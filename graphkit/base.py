@@ -171,8 +171,9 @@ class NetworkOperation(Operation):
         assert method in options
         self._execution_method = method
 
-    def plot(self, filename=None, show=False):
-        return self.net.plot(filename=filename, show=show)
+    def plot(self, filename=None, show=False,
+            inputs=None, outputs=None, solution=None):
+        return self.net.plot(filename, show, inputs, outputs, solution)
 
     def __getstate__(self):
         state = Operation.__getstate__(self)
