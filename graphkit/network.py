@@ -463,8 +463,9 @@ def plot_graph(graph, filename=None, show=False, steps=None,
 
     ARROWS
 
-    - **solid black arrows**: dependencies (target ``need`` source, 
-      sources ``provide`` target)
+    - **solid black arrows**: dependencies (source-data are``need``\ed
+      by target-operations, sources-operations ``provide`` target-data)
+    - **dashed black arrows**: optional needs
     - **green-dotted arrows**: execution steps labeled in succession
 
     :param graph:
@@ -547,7 +548,12 @@ def plot_graph(graph, filename=None, show=False, steps=None,
     for src, dst in graph.edges():
         src_name = get_node_name(src)
         dst_name = get_node_name(dst)
-        edge = pydot.Edge(src=src_name, dst=dst_name)
+        kw = {}
+        if isinstance(dst, Operation) and any(n == src
+                                              and isinstance(n, optional)
+                                              for n in dst.needs):
+            kw["style"] = "dashed"
+        edge = pydot.Edge(src=src_name, dst=dst_name, **kw)
         g.add_edge(edge)
 
     # draw steps sequence
