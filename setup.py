@@ -33,10 +33,12 @@ setup(
           "networkx == 2.2; python_version < '3.5'",
      ],
      extras_require={
-          'plot': ['pydot', 'matplotlib']
+          'plot': ['pydot', 'matplotlib'],
+          'test': ['pydot', 'matplotlib', 'pytest', "pytest-cov"],
      },
      tests_require=[
-          "numpy",
+          "pytest",
+          "pytest-cov",
           "ipython; python_version >= '3.5'",     # to test jupyter plot.
           "pydot",       # to test plot
           "matplotlib"   # to test plot
