@@ -3,11 +3,6 @@
 
 import math
 import pickle
-import os.path as osp
-import shutil
-import sys
-import tempfile
-
 
 from pprint import pprint
 from operator import add
@@ -107,82 +102,6 @@ def test_network_deep_merge():
 
     net3 = compose(name='merged', merge=True)(net1, net2)
     pprint(net3({'a': 1, 'b': 2, 'c': 4}))
-
-
-def test_plotting():
-    pipeline = compose(name="netop")(
-        operation(name="add", needs=["a", "b1"], provides=["ab1"])(add),
-        operation(name="sub", needs=["a", modifiers.optional("b2")], provides=["ab2"])(lambda a, b=1: a-b),
-        operation(name="abb", needs=["ab1", "ab2"], provides=["asked"])(add),
-    )
-    inputs = {'a': 1, 'b1': 2}
-    solution=pipeline(inputs)
-
-
-    ## Generate all formats
-    #  (not needing to save files)
-    #
-    # ...these are not working on my PC, or travis.
-    forbidden_formats = ".dia .hpgl .mif .mp .pcl .pic .vtx .xlib".split()
-    prev_dot = None
-    for ext in network.supported_plot_formats():
-        if ext in forbidden_formats:
-            continue
-
-        dot = pipeline.plot(inputs=inputs, solution=solution, outputs=['asked', 'b1'])
-        assert dot
-        assert dot != prev_dot
-        prev_dot = dot
-
-        dot = pipeline.plot()
-        assert dot
-        assert dot != prev_dot
-        prev_dot = dot
-
-    ## Try saving one file.
-    #
-    tdir = tempfile.mkdtemp()
-    fpath = osp.join(tdir, "workflow.png")
-    try:
-        dot = pipeline.plot(fpath, inputs=inputs, solution=solution, outputs=['asked', 'b1'])
-        assert osp.exists(fpath)
-        assert dot
-    finally:
-        shutil.rmtree(tdir, ignore_errors=True)
-
-    ## Try matplotlib Window, but
-    # without opening a Window.
-    #
-    if sys.version_info < (3, 5):
-        # On PY< 3.5 it fails with:
-        #   nose.proxy.TclError: no display name and no $DISPLAY environment variable
-        # eg https://travis-ci.org/ankostis/graphkit/jobs/593957996
-        import matplotlib
-        matplotlib.use("Agg")
-    # do not open window in headless travis
-    assert pipeline.plot(show=-1)
-
-    ## Try Jupyter SVG.
-    #
-    # but latest ipython-7+ dropped < PY3.4
-    if sys.version_info >= (3, 5):
-        assert "display.SVG" in str(type(pipeline.plot(jupyter=True)))
-
-    try:
-        pipeline.plot('bad.format')
-        assert False, "Should had failed writting arbitrary file format!"
-    except ValueError as ex:
-        assert "Unknown file format" in str(ex)
-
-        ## Check help msg lists all siupported formats
-        for ext in network.supported_plot_formats():
-            assert ext in str(ex)
-
-
-def test_plotting_docstring():
-    common_formats = ".png .dot .jpg .jpeg .pdf .svg".split()
-    for ext in common_formats:
-        assert ext in network.plot_graph.__doc__
 
 
 def test_input_based_pruning():
