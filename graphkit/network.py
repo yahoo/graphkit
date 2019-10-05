@@ -383,8 +383,8 @@ class Network(object):
 
         :param str filename:
             Write diagram into a file.
-            The extension must be one of: ``.png .dot .jpg .jpeg .pdf .svg``
-            Prefer ``.pdf`` or ``.svg`` to see solution-values in tooltips.
+            Common extensions are ``.png .dot .jpg .jpeg .pdf .svg``
+            call :func:`network.supported_plot_formats()` for more.
         :param boolean show:
             If it evaluates to true, opens the  diagram in a  matplotlib window.
         :param inputs:
@@ -454,15 +454,10 @@ def get_data_node(name, graph):
     return None
 
 
-def supported_plot_writers():
-    return {
-        ".png": lambda gplot: gplot.create_png(),
-        ".dot": lambda gplot: gplot.to_string(),
-        ".jpg": lambda gplot: gplot.create_jpeg(),
-        ".jpeg": lambda gplot: gplot.create_jpeg(),
-        ".pdf": lambda gplot: gplot.create_pdf(),
-        ".svg": lambda gplot: gplot.create_svg(),
-    }
+def supported_plot_formats():
+    import pydot
+
+    return [".%s" % f for f in pydot.Dot().formats]
 
 
 def plot_graph(graph, filename=None, show=False, steps=None,
@@ -496,8 +491,8 @@ def plot_graph(graph, filename=None, show=False, steps=None,
         what to plot
     :param str filename:
         Write diagram into a file.
-        The extension must be one of: ``.png .dot .jpg .jpeg .pdf .svg``
-        Prefer ``.pdf`` or ``.svg`` to see solution-values in tooltips.
+        Common extensions are ``.png .dot .jpg .jpeg .pdf .svg``
+        call :func:`network.supported_plot_formats()` for more.
     :param boolean show:
         If it evaluates to true, opens the  diagram in a  matplotlib window.
     :param steps:
@@ -603,16 +598,15 @@ def plot_graph(graph, filename=None, show=False, steps=None,
 
     # save plot
     if filename:
+        formats = supported_plot_formats()
         _basename, ext = os.path.splitext(filename)
-        writers = supported_plot_writers()
-        plot_writer = supported_plot_writers().get(ext.lower())
-        if not plot_writer:
+        if not ext.lower() in formats:
             raise ValueError(
                 "Unknown file format for saving graph: %s"
                 "  File extensions must be one of: %s"
-                % (ext, ' '.join(writers)))
-        with open(filename, "wb") as fh:
-            fh.write(plot_writer(g))
+                % (ext, " ".join(formats)))
+
+        g.write(filename, format=ext.lower()[1:])
 
     # display graph via matplotlib
     if show:
