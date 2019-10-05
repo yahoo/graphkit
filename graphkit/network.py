@@ -455,77 +455,40 @@ class Network(object):
         return solution
 
 
-    def plot(self, filename=None, show=False):
+    def plot(self, filename=None, show=False, jupyter=None,
+             inputs=None, outputs=None, solution=None):
         """
-        Plot the graph.
+        Plot a *Graphviz* graph and return it, if no other argument provided.
 
-        params:
         :param str filename:
-            Write the output to a png, pdf, or graphviz dot file. The extension
-            controls the output format.
+            Write diagram into a file.
+            Common extensions are ``.png .dot .jpg .jpeg .pdf .svg``
+            call :func:`plot.supported_plot_formats()` for more.
+        :param show:
+            If it evaluates to true, opens the  diagram in a  matplotlib window.
+            If it equals `-1``, it plots but does not open the Window.
+        :param jupyter:
+            If it evaluates to true, return an SVG suitable to render 
+            in *jupyter notebook cells* (`ipython` must be installed).
+        :param inputs:
+            an optional name list, any nodes in there are plotted
+            as a "house"
+        :param outputs:
+            an optional name list, any nodes in there are plotted
+            as an "inverted-house"
+        :param solution:
+            an optional dict with values to annotate nodes
+            (currently content not shown, but node drawn as "filled")
 
-        :param boolean show:
-            If this is set to True, use matplotlib to show the graph diagram
-            (Default: False)
+        :return:
+            An instance of the :mod`pydot` graph
 
-        :returns:
-            An instance of the pydot graph
-
+        See :func:`graphkit.plot.plot_graph()` for the plot legend and example code.
         """
-        import pydot
-        import matplotlib.pyplot as plt
-        import matplotlib.image as mpimg
-
-        assert self.graph is not None
-
-        def get_node_name(a):
-            if isinstance(a, DataPlaceholderNode):
-                return a
-            return a.name
-
-        g = pydot.Dot(graph_type="digraph")
-
-        # draw nodes
-        for nx_node in self.graph.nodes:
-            if isinstance(nx_node, DataPlaceholderNode):
-                node = pydot.Node(name=nx_node, shape="rect")
-            else:
-                node = pydot.Node(name=nx_node.name, shape="circle")
-            g.add_node(node)
-
-        # draw edges
-        for src, dst in self.graph.edges():
-            src_name = get_node_name(src)
-            dst_name = get_node_name(dst)
-            edge = pydot.Edge(src=src_name, dst=dst_name)
-            g.add_edge(edge)
-
-        # save plot
-        if filename:
-            _basename, ext = os.path.splitext(filename)
-            with open(filename, "wb") as fh:
-                if ext.lower() == ".png":
-                    fh.write(g.create_png())
-                elif ext.lower() == ".dot":
-                    fh.write(g.to_string())
-                elif ext.lower() in [".jpg", ".jpeg"]:
-                    fh.write(g.create_jpeg())
-                elif ext.lower() == ".pdf":
-                    fh.write(g.create_pdf())
-                elif ext.lower() == ".svg":
-                    fh.write(g.create_svg())
-                else:
-                    raise Exception("Unknown file format for saving graph: %s" % ext)
-
-        # display graph via matplotlib
-        if show:
-            png = g.create_png()
-            sio = StringIO(png)
-            img = mpimg.imread(sio)
-            plt.imshow(img, aspect="equal")
-            plt.show()
-
-        return g
+        from . import plot
+        
+        return plot.plot_graph(self.graph, filename, show, jupyter,
+                          self.steps, inputs, outputs, solution)
 
 
 class ExecutionPlan(namedtuple("_ExecPlan",

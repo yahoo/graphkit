@@ -3,14 +3,14 @@
 
 import math
 import pickle
-
+from operator import add, floordiv, mul, sub
 from pprint import pprint
-from operator import add, sub, floordiv, mul
-from numpy.testing import assert_raises
 
-import graphkit.network as network
+import pytest
+
 import graphkit.modifiers as modifiers
-from graphkit import operation, compose, Operation
+import graphkit.network as network
+from graphkit import Operation, compose, operation
 from graphkit.network import DeleteInstruction
 
 
@@ -201,9 +201,10 @@ def test_pruning_raises_for_bad_output():
 
     # Request two outputs we can compute and one we can't compute.  Assert
     # that this raises a ValueError.
-    assert_raises(ValueError, net, {'a': 1, 'b': 2, 'c': 3, 'd': 4},
-        outputs=['sum1', 'sum3', 'sum4'])
-
+    with pytest.raises(ValueError) as exinfo:
+        net({'a': 1, 'b': 2, 'c': 3, 'd': 4},
+            outputs=['sum1', 'sum3', 'sum4'])
+    assert exinfo.match('sum4')
 
 def test_pruning_not_overrides_given_intermediate():
     # Test #25: v1.2.4 overwrites intermediate data when no output asked
@@ -455,7 +456,7 @@ def test_optional_per_function_with_same_output():
     sub_op_optional = operation(
         name='sub_opt', needs=['a', modifiers.optional('b')], provides='a+b'
     )(lambda a, b=10: a - b)
-    
+
     # Normal order
     #
     pipeline = compose(name='partial_optionals')(add_op, sub_op_optional)

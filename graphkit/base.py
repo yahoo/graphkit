@@ -202,8 +202,35 @@ class NetworkOperation(Operation):
                 % collector)
         self._overwrites_collector = collector
 
-    def plot(self, filename=None, show=False):
-        self.net.plot(filename=filename, show=show)
+    def plot(self, filename=None, show=False, jupyter=None,
+            inputs=None, outputs=None, solution=None):
+        """
+        :param str filename:
+            Write diagram into a file.
+            Common extensions are ``.png .dot .jpg .jpeg .pdf .svg``
+            call :func:`plot.supported_plot_formats()` for more.
+        :param show:
+            If it evaluates to true, opens the  diagram in a  matplotlib window.
+            If it equals `-1`, it plots but does not open the Window.
+        :param jupyter:
+            If it evaluates to true, return an SVG suitable to render 
+            in *jupyter notebook cells* (`ipython` must be installed).
+        :param inputs:
+            an optional name list, any nodes in there are plotted
+            as a "house"
+        :param outputs:
+            an optional name list, any nodes in there are plotted
+            as an "inverted-house"
+        :param solution:
+            an optional dict with values to annotate nodes
+            (currently content not shown, but node drawn as "filled")
+
+        :return:
+            An instance of the :mod`pydot` graph
+
+        See :func:`graphkit.plot.plot_graph()` for the plot legend and example code.
+        """
+        return self.net.plot(filename, show, jupyter, inputs, outputs, solution)
 
     def __getstate__(self):
         state = Operation.__getstate__(self)
