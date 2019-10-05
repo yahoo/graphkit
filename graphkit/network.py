@@ -7,7 +7,8 @@ import time
 import networkx as nx
 
 
-from .base import Operation
+from .base import Operation, NetworkOperation
+from .modifiers import optional
 
 
 class DataPlaceholderNode(str):
@@ -380,7 +381,7 @@ class Network(object):
         """
         Plot a *Graphviz* graph and return it, if no other argument provided.
 
-        See :func:`network.plot_graph()` 
+        See :func:`network.plot_graph()` for arguments, legend, and example code.
         """
         return plot_graph(self.graph, filename, show, self.steps,
                           inputs, outputs, solution)
@@ -452,14 +453,18 @@ def plot_graph(graph, filename=None, show=False, steps=None,
 
     Legend:
 
+
     NODES:
 
     - **circle**: function
-    - **house**: input (given)
-    - **inversed-house**: output (asked)
+    - **oval**: subgraph function
+    - **house**: given input
+    - **inversed-house**: asked output
     - **polygon**: given both as input & asked as output (what?)
-    - **square**: intermediate data (neither given nor asked)
-    - **red frame**: delete-instruction (to free up memory)
+    - **square**: intermediate data, neither given nor asked.
+    - **red frame**: delete-instruction, to free up memory.
+    - **filled**: data node has a value in `solution`, shown in tooltip.
+    - **thick frame**: function/data node visited.
 
     ARROWS
 
@@ -473,6 +478,7 @@ def plot_graph(graph, filename=None, show=False, steps=None,
     :param str filename:
         Write the output to a file.
         The extension must be one of: ``.png .dot .jpg .jpeg .pdf .svg``
+        Prefer ``.pdf`` or ``.svg`` to see solution-values in tooltips.
     :param boolean show:
         If this is set to True, use matplotlib to show the graph diagram
         (Default: False)
@@ -518,34 +524,39 @@ def plot_graph(graph, filename=None, show=False, steps=None,
     # draw nodes
     for nx_node in graph.nodes:
         kw = {}
-        if isinstance(nx_node, DataPlaceholderNode):
+        if isinstance(nx_node, str):
             # Only DeleteInstructions data in steps.
             if nx_node in steps:
-                kw = {'color': 'red', 'style': 'bold'}
-                
+                kw = {'color': 'red', 'penwidth': 2}
+
             # SHAPE change if in inputs/outputs.
             shape="rect"
-            if inputs and nx_node in inputs:
-                shape="invhouse"
-            if outputs and nx_node in outputs:
+            if inputs and outputs and nx_node in inputs and nx_node in outputs:
+                shape="hexagon"
+            else:
                 if inputs and nx_node in inputs:
-                    shape="polygon"
-                else:
+                    shape="invhouse"
+                if outputs and nx_node in outputs:
                     shape="house"
 
             # LABEL change from solution.
-            name = str(nx_node)
             if solution and nx_node in solution:
-                name = "%s: %s" % (nx_node, solution.get(nx_node))
-            node = pydot.Node(name=nx_node, label=name, shape=shape, **kw)
-        else:
+                kw["style"] = "filled"
+                kw["fillcolor"] = "gray"
+                # kw["tooltip"] = nx_node, solution.get(nx_node)
+            node = pydot.Node(name=nx_node, shape=shape,
+            URL="fdgfdf", **kw)
+        else:  # Operation
+            kw = {}
+            shape = "oval" if isinstance(nx_node, NetworkOperation) else "circle"
             if nx_node in steps:
-                kw = {'style': 'bold'}
-            node = pydot.Node(name=nx_node.name, shape="circle", **kw)
+                kw["style"] = "bold"
+            node = pydot.Node(name=nx_node.name, shape=shape, **kw)
+
         g.add_node(node)
 
     # draw edges
-    for src, dst in graph.edges():
+    for src, dst in graph.edges:
         src_name = get_node_name(src)
         dst_name = get_node_name(dst)
         kw = {}
@@ -564,8 +575,9 @@ def plot_graph(graph, filename=None, show=False, steps=None,
             src_name = get_node_name(src)
             dst_name = get_node_name(dst)
             edge = pydot.Edge(
-                src=src_name, dst=dst_name, label=str(i), style="dotted",
-                penwidth='2')
+                src=src_name, dst=dst_name, label=str(i), style='dotted',
+                color="green", fontcolor="green", fontname="bold", fontsize=18,
+                penwidth=3, arrowhead="vee")
             g.add_edge(edge)
 
     # save plot
