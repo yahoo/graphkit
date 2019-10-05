@@ -117,25 +117,35 @@ def test_plotting():
     inputs = {'a': 1, 'b1': 2}
     solution=pipeline(inputs)
 
-    # ...not working on my PC ...
+
+    ## Generate all formats
+    #  (not needing to save files)
+    #
+    # ...these are not working on my PC, or travis.
     forbidden_formats = ".dia .hpgl .mif .mp .pcl .pic .vtx .xlib".split()
+    prev_dot = None
+    for ext in network.supported_plot_formats():
+        if ext in forbidden_formats:
+            continue
 
+        dot = pipeline.plot(inputs=inputs, solution=solution, outputs=['asked', 'b1'])
+        assert dot
+        assert dot != prev_dot
+        prev_dot = dot
+
+        dot = pipeline.plot()
+        assert dot
+        assert dot != prev_dot
+        prev_dot = dot
+
+    ## Try saving one file.
+    #
     tdir = tempfile.mkdtemp()
-    counter = 0
+    fpath = osp.join(tdir, "workflow.png")
     try:
-        for ext in network.supported_plot_formats():
-            if ext in forbidden_formats:
-                continue
-
-            counter += 1
-            fpath = osp.join(tdir, "workflow-%i%s" % (counter, ext))
-            pipeline.plot(fpath, inputs=inputs, solution=solution, outputs=['asked', 'b1'])
-            assert osp.exists(fpath)
-
-            counter += 1
-            fpath = osp.join(tdir, "workflow-%i%s" % (counter, ext))
-            pipeline.plot(fpath)
-            assert osp.exists(fpath)
+        dot = pipeline.plot(fpath, inputs=inputs, solution=solution, outputs=['asked', 'b1'])
+        assert osp.exists(fpath)
+        assert dot
     finally:
         shutil.rmtree(tdir, ignore_errors=True)
 
