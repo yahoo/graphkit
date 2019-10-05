@@ -453,8 +453,8 @@ def plot_graph(graph, filename=None, show=False, steps=None,
     :param graph:
         what to plot
     :param str filename:
-        Write the output to a png, pdf, or graphviz dot file. The extension
-        controls the output format.
+        Write the output to a file.
+        The extension must be one of: ``.png .dot .jpg .jpeg .pdf .svg``
     :param boolean show:
         If this is set to True, use matplotlib to show the graph diagram
         (Default: False)

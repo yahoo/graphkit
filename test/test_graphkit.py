@@ -132,6 +132,11 @@ def test_plotting():
             assert ext in str(ex)
 
 
+def test_plotting_docstring():
+    for ext in network.supported_plot_writers():
+        assert ext in network.plot_graph.__doc__
+
+
 def test_input_based_pruning():
     # Tests to make sure we don't need to pass graph inputs if we're provided
     # with data further downstream in the graph as an input.
