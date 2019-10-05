@@ -37,6 +37,7 @@ setup(
      },
      tests_require=[
           "numpy",
+          "ipython; python_version >= '3.5'",     # to test jupyter plot.
           "pydot",       # to test plot
           "matplotlib"   # to test plot
      ],

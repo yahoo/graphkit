@@ -139,7 +139,8 @@ def test_plotting():
     finally:
         shutil.rmtree(tdir, ignore_errors=True)
 
-    ## Don't open matplotlib window.
+    ## Try matplotlib Window, but
+    # without opening a Window.
     #
     if sys.version_info < (3, 5):
         # On PY< 3.5 it fails with:
@@ -149,6 +150,12 @@ def test_plotting():
         matplotlib.use("Agg")
     # do not open window in headless travis
     assert pipeline.plot(show=-1)
+
+    ## Try Jupyter SVG.
+    #
+    # but latest ipython-7+ dropped < PY3.4
+    if sys.version_info >= (3, 5):
+        assert "display.SVG" in str(type(pipeline.plot(jupyter=True)))
 
     try:
         pipeline.plot('bad.format')

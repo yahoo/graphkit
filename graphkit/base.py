@@ -171,15 +171,19 @@ class NetworkOperation(Operation):
         assert method in options
         self._execution_method = method
 
-    def plot(self, filename=None, show=False,
+    def plot(self, filename=None, show=False, jupyter=None,
             inputs=None, outputs=None, solution=None):
         """
         :param str filename:
             Write diagram into a file.
             Common extensions are ``.png .dot .jpg .jpeg .pdf .svg``
             call :func:`network.supported_plot_formats()` for more.
-        :param boolean show:
+        :param show:
             If it evaluates to true, opens the  diagram in a  matplotlib window.
+            If it equals `-1`, it plots but does not open the Window.
+        :param jupyter:
+            If it evaluates to true, return an SVG suitable to render 
+            in *jupyter notebook cells* (`ipython` must be installed).
         :param inputs:
             an optional name list, any nodes in there are plotted
             as a "house"
@@ -195,7 +199,7 @@ class NetworkOperation(Operation):
 
         See :func:`network.plot_graph()` for the plot legend and example code.
         """
-        return self.net.plot(filename, show, inputs, outputs, solution)
+        return self.net.plot(filename, show, jupyter, inputs, outputs, solution)
 
     def __getstate__(self):
         state = Operation.__getstate__(self)

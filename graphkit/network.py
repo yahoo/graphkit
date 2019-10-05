@@ -376,7 +376,7 @@ class Network(object):
             return {k: cache[k] for k in iter(cache) if k in outputs}
 
 
-    def plot(self, filename=None, show=False,
+    def plot(self, filename=None, show=False, jupyter=None,
              inputs=None, outputs=None, solution=None):
         """
         Plot a *Graphviz* graph and return it, if no other argument provided.
@@ -385,8 +385,12 @@ class Network(object):
             Write diagram into a file.
             Common extensions are ``.png .dot .jpg .jpeg .pdf .svg``
             call :func:`network.supported_plot_formats()` for more.
-        :param boolean show:
+        :param show:
             If it evaluates to true, opens the  diagram in a  matplotlib window.
+            If it equals `-1``, it plots but does not open the Window.
+        :param jupyter:
+            If it evaluates to true, return an SVG suitable to render 
+            in *jupyter notebook cells* (`ipython` must be installed).
         :param inputs:
             an optional name list, any nodes in there are plotted
             as a "house"
@@ -402,8 +406,8 @@ class Network(object):
 
         See :func:`network.plot_graph` for the plot legend and example code.
         """
-        return plot_graph(self.graph, filename, show, self.steps,
-                          inputs, outputs, solution)
+        return plot_graph(self.graph, filename, show, jupyter,
+                          self.steps, inputs, outputs, solution)
 
 
 def ready_to_schedule_operation(op, has_executed, graph):
@@ -461,8 +465,8 @@ def supported_plot_formats():
     return [".%s" % f for f in pydot.Dot().formats]
 
 
-def plot_graph(graph, filename=None, show=False, steps=None,
-               inputs=None, outputs=None, solution=None):
+def plot_graph(graph, filename=None, show=False, jupyter=False,
+               steps=None, inputs=None, outputs=None, solution=None):
     """
     Plot a *Graphviz* graph/steps and return it, if no other argument provided.
 
@@ -494,9 +498,12 @@ def plot_graph(graph, filename=None, show=False, steps=None,
         Write diagram into a file.
         Common extensions are ``.png .dot .jpg .jpeg .pdf .svg``
         call :func:`network.supported_plot_formats()` for more.
-    :param boolean show:
+    :param show:
         If it evaluates to true, opens the  diagram in a  matplotlib window.
-        If it equals ``-1``, it plots but does not open the Window.
+        If it equals `-1``, it plots but does not open the Window.
+    :param jupyter:
+        If it evaluates to true, return an SVG suitable to render 
+        in *jupyter notebook cells* (`ipython` must be installed).
     :param steps:
         a list of nodes & instructions to overlay on the diagram
     :param inputs:
@@ -514,15 +521,18 @@ def plot_graph(graph, filename=None, show=False, steps=None,
 
     **Example:**
 
-    >>> netop = compose(name="netop")(
+    >>> from graphkit import compose, operation
+    >>> from graphkit.modifiers import optional
+
+    >>> pipeline = compose(name="pipeline")(
     ...     operation(name="add", needs=["a", "b1"], provides=["ab1"])(add),
     ...     operation(name="sub", needs=["a", optional("b2")], provides=["ab2"])(lambda a, b=1: a-b),
     ...     operation(name="abb", needs=["ab1", "ab2"], provides=["asked"])(add),
     ... )
 
     >>> inputs = {'a': 1, 'b1': 2}
-    >>> solution=netop(inputs)
-    >>> netop.plot('plot.svg', inputs=inputs, solution=solution, outputs=['asked', 'b1']);
+    >>> solution=pipeline(inputs)
+    >>> pipeline.plot('plot.svg', inputs=inputs, solution=solution, outputs=['asked', 'b1']);
 
     """
     import pydot
@@ -596,7 +606,8 @@ def plot_graph(graph, filename=None, show=False, steps=None,
                 penwidth=3, arrowhead="vee")
             g.add_edge(edge)
 
-    # save plot
+    # Save plot
+    #
     if filename:
         formats = supported_plot_formats()
         _basename, ext = os.path.splitext(filename)
@@ -608,7 +619,14 @@ def plot_graph(graph, filename=None, show=False, steps=None,
 
         g.write(filename, format=ext.lower()[1:])
 
-    # display graph via matplotlib
+    ## Return an SVG renderable in jupyter.
+    #
+    if jupyter:
+        from IPython.display import SVG
+        g = SVG(data=g.create_svg())
+
+    ## Display graph via matplotlib
+    #
     if show:
         import matplotlib.pyplot as plt
         import matplotlib.image as mpimg
