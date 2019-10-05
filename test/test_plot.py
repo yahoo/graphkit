@@ -59,7 +59,7 @@ def test_plot_formats(pipeline, input_names, outputs, solution, tmp_path):
     # ...these are not working on my PC, or travis.
     forbidden_formats = ".dia .hpgl .mif .mp .pcl .pic .vtx .xlib".split()
     prev_dot = None
-    for ext in network.supported_plot_formats():
+    for ext in plot.supported_plot_formats():
         if ext not in forbidden_formats:
             dot = pipeline.plot(inputs=input_names, outputs=outputs, solution=solution)
             assert dot
@@ -72,7 +72,7 @@ def test_plot_bad_format(pipeline, tmp_path):
         pipeline.plot(filename="bad.format")
 
     ## Check help msg lists all siupported formats
-    for ext in network.supported_plot_formats():
+    for ext in plot.supported_plot_formats():
         assert exinfo.match(ext)
 
 

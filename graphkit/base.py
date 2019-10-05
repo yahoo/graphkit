@@ -177,7 +177,7 @@ class NetworkOperation(Operation):
         :param str filename:
             Write diagram into a file.
             Common extensions are ``.png .dot .jpg .jpeg .pdf .svg``
-            call :func:`network.supported_plot_formats()` for more.
+            call :func:`plot.supported_plot_formats()` for more.
         :param show:
             If it evaluates to true, opens the  diagram in a  matplotlib window.
             If it equals `-1`, it plots but does not open the Window.
