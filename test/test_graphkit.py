@@ -108,21 +108,24 @@ def test_network_deep_merge():
 
 
 def test_plotting():
-    sum_op1 = operation(name='sum_op1', needs=['a', 'b'], provides='sum1')(add)
-    sum_op2 = operation(name='sum_op2', needs=['a', 'b'], provides='sum2')(add)
-    sum_op3 = operation(name='sum_op3', needs=['sum1', 'c'], provides='sum3')(add)
-    net1 = compose(name='my network 1')(sum_op1, sum_op2, sum_op3)
+    pipeline = compose(name="netop")(
+        operation(name="add", needs=["a", "b1"], provides=["ab1"])(add),
+        operation(name="sub", needs=["a", modifiers.optional("b2")], provides=["ab2"])(lambda a, b=1: a-b),
+        operation(name="abb", needs=["ab1", "ab2"], provides=["asked"])(add),
+    )
+    inputs = {'a': 1, 'b1': 2}
+    solution=pipeline(inputs)
 
     for ext in network.supported_plot_writers():
         tdir = tempfile.mkdtemp(suffix=ext)
         png_file = osp.join(tdir, "workflow.png")
-        net1.net.plot(png_file)
+        pipeline.plot(png_file, inputs=inputs, solution=solution, outputs=['asked', 'b1'])
         try:
             assert osp.exists(png_file)
         finally:
             shutil.rmtree(tdir, ignore_errors=True)
     try:
-        net1.net.plot('bad.format')
+        pipeline.plot('bad.format')
         assert False, "Should had failed writting arbitrary file format!"
     except ValueError as ex:
         assert "Unknown file format" in str(ex)
