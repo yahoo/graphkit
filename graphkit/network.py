@@ -63,6 +63,7 @@ Computations are based on 5 data-structures:
     intermediate *calculated* values that are overwritten by intermediate
     (aka "pinned") input-values.
 """
+import functools as fnt
 import logging
 import os
 import time
@@ -75,7 +76,7 @@ from itertools import chain
 
 from boltons.setutils import IndexedSet as iset
 
-from .base import Operation
+from .base import Operation, PlotMixin
 from .modifiers import optional
 
 
@@ -117,7 +118,7 @@ class PinInstruction(str):
         return 'PinInstruction("%s")' % self
 
 
-class Network(object):
+class Network(PlotMixin):
     """
     Assemble operations & data into a directed-acyclic-graph (DAG) to run them.
 
@@ -137,6 +138,12 @@ class Network(object):
         #: the execution_plan of the last call to :meth:`compile()`,
         #: for debugging purposes.
         self._last_plan = None
+
+    @property
+    def _plotter(self):
+        from .plot import plot_graph
+
+        return fnt.partial(plot_graph, graph=self.graph)
 
     def add_op(self, operation):
         """
@@ -440,44 +447,9 @@ class Network(object):
         return solution
 
 
-    def plot(self, filename=None, show=False, jupyter=None,
-             inputs=None, outputs=None, solution=None):
-        """
-        Plot a *Graphviz* graph and return it, if no other argument provided.
-
-        :param str filename:
-            Write diagram into a file.
-            Common extensions are ``.png .dot .jpg .jpeg .pdf .svg``
-            call :func:`plot.supported_plot_formats()` for more.
-        :param show:
-            If it evaluates to true, opens the  diagram in a  matplotlib window.
-            If it equals `-1``, it plots but does not open the Window.
-        :param jupyter:
-            If it evaluates to true, return an SVG suitable to render 
-            in *jupyter notebook cells* (`ipython` must be installed).
-        :param inputs:
-            an optional name list, any nodes in there are plotted
-            as a "house"
-        :param outputs:
-            an optional name list, any nodes in there are plotted
-            as an "inverted-house"
-        :param solution:
-            an optional dict with values to annotate nodes
-            (currently content not shown, but node drawn as "filled")
-
-        :return:
-            An instance of the :mod`pydot` graph
-
-        See :func:`graphkit.plot.plot_graph()` for the plot legend and example code.
-        """
-        from . import plot
-        
-        return plot.plot_graph(self.graph, filename, show, jupyter,
-                          self.steps, inputs, outputs, solution)
-
-
 class ExecutionPlan(namedtuple("_ExecPlan",
-                               "net inputs outputs dag broken_edges steps")):
+                               "net inputs outputs dag broken_edges steps"),
+                    PlotMixin):
     """
     The result of the network's compilation phase.
 
@@ -507,6 +479,13 @@ class ExecutionPlan(namedtuple("_ExecPlan",
     @property
     def broken_dag(self):
         return nx.restricted_view(self.dag, nodes=(), edges=self.broken_edges)
+
+    @property
+    def _plotter(self):
+        from .plot import plot_graph
+
+        return fnt.partial(plot_graph, graph=self.dag, steps=self.steps,
+                           inputs=self.inputs, outputs=self.outputs)
 
     def get_data_node(self, name):
         """
