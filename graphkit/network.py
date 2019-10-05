@@ -166,21 +166,6 @@ class Network(object):
             self.graph.add_edge(operation, DataPlaceholderNode(p))
 
 
-    def list_layers(self, debug=False):
-        ## TODO: move to ExecutionPlan
-        # Make a generic plan.
-        plan = self.compile()
-        return [n for n in plan if debug or isinstance(n, Operation)]
-
-
-    def show_layers(self, debug=False, ret=False):
-        """Shows info (name, needs, and provides) about all operations in this dag."""
-        s = "\n".join(repr(n) for n in self.list_layers(debug=debug))
-        if ret:
-            return s
-        else:
-            print(s)
-
     def _build_execution_steps(self, dag, inputs, outputs):
         """
         Create the list of operation-nodes & *instructions* evaluating all
