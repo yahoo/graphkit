@@ -8,13 +8,6 @@ from .base import NetworkOperation, Operation
 from .modifiers import optional
 
 
-def supported_plot_formats():
-    """return automatically all `pydot` extensions withlike ``.png``"""
-    import pydot
-
-    return [".%s" % f for f in pydot.Dot().formats]
-
-
 def build_pydot(graph, steps=None, inputs=None, outputs=None, solution=None):
     """ Build a Graphviz graph """
     import pydot
@@ -97,6 +90,13 @@ def build_pydot(graph, steps=None, inputs=None, outputs=None, solution=None):
             dot.add_edge(edge)
 
     return dot
+
+
+def supported_plot_formats():
+    """return automatically all `pydot` extensions withlike ``.png``"""
+    import pydot
+
+    return [".%s" % f for f in pydot.Dot().formats]
 
 
 def plot_graph(
