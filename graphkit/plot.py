@@ -9,11 +9,11 @@ import os
 log = logging.getLogger(__name__)
 
 
-class PlotMixin(object):
+class Plotter(object):
     """
     Classes wishing to plot their graphs should inherit this and ...
 
-    implement property ``_plotter`` to return a "partial" callable that somehow
+    implement property ``_plot`` to return a "partial" callable that somehow
     ends up calling  :func:`plot.plot_graph()` with the `graph` or any other
     args binded appropriately.
     The purpose is to avoid copying this function & documentation here around.
@@ -52,7 +52,7 @@ class PlotMixin(object):
         :return:
             A :mod`pydot` instance
 
-        Note that the `graph` argument is absent - Each PlotMixin provides
+        Note that the `graph` argument is absent - Each Plotter provides
         its own graph internally;  use directly :func:`plot_graph()` to provide
         a different graph.
 
@@ -97,7 +97,7 @@ class PlotMixin(object):
         >>> pipeline.plot('plot1.svg', inputs=inputs, outputs=['asked', 'b1'], solution=solution);
         >>> pipeline.last_plan.plot('plot2.svg', solution=solution);
         """
-        return self._plotter(filename=filename, show=show, jupyter=jupyter, **kws)
+        return self._plot(filename=filename, show=show, jupyter=jupyter, **kws)
 
 
 def _is_class_value_in_list(lst, cls, value):
@@ -260,7 +260,7 @@ def plot_graph(
     :param graph:
         the base graph to plot
 
-    See :func:`PlotMixin()` for the rest  arguments, sample code, and
+    See :meth:`Plotter.plot()` for the rest  arguments, sample code, and
     the legend of the plots.
     """
     dot = build_pydot(

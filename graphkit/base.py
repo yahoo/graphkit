@@ -151,7 +151,7 @@ class Operation(object):
              self.provides)
 
 
-class NetworkOperation(Operation, plot.PlotMixin):
+class NetworkOperation(Operation, plot.Plotter):
     def __init__(self, **kwargs):
         self.net = kwargs.pop('net')
         Operation.__init__(self, **kwargs)
@@ -161,7 +161,7 @@ class NetworkOperation(Operation, plot.PlotMixin):
         self._overwrites_collector = None
 
     @property
-    def _plotter(self):
+    def _plot(self):
         return self.net.plot
 
     def _compute(self, named_inputs, outputs=None):

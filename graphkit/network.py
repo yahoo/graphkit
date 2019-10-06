@@ -116,7 +116,7 @@ class PinInstruction(str):
         return 'PinInstruction("%s")' % self
 
 
-class Network(plot.PlotMixin):
+class Network(plot.Plotter):
     """
     Assemble operations & data into a directed-acyclic-graph (DAG) to run them.
 
@@ -138,7 +138,7 @@ class Network(plot.PlotMixin):
         self.last_plan = None
 
     @property
-    def _plotter(self):
+    def _plot(self):
         from .plot import plot_graph
 
         return fnt.partial(plot_graph, graph=self.graph)
@@ -448,7 +448,7 @@ class Network(plot.PlotMixin):
 
 class ExecutionPlan(
     namedtuple("_ExePlan", "net inputs outputs dag broken_edges steps executed"),
-    plot.PlotMixin
+    plot.Plotter
 ):
     """
     The result of the network's compilation phase.
@@ -483,7 +483,7 @@ class ExecutionPlan(
         return nx.restricted_view(self.dag, nodes=(), edges=self.broken_edges)
 
     @property
-    def _plotter(self):
+    def _plot(self):
         return fnt.partial(
             plot.plot_graph,
             graph=self.net.graph,
