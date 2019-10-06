@@ -33,7 +33,7 @@ def build_pydot(graph, steps=None, inputs=None, outputs=None, solution=None):
         kw = {}
         if isinstance(nx_node, str):
             # Only DeleteInstructions data in steps.
-            if nx_node in steps:
+            if steps and nx_node in steps:
                 kw = {"color": "red", "penwidth": 2}
 
             # SHAPE change if in inputs/outputs.
@@ -129,7 +129,7 @@ def plot_graph(
 
     ARROWS
 
-    - **solid black arrows**: dependencies (source-data are``need``\ed
+    - **solid black arrows**: dependencies (source-data are``need``-ed
       by target-operations, sources-operations ``provide`` target-data)
     - **dashed black arrows**: optional needs
     - **green-dotted arrows**: execution steps labeled in succession
