@@ -73,10 +73,11 @@ from collections import defaultdict, namedtuple
 from io import StringIO
 from itertools import chain
 
-
+import networkx as nx
 from boltons.setutils import IndexedSet as iset
 
-from .base import Operation, PlotMixin
+from . import plot
+from .base import Operation
 from .modifiers import optional
 
 
@@ -118,7 +119,7 @@ class PinInstruction(str):
         return 'PinInstruction("%s")' % self
 
 
-class Network(PlotMixin):
+class Network(plot.PlotMixin):
     """
     Assemble operations & data into a directed-acyclic-graph (DAG) to run them.
 
@@ -449,7 +450,7 @@ class Network(PlotMixin):
 
 class ExecutionPlan(namedtuple("_ExecPlan",
                                "net inputs outputs dag broken_edges steps"),
-                    PlotMixin):
+                    plot.PlotMixin):
     """
     The result of the network's compilation phase.
 

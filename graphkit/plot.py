@@ -14,6 +14,47 @@ def _merge_conditions(*conds):
     return sum(int(bool(c)) << i for i, c in enumerate(conds))
 
 
+class PlotMixin(object):
+    """
+    Classes wishing to plot their graphs should inherit this and ...
+
+    implement property ``_plotter`` to return a "partial" callable that somehow
+    ends up calling  :func:`plot.plot_graph()` with the `graph` or any other
+    args binded appropriately.
+    The purpose is to avoid copying this function & documentation here around.
+    """
+
+    def plot(self, filename=None, show=False, jupyter=None, **kws):
+        """
+        :param str filename:
+            Write diagram into a file.
+            Common extensions are ``.png .dot .jpg .jpeg .pdf .svg``
+            call :func:`plot.supported_plot_formats()` for more.
+        :param show:
+            If it evaluates to true, opens the  diagram in a  matplotlib window.
+            If it equals `-1`, it plots but does not open the Window.
+        :param jupyter:
+            If it evaluates to true, return an SVG suitable to render
+            in *jupyter notebook cells* (`ipython` must be installed).
+        :param inputs:
+            an optional name list, any nodes in there are plotted
+            as a "house"
+        :param outputs:
+            an optional name list, any nodes in there are plotted
+            as an "inverted-house"
+        :param solution:
+            an optional dict with values to annotate nodes
+            (currently content not shown, but node drawn as "filled")
+
+        :return:
+            A :mod`pydot` instance
+
+        See :func:`graphkit.plot.plot_graph()` for  example code and
+        the legend of the plots.
+        """
+        return self._plotter(filename=filename, show=show, jupyter=jupyter, **kws)
+
+
 def build_pydot(graph, steps=None, inputs=None, outputs=None, solution=None):
     """ Build a Graphviz graph """
     import pydot
@@ -227,3 +268,4 @@ def plot_graph(
             plt.show()
 
     return dot
+
