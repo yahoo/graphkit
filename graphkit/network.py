@@ -486,11 +486,12 @@ class ExecutionPlan(
     def _plotter(self):
         return fnt.partial(
             plot.plot_graph,
-            graph=self.dag,
+            graph=self.net.graph,
             steps=self.steps,
             inputs=self.inputs,
             outputs=self.outputs,
             executed=self.executed,
+            edge_props={e: {'color':'yellow'} for e in  self.broken_edges},
         )
 
     def __repr__(self):

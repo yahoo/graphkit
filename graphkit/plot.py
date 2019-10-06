@@ -2,7 +2,11 @@
 # Licensed under the terms of the Apache License, Version 2.0. See the LICENSE file associated with the project for terms.
 
 import io
+import logging
 import os
+
+
+log = logging.getLogger(__name__)
 
 
 class PlotMixin(object):
@@ -40,6 +44,10 @@ class PlotMixin(object):
             an optional container with operations executed, drawn "filled"
         :param title:
             an optional string to display at the bottom of the graph
+        :param node_props:
+            an optional nested dict of Grapvhiz attributes for certain nodes
+        :param edge_props:
+            an optional nested dict of Grapvhiz attributes for certain edges
 
         :return:
             A :mod`pydot` instance
@@ -101,6 +109,19 @@ def _merge_conditions(*conds):
     return sum(int(bool(c)) << i for i, c in enumerate(conds))
 
 
+def _apply_user_props(dotobj, user_props, key):
+    if user_props and key in user_props:
+        dotobj.get_attributes().update(user_props[key])
+        # Delete it, to report unmatched ones, AND not to annotate `steps`.
+        del user_props[key]
+
+
+def _report_unmatched_user_props(user_props, kind):
+    if user_props and log.isEnabledFor(logging.WARNING):
+        unmatched = "\n  ".join(str(i) for i in user_props.items())
+        log.warning("Unmatched `%s_props`:\n  +--%s", kind, unmatched)
+
+
 def build_pydot(
     graph,
     steps=None,
@@ -109,6 +130,8 @@ def build_pydot(
     solution=None,
     executed=None,
     title=None,
+    node_props=None,
+    edge_props=None,
 ):
     """ Build a Graphviz graph """
     import pydot
@@ -162,7 +185,11 @@ def build_pydot(
                 kw["fillcolor"] = "gray"
             node = pydot.Node(name=nx_node.name, shape=shape, **kw)
 
+        _apply_user_props(node, node_props, key=node.get_name())
+
         dot.add_node(node)
+
+    _report_unmatched_user_props(node_props, "node")
 
     # draw edges
     for src, dst in graph.edges:
@@ -174,7 +201,12 @@ def build_pydot(
         ):
             kw["style"] = "dashed"
         edge = pydot.Edge(src=src_name, dst=dst_name, **kw)
+
+        _apply_user_props(edge, edge_props, key=(src, dst))
+
         dot.add_edge(edge)
+
+    _report_unmatched_user_props(edge_props, "edge")
 
     # draw steps sequence
     if steps and len(steps) > 1:
@@ -219,6 +251,8 @@ def plot_graph(
     solution=None,
     executed=None,
     title=None,
+    node_props=None,
+    edge_props=None,
 ):
     """
     Plot a *Graphviz* graph/steps and return it, if no other argument provided.
@@ -229,7 +263,9 @@ def plot_graph(
     See :func:`PlotMixin()` for the rest  arguments, sample code, and
     the legend of the plots.
     """
-    dot = build_pydot(graph, steps, inputs, outputs, solution, executed, title)
+    dot = build_pydot(
+        graph, steps, inputs, outputs, solution, executed, title, node_props, edge_props
+    )
 
     # Save plot
     #
