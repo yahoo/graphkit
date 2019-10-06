@@ -4,10 +4,6 @@
 import io
 import os
 
-from .base import NetworkOperation, Operation
-from .modifiers import optional
-from .network import DeleteInstruction, PinInstruction
-
 
 def _is_class_value_in_list(lst, cls, value):
     return any(isinstance(i, cls) and i == value for i in lst)
@@ -21,6 +17,9 @@ def _merge_conditions(*conds):
 def build_pydot(graph, steps=None, inputs=None, outputs=None, solution=None):
     """ Build a Graphviz graph """
     import pydot
+    from .base import NetworkOperation, Operation
+    from .modifiers import optional
+    from .network import DeleteInstruction, PinInstruction
 
     assert graph is not None
 
