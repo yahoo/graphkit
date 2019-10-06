@@ -487,6 +487,11 @@ class ExecutionPlan(namedtuple("_ExecPlan",
         return fnt.partial(plot_graph, graph=self.dag, steps=self.steps,
                            inputs=self.inputs, outputs=self.outputs)
 
+    def __repr__(self):
+            return (
+                "ExecutionPlan:\n  +--inputs:%s, \n  +--outputs=%s\n  +--steps=%s)"
+                % (self.inputs, self.outputs, self.steps))
+
     def get_data_node(self, name):
         """
         Retuen the data node from a graph using its name, or None.
