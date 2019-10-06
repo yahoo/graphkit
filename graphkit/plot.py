@@ -45,6 +45,8 @@ class PlotMixin(object):
         :param solution:
             an optional dict with values to annotate nodes
             (currently content not shown, but node drawn as "filled")
+        :param title:
+            an optional string to display at the bottom of the graph
 
         :return:
             A :mod`pydot` instance
@@ -55,7 +57,10 @@ class PlotMixin(object):
         return self._plotter(filename=filename, show=show, jupyter=jupyter, **kws)
 
 
-def build_pydot(graph, steps=None, inputs=None, outputs=None, solution=None):
+def build_pydot(
+    graph, steps=None, inputs=None, outputs=None, solution=None,
+    title=None
+):
     """ Build a Graphviz graph """
     import pydot
     from .base import NetworkOperation, Operation
@@ -69,7 +74,7 @@ def build_pydot(graph, steps=None, inputs=None, outputs=None, solution=None):
             return a.name
         return a
 
-    dot = pydot.Dot(graph_type="digraph")
+    dot = pydot.Dot(graph_type="digraph", label=title, fontname="italic")
 
     # draw nodes
     for nx_node in graph.nodes:
@@ -160,6 +165,7 @@ def plot_graph(
     inputs=None,
     outputs=None,
     solution=None,
+    title=None,
 ):
     """
     Plot a *Graphviz* graph/steps and return it, if no other argument provided.
@@ -232,7 +238,7 @@ def plot_graph(
 
     The last 2 should plot identical graph diagrams.
     """
-    dot = build_pydot(graph, steps, inputs, outputs, solution)
+    dot = build_pydot(graph, steps, inputs, outputs, solution, title)
 
     # Save plot
     #
