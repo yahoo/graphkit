@@ -45,6 +45,8 @@ class PlotMixin(object):
         :param solution:
             an optional dict with values to annotate nodes
             (currently content not shown, but node drawn as "filled")
+        :param executed:
+            an optional container with operations executed, drawn "filled"
         :param title:
             an optional string to display at the bottom of the graph
 
@@ -58,8 +60,13 @@ class PlotMixin(object):
 
 
 def build_pydot(
-    graph, steps=None, inputs=None, outputs=None, solution=None,
-    title=None
+    graph,
+    steps=None,
+    inputs=None,
+    outputs=None,
+    solution=None,
+    executed=None,
+    title=None,
 ):
     """ Build a Graphviz graph """
     import pydot
@@ -106,8 +113,9 @@ def build_pydot(
         else:  # Operation
             kw = {}
             shape = "oval" if isinstance(nx_node, NetworkOperation) else "circle"
-            if nx_node in steps:
-                kw["style"] = "bold"
+            if executed and nx_node in executed:
+                kw["style"] = "filled"
+                kw["fillcolor"] = "gray"
             node = pydot.Node(name=nx_node.name, shape=shape, **kw)
 
         dot.add_node(node)
@@ -165,6 +173,7 @@ def plot_graph(
     inputs=None,
     outputs=None,
     solution=None,
+    executed=None,
     title=None,
 ):
     """
@@ -238,7 +247,7 @@ def plot_graph(
 
     The last 2 should plot identical graph diagrams.
     """
-    dot = build_pydot(graph, steps, inputs, outputs, solution, title)
+    dot = build_pydot(graph, steps, inputs, outputs, solution, executed, title)
 
     # Save plot
     #

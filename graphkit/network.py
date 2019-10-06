@@ -67,8 +67,6 @@ import functools as fnt
 import logging
 import os
 import time
-import networkx as nx
-
 from collections import defaultdict, namedtuple
 from io import StringIO
 from itertools import chain
@@ -79,7 +77,6 @@ from boltons.setutils import IndexedSet as iset
 from . import plot
 from .base import Operation
 from .modifiers import optional
-
 
 log = logging.getLogger(__name__)
 
@@ -392,6 +389,7 @@ class Network(plot.PlotMixin):
                 pruned_dag,
                 tuple(broken_edges),
                 tuple(steps),
+                executed=iset(),
             )
 
             # Cache compilation results to speed up future runs
@@ -448,9 +446,10 @@ class Network(plot.PlotMixin):
         return solution
 
 
-class ExecutionPlan(namedtuple("_ExecPlan",
-                               "net inputs outputs dag broken_edges steps"),
-                    plot.PlotMixin):
+class ExecutionPlan(
+    namedtuple("_ExePlan", "net inputs outputs dag broken_edges steps executed"),
+    plot.PlotMixin
+):
     """
     The result of the network's compilation phase.
 
@@ -476,6 +475,8 @@ class ExecutionPlan(namedtuple("_ExecPlan",
         The tuple of operation-nodes & *instructions* needed to evaluate
         the given inputs & asked outputs, free memory and avoid overwritting
         any given intermediate inputs.
+    :ivar executed:
+        An empty set to collect all operations that have been executed so far.
     """
     @property
     def broken_dag(self):
@@ -483,10 +484,14 @@ class ExecutionPlan(namedtuple("_ExecPlan",
 
     @property
     def _plotter(self):
-        from .plot import plot_graph
-
-        return fnt.partial(plot_graph, graph=self.dag, steps=self.steps,
-                           inputs=self.inputs, outputs=self.outputs)
+        return fnt.partial(
+            plot.plot_graph,
+            graph=self.dag,
+            steps=self.steps,
+            inputs=self.inputs,
+            outputs=self.outputs,
+            executed=self.executed,
+        )
 
     def __repr__(self):
             return (
@@ -501,7 +506,7 @@ class ExecutionPlan(namedtuple("_ExecPlan",
         if isinstance(node, DataPlaceholderNode):
             return node
 
-    def _can_schedule_operation(self, op, executed_nodes):
+    def _can_schedule_operation(self, op):
         """
         Determines if a Operation is ready to be scheduled for execution
 
@@ -509,8 +514,6 @@ class ExecutionPlan(namedtuple("_ExecPlan",
 
         :param op:
             The Operation object to check
-        :param set executed_nodes
-            A set containing all operations that have been executed so far
         :return:
             A boolean indicating whether the operation may be scheduled for
             execution based on what has already been executed.
@@ -519,16 +522,14 @@ class ExecutionPlan(namedtuple("_ExecPlan",
         # regardless of whether their producers have yet to run.
         dependencies = set(n for n in nx.ancestors(self.broken_dag, op)
                            if isinstance(n, Operation))
-        return dependencies.issubset(executed_nodes)
+        return dependencies.issubset(self.executed)
 
-    def _can_evict_value(self, name, executed_nodes):
+    def _can_evict_value(self, name):
         """
         Determines if a DataPlaceholderNode is ready to be deleted from solution.
 
         :param name:
             The name of the data node to check
-        :param executed_nodes: set
-            A set containing all operations that have been executed so far
         :return:
             A boolean indicating whether the data node can be deleted or not.
         """
@@ -536,7 +537,7 @@ class ExecutionPlan(namedtuple("_ExecPlan",
         # Use `broken_dag` not to block a successor waiting for this data,
         # since in any case will use a given input, not some pipe of this data.
         return data_node and set(
-            self.broken_dag.successors(data_node)).issubset(executed_nodes)
+            self.broken_dag.successors(data_node)).issubset(self.executed)
 
     def _pin_data_in_solution(self, value_name, solution, inputs, overwrites):
         value_name = str(value_name)
@@ -559,10 +560,6 @@ class ExecutionPlan(namedtuple("_ExecPlan",
             self.net._thread_pool = Pool(thread_pool_size)
         pool = self.net._thread_pool
 
-
-        # this keeps track of all nodes that have already executed
-        executed_nodes = set()  # unordered, not iterated
-
         # with each loop iteration, we determine a set of operations that can be
         # scheduled, then schedule them onto a thread pool, then collect their
         # results onto a memory solution for use upon the next iteration.
@@ -574,8 +571,8 @@ class ExecutionPlan(namedtuple("_ExecPlan",
             for node in self.steps:
                 if (
                     isinstance(node, Operation)
-                    and self._can_schedule_operation(node, executed_nodes)
-                    and node not in executed_nodes
+                    and self._can_schedule_operation(node)
+                    and node not in self.executed
                 ):
                     upnext.append(node)
                 elif isinstance(node, DeleteInstruction):
@@ -584,7 +581,7 @@ class ExecutionPlan(namedtuple("_ExecPlan",
                     # An optional need may not have a value in the solution.
                     if (
                         node in solution
-                        and self._can_evict_value(node, executed_nodes)
+                        and self._can_evict_value(node)
                     ):
                         log.debug("removing data '%s' from solution.", node)
                         del solution[node]
@@ -606,7 +603,7 @@ class ExecutionPlan(namedtuple("_ExecPlan",
                                 upnext)
             for op, result in done_iterator:
                 solution.update(result)
-                executed_nodes.add(op)
+                self.executed.add(op)
 
 
     def _execute_sequential_method(self, inputs, solution, overwrites):
@@ -628,6 +625,7 @@ class ExecutionPlan(namedtuple("_ExecPlan",
 
                 # add outputs to solution
                 solution.update(layer_outputs)
+                self.executed.add(step)
 
                 # record execution time
                 t_complete = round(time.time() - t0, 5)
@@ -657,6 +655,8 @@ class ExecutionPlan(namedtuple("_ExecPlan",
             because they were "pinned" by input vaules.
             If missing, the overwrites values are simply discarded.
         """
+        # Clean executed operation from any previous execution.
+        self.executed.clear()
 
         # choose a method of execution
         executor = (self._execute_thread_pool_barrier_method
