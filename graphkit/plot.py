@@ -6,6 +6,16 @@ import os
 
 from .base import NetworkOperation, Operation
 from .modifiers import optional
+from .network import DeleteInstruction, PinInstruction
+
+
+def _is_class_value_in_list(lst, cls, value):
+    return any(isinstance(i, cls) and i == value for i in lst)
+
+
+def _merge_conditions(*conds):
+    """combines conditions as a choice in binary range, eg, 2 conds --> [0, 3]"""
+    return sum(int(bool(c)) << i for i, c in enumerate(conds))
 
 
 def build_pydot(graph, steps=None, inputs=None, outputs=None, solution=None):
@@ -23,29 +33,31 @@ def build_pydot(graph, steps=None, inputs=None, outputs=None, solution=None):
 
     # draw nodes
     for nx_node in graph.nodes:
-        kw = {}
         if isinstance(nx_node, str):
-            # Only DeleteInstructions data in steps.
+            kw = {}
+            # FrameColor change by step type
             if nx_node in steps:
-                kw = {"color": "red", "penwidth": 2}
+                choice = _merge_conditions(
+                    _is_class_value_in_list(steps, DeleteInstruction, nx_node),
+                    _is_class_value_in_list(steps, PinInstruction, nx_node),
+                )
+                # 0 is singled out because `nx_node` exists in `steps`.
+                color = "NOPE red blue purple".split()[choice]
+                kw = {"color": color, "penwidth": 2}
 
-            # SHAPE change if in inputs/outputs.
+            # SHAPE change if with inputs/outputs.
             # tip: https://graphviz.gitlab.io/_pages/doc/info/shapes.html
-            shape = "rect"
-            if inputs and outputs and nx_node in inputs and nx_node in outputs:
-                shape = "hexagon"
-            else:
-                if inputs and nx_node in inputs:
-                    shape = "invhouse"
-                if outputs and nx_node in outputs:
-                    shape = "house"
+            choice = _merge_conditions(
+                inputs and nx_node in inputs, outputs and nx_node in outputs
+            )
+            shape = "rect invhouse house hexagon".split()[choice]
 
-            # LABEL change from solution.
+            # LABEL change with solution.
             if solution and nx_node in solution:
                 kw["style"] = "filled"
                 kw["fillcolor"] = "gray"
                 # kw["tooltip"] = nx_node, solution.get(nx_node)
-            node = pydot.Node(name=nx_node, shape=shape, URL="fdgfdf", **kw)
+            node = pydot.Node(name=nx_node, shape=shape, **kw)
         else:  # Operation
             kw = {}
             shape = "oval" if isinstance(nx_node, NetworkOperation) else "circle"
@@ -144,7 +156,7 @@ def plot_graph(
         If it evaluates to true, opens the  diagram in a  matplotlib window.
         If it equals `-1``, it plots but does not open the Window.
     :param jupyter:
-        If it evaluates to true, return an SVG suitable to render 
+        If it evaluates to true, return an SVG suitable to render
         in *jupyter notebook cells* (`ipython` must be installed).
     :param steps:
         a list of nodes & instructions to overlay on the diagram
@@ -174,8 +186,11 @@ def plot_graph(
 
     >>> inputs = {'a': 1, 'b1': 2}
     >>> solution=pipeline(inputs)
-    >>> pipeline.plot('plot.svg', inputs=inputs, solution=solution, outputs=['asked', 'b1']);
 
+    >>> pipeline.plot('plot1.svg', inputs=inputs, outputs=['asked', 'b1'], solution=solution);
+    >>> pipeline.last_plan.plot('plot2.svg', solution=solution);
+
+    The last 2 should plot identical graph diagrams.
     """
     dot = build_pydot(graph, steps, inputs, outputs, solution)
 
