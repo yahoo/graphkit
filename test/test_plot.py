@@ -109,7 +109,9 @@ def test_plot_matpotlib(pipeline, tmp_path):
 
         matplotlib.use("Agg")
     # do not open window in headless travis
-    assert pipeline.plot(show=-1)
+    img = pipeline.plot(show=-1)
+    assert img is not None
+    assert len(img) > 0
 
 
 @pytest.mark.skipif(sys.version_info < (3, 5), reason="ipython-7+ dropped PY3.4-")

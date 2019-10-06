@@ -78,9 +78,10 @@ class Plotter(object):
         - **green-dotted arrows**: execution steps labeled in succession
 
         :return:
-            An instance of the :mod`pydot` graph
+            An instance of the :mod`pydot` graph or whatever rendered
+            (e.g. jupyter SVG or matplotlib image)
 
-        **Sampole code:**
+        **Sample code:**
 
         >>> from graphkit import compose, operation
         >>> from graphkit.modifiers import optional
@@ -97,7 +98,8 @@ class Plotter(object):
         >>> pipeline.plot('plot1.svg', inputs=inputs, outputs=['asked', 'b1'], solution=solution);
         >>> pipeline.last_plan.plot('plot2.svg', solution=solution);
         """
-        return self._plot(filename=filename, show=show, jupyter=jupyter, **kws)
+        dot = self._build_pydot(**kws)
+        return render_pydot(dot, filename=filename, show=show, jupyter=jupyter)
 
 
 def _is_class_value_in_list(lst, cls, value):
@@ -133,7 +135,12 @@ def build_pydot(
     node_props=None,
     edge_props=None,
 ):
-    """ Build a Graphviz graph """
+    """
+    Build a *Graphviz* graph/steps/inputs/outputs and return it. 
+    
+    See :meth:`Plotter.plot()` for the arguments, sample code, and
+    the legend of the plots.
+    """
     import pydot
     from .base import NetworkOperation, Operation
     from .modifiers import optional
@@ -240,33 +247,29 @@ def supported_plot_formats():
     return [".%s" % f for f in pydot.Dot().formats]
 
 
-def plot_graph(
-    graph,
-    filename=None,
-    show=False,
-    jupyter=False,
-    steps=None,
-    inputs=None,
-    outputs=None,
-    solution=None,
-    executed=None,
-    title=None,
-    node_props=None,
-    edge_props=None,
-):
+def render_pydot(dot, filename=None, show=False, jupyter=False):
     """
-    Plot a *Graphviz* graph/steps and return it, if no other argument provided.
+    Plot a *Graphviz* dot in a matplotlib, in file or return it for Jupyter.
 
-    :param graph:
-        the base graph to plot
+    :param dot:
+        the pre-built *Graphviz* dot instance
+    :param str filename:
+        Write diagram into a file.
+        Common extensions are ``.png .dot .jpg .jpeg .pdf .svg``
+        call :func:`plot.supported_plot_formats()` for more.
+    :param show:
+        If it evaluates to true, opens the  diagram in a  matplotlib window.
+        If it equals `-1`, it returns the image but does not open the Window.
+    :param jupyter:
+        If it evaluates to true, return an SVG suitable to render
+        in *jupyter notebook cells* (`ipython` must be installed).
 
-    See :meth:`Plotter.plot()` for the rest  arguments, sample code, and
-    the legend of the plots.
+    :return:
+        the matplotlib image if ``show=-1``, the SVG for Jupyter if ``jupyter=true``,
+        or `dot`.
+        
+    See :meth:`Plotter.plot()` for sample code.
     """
-    dot = build_pydot(
-        graph, steps, inputs, outputs, solution, executed, title, node_props, edge_props
-    )
-
     # Save plot
     #
     if filename:
@@ -285,7 +288,7 @@ def plot_graph(
     if jupyter:
         from IPython.display import SVG
 
-        dot = SVG(data=dot.create_svg())
+        return SVG(data=dot.create_svg())
 
     ## Display graph via matplotlib
     #
@@ -296,8 +299,10 @@ def plot_graph(
         png = dot.create_png()
         sio = io.BytesIO(png)
         img = mpimg.imread(sio)
-        plt.imshow(img, aspect="equal")
         if show != -1:
+            plt.imshow(img, aspect="equal")
             plt.show()
 
+        return img
+    
     return dot

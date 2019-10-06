@@ -160,9 +160,9 @@ class NetworkOperation(Operation, plot.Plotter):
         self._execution_method = "sequential"
         self._overwrites_collector = None
 
-    @property
-    def _plot(self):
-        return self.net.plot
+    def _build_pydot(self, **kws):
+        """delegate to network"""
+        return self.net._build_pydot(**kws)
 
     def _compute(self, named_inputs, outputs=None):
         return self.net.compute(

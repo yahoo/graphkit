@@ -63,7 +63,6 @@ Computations are based on 5 data-structures:
     intermediate *calculated* values that are overwritten by intermediate
     (aka "pinned") input-values.
 """
-import functools as fnt
 import logging
 import os
 import time
@@ -137,11 +136,12 @@ class Network(plot.Plotter):
         #: (not ``compile()``!), for debugging purposes.
         self.last_plan = None
 
-    @property
-    def _plot(self):
-        from .plot import plot_graph
+    def _build_pydot(self, **kws):
+        from .plot import build_pydot
 
-        return fnt.partial(plot_graph, graph=self.graph)
+        kws.setdefault('graph', self.graph)
+
+        return build_pydot(**kws)
 
     def add_op(self, operation):
         """
@@ -478,21 +478,25 @@ class ExecutionPlan(
     :ivar executed:
         An empty set to collect all operations that have been executed so far.
     """
+
     @property
     def broken_dag(self):
         return nx.restricted_view(self.dag, nodes=(), edges=self.broken_edges)
 
-    @property
-    def _plot(self):
-        return fnt.partial(
-            plot.plot_graph,
-            graph=self.net.graph,
-            steps=self.steps,
-            inputs=self.inputs,
-            outputs=self.outputs,
-            executed=self.executed,
-            edge_props={e: {'color':'yellow'} for e in  self.broken_edges},
-        )
+    def _build_pydot(self, **kws):
+        from .plot import build_pydot
+
+        mykws = {
+            "graph": self.net.graph,
+            "steps": self.steps,
+            "inputs": self.inputs,
+            "outputs": self.outputs,
+            "executed": self.executed,
+            "edge_props": {e: {"color": "yellow"} for e in self.broken_edges},
+        }
+        mykws.update(kws)
+
+        return build_pydot(**mykws)
 
     def __repr__(self):
             return (
