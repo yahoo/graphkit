@@ -48,6 +48,8 @@ class Plotter(object):
             an optional nested dict of Grapvhiz attributes for certain nodes
         :param edge_props:
             an optional nested dict of Grapvhiz attributes for certain edges
+        :param clusters:
+            an optional mapping of nodes --> cluster-names, to group them
 
         :return:
             A :mod`pydot` instance
@@ -58,24 +60,38 @@ class Plotter(object):
 
         **Legend:**
 
-        NODES:
+        *NODES:*
 
-        - **circle**: function
-        - **oval**: subgraph function
-        - **house**: given input
-        - **inversed-house**: asked output
-        - **polygon**: given both as input & asked as output (what?)
-        - **square**: intermediate data, neither given nor asked.
-        - **red frame**: delete-instruction, to free up memory.
-        - **filled**: data node has a value in `solution`, shown in tooltip.
-        - **thick frame**: function/data node visited.
+        circle
+            function
+        oval
+            subgraph function
+        house
+            given input
+        inversed-house
+            asked output
+        polygon
+            given both as input & asked as output (what?)
+        square
+            intermediate data, neither given nor asked.
+        red frame
+            delete-instruction, to free up memory.
+        filled
+            data node has a value in `solution` OR function has been executed.
+        thick frame
+            function/data node in `steps`.
 
-        ARROWS
+        *ARROWS*
 
-        - **solid black arrows**: dependencies (source-data are``need``\ed
-        by target-operations, sources-operations ``provide`` target-data)
-        - **dashed black arrows**: optional needs
-        - **green-dotted arrows**: execution steps labeled in succession
+        solid black arrows
+            dependencies (source-data are``need``-ed by target-operations,
+            sources-operations ``provide`` target-data)
+        dashed black arrows
+            optional needs
+        green-dotted arrows
+            execution steps labeled in succession
+        yellow arrows
+            broken provides during pruning
 
         :return:
             An instance of the :mod`pydot` graph or whatever rendered
@@ -134,10 +150,11 @@ def build_pydot(
     title=None,
     node_props=None,
     edge_props=None,
+    clusters=None,
 ):
     """
-    Build a *Graphviz* graph/steps/inputs/outputs and return it. 
-    
+    Build a *Graphviz* out of a Network graph/steps/inputs/outputs and return it.
+
     See :meth:`Plotter.plot()` for the arguments, sample code, and
     the legend of the plots.
     """
@@ -147,6 +164,24 @@ def build_pydot(
     from .network import DeleteInstruction, PinInstruction
 
     assert graph is not None
+
+    new_clusters = {}
+
+    def append_or_cluster_node(dot, nx_node, node):
+        if not clusters or not nx_node in clusters:
+            dot.add_node(node)
+        else:
+            cluster_name = clusters[nx_node]
+            node_cluster = new_clusters.get(cluster_name)
+            if not node_cluster:
+                node_cluster = new_clusters[cluster_name] = pydot.Cluster(
+                    cluster_name, label=cluster_name
+                )
+            node_cluster.add_node(node)
+
+    def append_any_clusters(dot):
+        for cluster in new_clusters.values():
+            dot.add_subgraph(cluster)
 
     def get_node_name(a):
         if isinstance(a, Operation):
@@ -194,9 +229,11 @@ def build_pydot(
 
         _apply_user_props(node, node_props, key=node.get_name())
 
-        dot.add_node(node)
+        append_or_cluster_node(dot, nx_node, node)
 
     _report_unmatched_user_props(node_props, "node")
+
+    append_any_clusters(dot)
 
     # draw edges
     for src, dst in graph.edges:

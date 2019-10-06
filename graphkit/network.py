@@ -493,6 +493,7 @@ class ExecutionPlan(
             "outputs": self.outputs,
             "executed": self.executed,
             "edge_props": {e: {"color": "yellow"} for e in self.broken_edges},
+            "clusters": {n: "pruned" for n in self.dag.nodes},
         }
         mykws.update(kws)
 
