@@ -81,7 +81,7 @@ def build_pydot(
         if isinstance(nx_node, str):
             kw = {}
             # FrameColor change by step type
-            if nx_node in steps:
+            if steps and nx_node in steps:
                 choice = _merge_conditions(
                     _is_class_value_in_list(steps, DeleteInstruction, nx_node),
                     _is_class_value_in_list(steps, PinInstruction, nx_node),
