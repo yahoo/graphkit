@@ -5,15 +5,6 @@ import io
 import os
 
 
-def _is_class_value_in_list(lst, cls, value):
-    return any(isinstance(i, cls) and i == value for i in lst)
-
-
-def _merge_conditions(*conds):
-    """combines conditions as a choice in binary range, eg, 2 conds --> [0, 3]"""
-    return sum(int(bool(c)) << i for i, c in enumerate(conds))
-
-
 class PlotMixin(object):
     """
     Classes wishing to plot their graphs should inherit this and ...
@@ -57,6 +48,15 @@ class PlotMixin(object):
         the legend of the plots.
         """
         return self._plotter(filename=filename, show=show, jupyter=jupyter, **kws)
+
+
+def _is_class_value_in_list(lst, cls, value):
+    return any(isinstance(i, cls) and i == value for i in lst)
+
+
+def _merge_conditions(*conds):
+    """combines conditions as a choice in binary range, eg, 2 conds --> [0, 3]"""
+    return sum(int(bool(c)) << i for i, c in enumerate(conds))
 
 
 def build_pydot(
