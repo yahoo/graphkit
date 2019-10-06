@@ -133,9 +133,9 @@ class Network(plot.PlotMixin):
         #: that is occuring when accessing the dag in networkx.
         self._cached_plans = {}
 
-        #: the execution_plan of the last call to :meth:`compile()`,
-        #: for debugging purposes.
-        self._last_plan = None
+        #: the execution_plan of the last call to :meth:`compute()`
+        #: (not ``compile()``!), for debugging purposes.
+        self.last_plan = None
 
     @property
     def _plotter(self):
@@ -429,7 +429,7 @@ class Network(plot.PlotMixin):
             "The outputs argument must be a list"
 
         # Build the execution plan.
-        plan = self.compile(named_inputs.keys(), outputs)
+        self.last_plan = plan = self.compile(named_inputs.keys(), outputs)
 
         # start with fresh data solution.
         solution = dict(named_inputs)
