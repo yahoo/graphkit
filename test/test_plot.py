@@ -52,18 +52,32 @@ def test_plotting_docstring():
         assert ext in network.Network.plot.__doc__
 
 
-def test_plot_formats(pipeline, input_names, outputs, solution, tmp_path):
+def test_plot_formats(pipeline, input_names, inputs, outputs, tmp_path):
     ## Generate all formats  (not needing to save files)
+
+    # run it here (and not in ficture) to ansure `last_plan` exists.
+    solution = pipeline(inputs, outputs)
 
     # ...these are not working on my PC, or travis.
     forbidden_formats = ".dia .hpgl .mif .mp .pcl .pic .vtx .xlib".split()
-    prev_dot = None
+    prev_dot1 = prev_dot2 = None
     for ext in plot.supported_plot_formats():
         if ext not in forbidden_formats:
-            dot = pipeline.plot(inputs=input_names, outputs=outputs, solution=solution)
-            assert dot
-            assert ext == ".jpg" or dot != prev_dot
-            prev_dot = dot
+            # Check Network.
+            #
+            dot1 = pipeline.plot(inputs=input_names, outputs=outputs, solution=solution)
+            assert dot1
+            assert ext == ".jpg" or dot1 != prev_dot1
+            prev_dot1 = dot1
+
+            # Check ExecutionPlan.
+            #
+            dot2 = pipeline.net.last_plan.plot(
+                inputs=input_names, outputs=outputs, solution=solution
+            )
+            assert dot2
+            assert ext == ".jpg" or dot2 != prev_dot2
+            prev_dot2 = dot2
 
 
 def test_plot_bad_format(pipeline, tmp_path):
@@ -78,14 +92,13 @@ def test_plot_bad_format(pipeline, tmp_path):
 def test_plot_write_file(pipeline, tmp_path):
     # Try saving a file from one format.
 
-    fpath = tmp_path / "workflow.png"
-
-    dot = pipeline.plot(str(fpath))
+    fpath = tmp_path / "network.png"
+    dot1 = pipeline.plot(str(fpath))
     assert fpath.exists()
-    assert dot
+    assert dot1
 
 
-def test_plot_matplib(pipeline, tmp_path):
+def test_plot_matpotlib(pipeline, tmp_path):
     ## Try matplotlib Window, but # without opening a Window.
 
     if sys.version_info < (3, 5):
