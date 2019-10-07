@@ -80,6 +80,42 @@ def test_plot_formats(pipeline, input_names, inputs, outputs, tmp_path):
             prev_dot2 = dot2
 
 
+def test_plotters_hierarchy(pipeline, inputs, outputs):
+    # Plotting original network, no plan.
+    base_dot = str(pipeline.plot(inputs=inputs, outputs=outputs))
+    assert base_dot
+    assert pipeline.name in str(base_dot)
+
+    solution = pipeline(inputs, outputs)
+
+    # Plotting delegates to netwrok plan.
+    plan_dot = str(pipeline.plot(inputs=inputs, outputs=outputs))
+    assert plan_dot
+    assert plan_dot != base_dot
+    assert pipeline.name in str(plan_dot)
+
+    # Plot a plan + solution, which must be different from all before.
+    sol_plan_dot = str(pipeline.plot(inputs=inputs, outputs=outputs, solution=solution))
+    assert sol_plan_dot != base_dot
+    assert sol_plan_dot != plan_dot
+    assert pipeline.name in str(plan_dot)
+
+    plan = pipeline.net.last_plan
+    pipeline.net.last_plan = None
+
+    # We resetted last_plan to check if it reproduces original.
+    base_dot2 = str(pipeline.plot(inputs=inputs, outputs=outputs))
+    assert str(base_dot2) == str(base_dot)
+
+    # Calling plot directly on plan misses netop.name
+    raw_plan_dot = str(plan.plot(inputs=inputs, outputs=outputs))
+    assert pipeline.name not in str(raw_plan_dot)
+
+    # Chek plan does not contain solution, unless given.
+    raw_sol_plan_dot = str(plan.plot(inputs=inputs, outputs=outputs, solution=solution))
+    assert raw_sol_plan_dot != raw_plan_dot
+
+
 def test_plot_bad_format(pipeline, tmp_path):
     with pytest.raises(ValueError, match="Unknown file format") as exinfo:
         pipeline.plot(filename="bad.format")

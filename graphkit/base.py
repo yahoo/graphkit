@@ -163,7 +163,8 @@ class NetworkOperation(Operation, plot.Plotter):
     def _build_pydot(self, **kws):
         """delegate to network"""
         kws.setdefault("title", self.name)
-        return self.net._build_pydot(**kws)
+        plotter = self.net.last_plan or self.net
+        return plotter._build_pydot(**kws)
 
     def _compute(self, named_inputs, outputs=None):
         return self.net.compute(
