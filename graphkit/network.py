@@ -355,7 +355,8 @@ class Network(object):
 
         # Prune unsatisfied operations (those with partial inputs or no outputs).
         unsatisfied = self._collect_unsatisfied_operations(broken_dag, inputs)
-        pruned_dag = dag.subgraph(self.graph.nodes - unsatisfied)
+        # Clone it so that it is picklable.
+        pruned_dag = dag.subgraph(broken_dag.nodes - unsatisfied)
 
         return pruned_dag.copy()  # clone so that it is picklable
 
