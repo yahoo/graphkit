@@ -3,6 +3,8 @@
 
 from itertools import chain
 
+from boltons.setutils import IndexedSet as iset
+
 from .base import Operation, NetworkOperation
 from .network import Network
 from .modifiers import optional
@@ -28,7 +30,7 @@ class FunctionalOperation(Operation):
 
         result = zip(self.provides, result)
         if outputs:
-            outputs = set(outputs)
+            outputs = sorted(set(outputs))
             result = filter(lambda x: x[0] in outputs, result)
 
         return dict(result)
@@ -185,23 +187,27 @@ class compose(object):
 
         # If merge is desired, deduplicate operations before building network
         if self.merge:
-            merge_set = set()
+            merge_set = iset()  # Preseve given node order.
             for op in operations:
                 if isinstance(op, NetworkOperation):
                     net_ops = filter(lambda x: isinstance(x, Operation), op.net.steps)
                     merge_set.update(net_ops)
                 else:
                     merge_set.add(op)
-            operations = list(merge_set)
+            operations = merge_set
 
         def order_preserving_uniquifier(seq, seen=None):
-            seen = seen if seen else set()
+            seen = seen if seen else set()  # unordered, not iterated
             seen_add = seen.add
             return [x for x in seq if not (x in seen or seen_add(x))]
 
         provides = order_preserving_uniquifier(chain(*[op.provides for op in operations]))
-        needs = order_preserving_uniquifier(chain(*[op.needs for op in operations]), set(provides))
-
+        needs = order_preserving_uniquifier(chain(*[op.needs for op in operations]),
+                                            set(provides))  # unordered, not iterated
+        # Mark them all as optional, now that #18 calmly ignores
+        # non-fully satisfied operations.
+        needs = [optional(n) for op in operations for n in op.needs]
+        
         # compile network
         net = Network()
         for op in operations:

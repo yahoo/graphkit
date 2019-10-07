@@ -5,9 +5,15 @@ import time
 import os
 import networkx as nx
 
+from collections import defaultdict
 from io import StringIO
+from itertools import chain
+
+
+from boltons.setutils import IndexedSet as iset
 
 from .base import Operation
+from .modifiers import optional
 
 
 class DataPlaceholderNode(str):
@@ -107,7 +113,7 @@ class Network(object):
         self.steps = []
 
         # create an execution order such that each layer's needs are provided.
-        ordered_nodes = list(nx.dag.topological_sort(self.graph))
+        ordered_nodes = iset(nx.topological_sort(self.graph))
 
         # add Operations evaluation steps, and instructions to free data.
         for i, node in enumerate(ordered_nodes):
@@ -123,22 +129,57 @@ class Network(object):
                 # Add instructions to delete predecessors as possible.  A
                 # predecessor may be deleted if it is a data placeholder that
                 # is no longer needed by future Operations.
-                for predecessor in self.graph.predecessors(node):
+                for need in self.graph.pred[node]:
                     if self._debug:
-                        print("checking if node %s can be deleted" % predecessor)
-                    predecessor_still_needed = False
+                        print("checking if node %s can be deleted" % need)
                     for future_node in ordered_nodes[i+1:]:
-                        if isinstance(future_node, Operation):
-                            if predecessor in future_node.needs:
-                                predecessor_still_needed = True
-                                break
-                    if not predecessor_still_needed:
+                        if isinstance(future_node, Operation) and need in future_node.needs:
+                            break
+                    else:
                         if self._debug:
-                            print("  adding delete instruction for %s" % predecessor)
-                        self.steps.append(DeleteInstruction(predecessor))
+                            print("  adding delete instruction for %s" % need)
+                        self.steps.append(DeleteInstruction(need))
 
             else:
-                raise TypeError("Unrecognized network graph node")
+                raise TypeError("Unrecognized network graph node %s" % type(node))
+
+
+    def _collect_unsatisfiable_operations(self, necessary_nodes, inputs):
+        """
+        Traverse ordered graph and mark satisfied needs on each operation,
+
+        collecting those missing at least one.
+        Since the graph is ordered, as soon as we're on an operation,
+        all its needs have been accounted, so we can get its satisfaction.  
+
+        :param necessary_nodes:
+            the subset of the graph to consider but WITHOUT the initial data
+            (because that is what :meth:`_find_necessary_steps()` can gives us...)
+        :param inputs:
+            an iterable of the names of the input values
+        return:
+            a list of unsatisfiable operations
+        """
+        G = self.graph  # shortcut
+        ok_data = set(inputs)  # to collect producible data
+        op_satisfaction = defaultdict(set)  # to collect operation satisfiable needs
+        unsatisfiables = []  # to collect operations with partial needs
+        # We also need inputs to mark op_satisfaction.
+        nodes = chain(necessary_nodes, inputs)  # note that `inputs` are plain strings
+        for node in nx.topological_sort(G.subgraph(nodes)):
+            if isinstance(node, Operation):
+                real_needs = set(n for n in node.needs if not isinstance(n, optional))
+                if real_needs.issubset(op_satisfaction[node]):
+                    # mark all future data-provides as ok
+                    ok_data.update(G.adj[node])
+                else:
+                    unsatisfiables.append(node)
+            elif isinstance(node, (DataPlaceholderNode, str)) and node in ok_data:
+                # mark satisfied-needs on all future operations
+                for future_op in G.adj[node]:
+                    op_satisfaction[future_op].add(node)
+
+        return unsatisfiables
 
 
     def _find_necessary_steps(self, outputs, inputs):
@@ -163,7 +204,7 @@ class Network(object):
         """
 
         # return steps if it has already been computed before for this set of inputs and outputs
-        outputs = tuple(sorted(outputs)) if isinstance(outputs, (list, set)) else outputs
+        outputs = tuple(sorted(outputs)) if isinstance(outputs, (list, set, iset)) else outputs
         inputs_keys = tuple(sorted(inputs.keys()))
         cache_key = (inputs_keys, outputs)
         if cache_key in self._necessary_steps_cache:
@@ -175,7 +216,7 @@ class Network(object):
             # If caller requested all outputs, the necessary nodes are all
             # nodes that are reachable from one of the inputs.  Ignore input
             # names that aren't in the graph.
-            necessary_nodes = set()
+            necessary_nodes = set()  # unordered, not iterated
             for input_name in iter(inputs):
                 if graph.has_node(input_name):
                     necessary_nodes |= nx.descendants(graph, input_name)
@@ -186,7 +227,7 @@ class Network(object):
             # are made unecessary because we were provided with an input that's
             # deeper into the network graph.  Ignore input names that aren't
             # in the graph.
-            unnecessary_nodes = set()
+            unnecessary_nodes = set()  # unordered, not iterated
             for input_name in iter(inputs):
                 if graph.has_node(input_name):
                     unnecessary_nodes |= nx.ancestors(graph, input_name)
@@ -194,7 +235,7 @@ class Network(object):
             # Find the nodes we need to be able to compute the requested
             # outputs.  Raise an exception if a requested output doesn't
             # exist in the graph.
-            necessary_nodes = set()
+            necessary_nodes = set()  # unordered, not iterated
             for output_name in outputs:
                 if not graph.has_node(output_name):
                     raise ValueError("graphkit graph does not have an output "
@@ -204,6 +245,11 @@ class Network(object):
             # Get rid of the unnecessary nodes from the set of necessary ones.
             necessary_nodes -= unnecessary_nodes
 
+        # Drop (un-satifiable) operations with partial inputs.
+        # See yahoo/graphkit#18
+        #
+        unsatisfiables = self._collect_unsatisfiable_operations(necessary_nodes, inputs)
+        necessary_nodes -= set(unsatisfiables)
 
         necessary_steps = [step for step in self.steps if step in necessary_nodes]
 
@@ -266,7 +312,7 @@ class Network(object):
         necessary_nodes = self._find_necessary_steps(outputs, named_inputs)
 
         # this keeps track of all nodes that have already executed
-        has_executed = set()
+        has_executed = set()  # unordered, not iterated
 
         # with each loop iteration, we determine a set of operations that can be
         # scheduled, then schedule them onto a thread pool, then collect their
@@ -422,8 +468,8 @@ class Network(object):
 
         # save plot
         if filename:
-            basename, ext = os.path.splitext(filename)
-            with open(filename, "w") as fh:
+            _basename, ext = os.path.splitext(filename)
+            with open(filename, "wb") as fh:
                 if ext.lower() == ".png":
                     fh.write(g.create_png())
                 elif ext.lower() == ".dot":
@@ -464,6 +510,7 @@ def ready_to_schedule_operation(op, has_executed, graph):
         A boolean indicating whether the operation may be scheduled for
         execution based on what has already been executed.
     """
+    # unordered, not iterated
     dependencies = set(filter(lambda v: isinstance(v, Operation),
                               nx.ancestors(graph, op)))
     return dependencies.issubset(has_executed)
