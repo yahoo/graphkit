@@ -343,7 +343,7 @@ class Network(plot.Plotter):
         # Prune unsatisfied operations (those with partial inputs or no outputs).
         unsatisfied = self._collect_unsatisfied_operations(broken_dag, inputs)
         # Clone it so that it is picklable.
-        pruned_dag = dag.subgraph(self.graph.nodes - unsatisfied).copy()
+        pruned_dag = dag.subgraph(broken_dag.nodes - unsatisfied).copy()
 
         return pruned_dag, tuple(broken_edges)
 
