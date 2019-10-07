@@ -52,32 +52,49 @@ def test_plotting_docstring():
         assert ext in network.Network.plot.__doc__
 
 
-def test_plot_formats(pipeline, input_names, inputs, outputs, tmp_path):
+def test_plot_formats(pipeline, tmp_path):
     ## Generate all formats  (not needing to save files)
 
     # run it here (and not in ficture) to ansure `last_plan` exists.
+    inputs = {"a": 1, "b1": 2}
+    outputs = ["asked", "b1"]
     solution = pipeline(inputs, outputs)
 
-    # ...these are not working on my PC, or travis.
-    forbidden_formats = ".dia .hpgl .mif .mp .pcl .pic .vtx .xlib".split()
-    prev_dot1 = prev_dot2 = None
-    for ext in plot.supported_plot_formats():
-        if ext not in forbidden_formats:
-            # Check Network.
-            #
-            dot1 = pipeline.plot(inputs=input_names, outputs=outputs, solution=solution)
-            assert dot1
-            assert ext == ".jpg" or dot1 != prev_dot1
-            prev_dot1 = dot1
+    # The 1st list does not working on my PC, or travis.
+    # NOTE: maintain the other lists manually from the Exception message. 
+    failing_formats = ".dia .hpgl .mif .mp .pcl .pic .vtx .xlib".split()
+    # The subsequent format names producing the same dot-file.
+    dupe_formats = [
+        ".cmapx_np",  # .cmapx
+        ".imap_np",  # .imap
+        ".jpeg",  # .jpe
+        ".jpg",  # .jpe
+        ".plain-ext",  # .plain
+    ]
+    null_formats = ".cmap .ismap".split()
+    forbidden_formats = set(failing_formats + dupe_formats + null_formats)
+    formats_to_check = sorted(set(plot.supported_plot_formats()) - forbidden_formats)
 
-            # Check ExecutionPlan.
-            #
-            dot2 = pipeline.net.last_plan.plot(
-                inputs=input_names, outputs=outputs, solution=solution
+    # Collect old dots to detect dupes.
+    prev_renders = {}
+    dupe_errs = []
+    for ext in formats_to_check:
+        # Check Network.
+        #
+        render = pipeline.plot(solution=solution).create(format=ext[1:])
+        if not render:
+            dupe_errs.append("\n  null: %s" % ext)
+
+        elif render in prev_renders.values():
+            dupe_errs.append(
+                "\n  dupe: %s <--> %s"
+                % (ext, [pext for pext, pdot in prev_renders.items() if pdot == render])
             )
-            assert dot2
-            assert ext == ".jpg" or dot2 != prev_dot2
-            prev_dot2 = dot2
+        else:
+            prev_renders[ext] = render
+
+    if dupe_errs:
+        raise AssertionError("Failed pydot formats: %s" % "".join(sorted(dupe_errs)))
 
 
 def test_plotters_hierarchy(pipeline, inputs, outputs):
