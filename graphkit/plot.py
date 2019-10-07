@@ -90,7 +90,7 @@ class Plotter(object):
             optional needs
         green-dotted arrows
             execution steps labeled in succession
-        yellow arrows
+        wheat arrows
             broken provides during pruning
 
         :return:
@@ -116,6 +116,9 @@ class Plotter(object):
         """
         dot = self._build_pydot(**kws)
         return render_pydot(dot, filename=filename, show=show, jupyter=jupyter)
+
+    def _build_pydot(self, **kws):
+        raise AssertionError("Must implement that!")
 
 
 def _is_class_value_in_list(lst, cls, value):
@@ -165,6 +168,9 @@ def build_pydot(
 
     assert graph is not None
 
+    steps_thickness = 3
+    fill_color = "wheat"
+    steps_color = "#009999"
     new_clusters = {}
 
     def append_or_cluster_node(dot, nx_node, node):
@@ -202,8 +208,8 @@ def build_pydot(
                     _is_class_value_in_list(steps, PinInstruction, nx_node),
                 )
                 # 0 is singled out because `nx_node` exists in `steps`.
-                color = "NOPE red blue purple".split()[choice]
-                kw = {"color": color, "penwidth": 2}
+                color = "NOPE #990000 blue purple".split()[choice]
+                kw = {"color": color, "penwidth": steps_thickness}
 
             # SHAPE change if with inputs/outputs.
             # tip: https://graphviz.gitlab.io/_pages/doc/info/shapes.html
@@ -215,16 +221,18 @@ def build_pydot(
             # LABEL change with solution.
             if solution and nx_node in solution:
                 kw["style"] = "filled"
-                kw["fillcolor"] = "gray"
+                kw["fillcolor"] = fill_color
                 # kw["tooltip"] = str(solution.get(nx_node))  # not working :-()
             node = pydot.Node(name=nx_node, shape=shape, **kw)
         else:  # Operation
             kw = {}
 
+            if steps and nx_node in steps:
+                kw["penwdth"] = steps_thickness
             shape = "oval" if isinstance(nx_node, NetworkOperation) else "circle"
             if executed and nx_node in executed:
                 kw["style"] = "filled"
-                kw["fillcolor"] = "gray"
+                kw["fillcolor"] = fill_color
             node = pydot.Node(name=nx_node.name, shape=shape, **kw)
 
         _apply_user_props(node, node_props, key=node.get_name())
@@ -240,8 +248,8 @@ def build_pydot(
         src_name = get_node_name(src)
         dst_name = get_node_name(dst)
         kw = {}
-        if isinstance(dst, Operation) and any(
-            n == src and isinstance(n, optional) for n in dst.needs
+        if isinstance(dst, Operation) and _is_class_value_in_list(
+            dst.needs, optional, src
         ):
             kw["style"] = "dashed"
         edge = pydot.Edge(src=src_name, dst=dst_name, **kw)
@@ -265,11 +273,11 @@ def build_pydot(
                 dst=dst_name,
                 label=str(i),
                 style="dotted",
-                color="green",
-                fontcolor="green",
+                color=steps_color,
+                fontcolor=steps_color,
                 fontname="bold",
                 fontsize=18,
-                penwidth=3,
+                penwidth=steps_thickness,
                 arrowhead="vee",
             )
             dot.add_edge(edge)
@@ -304,7 +312,7 @@ def render_pydot(dot, filename=None, show=False, jupyter=False):
     :return:
         the matplotlib image if ``show=-1``, the SVG for Jupyter if ``jupyter=true``,
         or `dot`.
-        
+
     See :meth:`Plotter.plot()` for sample code.
     """
     # Save plot
@@ -341,5 +349,5 @@ def render_pydot(dot, filename=None, show=False, jupyter=False):
             plt.show()
 
         return img
-    
+
     return dot

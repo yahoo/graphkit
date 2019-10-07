@@ -452,9 +452,9 @@ def test_optional_per_function_with_same_output():
     ## ATTENTION, the selected function is NOT the one with more inputs
     # but the 1st satisfiable function added in the network.
 
-    add_op = operation(name='add', needs=['a', 'b'], provides='a+b')(add)
+    add_op = operation(name='add', needs=['a', 'b'], provides='a+-b')(add)
     sub_op_optional = operation(
-        name='sub_opt', needs=['a', modifiers.optional('b')], provides='a+b'
+        name='sub_opt', needs=['a', modifiers.optional('b')], provides='a+-b'
     )(lambda a, b=10: a - b)
 
     # Normal order
@@ -462,24 +462,24 @@ def test_optional_per_function_with_same_output():
     pipeline = compose(name='partial_optionals')(add_op, sub_op_optional)
     #
     named_inputs = {'a': 1, 'b': 2}
-    assert pipeline(named_inputs) == {'a': 1, 'a+b': 3, 'b': 2}
-    assert pipeline(named_inputs, ['a+b']) == {'a+b': 3}
+    assert pipeline(named_inputs) == {'a': 1, 'a+-b': 3, 'b': 2}
+    assert pipeline(named_inputs, ['a+-b']) == {'a+-b': 3}
     #
     named_inputs = {'a': 1}
-    assert pipeline(named_inputs) == {'a': 1, 'a+b': -9}
-    assert pipeline(named_inputs, ['a+b']) == {'a+b': -9}
+    assert pipeline(named_inputs) == {'a': 1, 'a+-b': -9}
+    assert pipeline(named_inputs, ['a+-b']) == {'a+-b': -9}
 
     # Inverse op order
     #
     pipeline = compose(name='partial_optionals')(sub_op_optional, add_op)
     #
     named_inputs = {'a': 1, 'b': 2}
-    assert pipeline(named_inputs) == {'a': 1, 'a+b': -1, 'b': 2}
-    assert pipeline(named_inputs, ['a+b']) == {'a+b': -1}
+    assert pipeline(named_inputs) == {'a': 1, 'a+-b': -1, 'b': 2}
+    assert pipeline(named_inputs, ['a+-b']) == {'a+-b': -1}
     #
     named_inputs = {'a': 1}
-    assert pipeline(named_inputs) == {'a': 1, 'a+b': -9}
-    assert pipeline(named_inputs, ['a+b']) == {'a+b': -9}
+    assert pipeline(named_inputs) == {'a': 1, 'a+-b': -9}
+    assert pipeline(named_inputs, ['a+-b']) == {'a+-b': -9}
 
     # PARALLEL + Normal order
     #
@@ -487,12 +487,12 @@ def test_optional_per_function_with_same_output():
     pipeline.set_execution_method("parallel")
     #
     named_inputs = {'a': 1, 'b': 2}
-    assert pipeline(named_inputs) == {'a': 1, 'a+b': 3, 'b': 2}
-    assert pipeline(named_inputs, ['a+b']) == {'a+b': 3}
+    assert pipeline(named_inputs) == {'a': 1, 'a+-b': 3, 'b': 2}
+    assert pipeline(named_inputs, ['a+-b']) == {'a+-b': 3}
     #
     named_inputs = {'a': 1}
-    assert pipeline(named_inputs) == {'a': 1, 'a+b': -9}
-    assert pipeline(named_inputs, ['a+b']) == {'a+b': -9}
+    assert pipeline(named_inputs) == {'a': 1, 'a+-b': -9}
+    assert pipeline(named_inputs, ['a+-b']) == {'a+-b': -9}
 
     # PARALLEL + Inverse op order
     #
@@ -500,12 +500,12 @@ def test_optional_per_function_with_same_output():
     pipeline.set_execution_method("parallel")
     #
     named_inputs = {'a': 1, 'b': 2}
-    assert pipeline(named_inputs) == {'a': 1, 'a+b': -1, 'b': 2}
-    assert pipeline(named_inputs, ['a+b']) == {'a+b': -1}
+    assert pipeline(named_inputs) == {'a': 1, 'a+-b': -1, 'b': 2}
+    assert pipeline(named_inputs, ['a+-b']) == {'a+-b': -1}
     #
     named_inputs = {'a': 1}
-    assert pipeline(named_inputs) == {'a': 1, 'a+b': -9}
-    assert pipeline(named_inputs, ['a+b']) == {'a+b': -9}
+    assert pipeline(named_inputs) == {'a': 1, 'a+-b': -9}
+    assert pipeline(named_inputs, ['a+-b']) == {'a+-b': -9}
 
 
 def test_deleted_optional():

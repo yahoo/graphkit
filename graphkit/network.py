@@ -486,14 +486,17 @@ class ExecutionPlan(
     def _build_pydot(self, **kws):
         from .plot import build_pydot
 
+        clusters = None
+        if self.dag.nodes != self.net.graph.nodes:
+            clusters = {n: "after prunning" for n in self.dag.nodes}
         mykws = {
             "graph": self.net.graph,
             "steps": self.steps,
             "inputs": self.inputs,
             "outputs": self.outputs,
             "executed": self.executed,
-            "edge_props": {e: {"color": "yellow"} for e in self.broken_edges},
-            "clusters": {n: "pruned" for n in self.dag.nodes},
+            "edge_props": {e: {"color": "wheat", "penwidth": 2} for e in self.broken_edges},
+            "clusters": clusters,
         }
         mykws.update(kws)
 
