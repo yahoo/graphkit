@@ -204,7 +204,10 @@ class compose(object):
         provides = order_preserving_uniquifier(chain(*[op.provides for op in operations]))
         needs = order_preserving_uniquifier(chain(*[op.needs for op in operations]),
                                             set(provides))  # unordered, not iterated
-
+        # Mark them all as optional, now that #18 calmly ignores
+        # non-fully satisfied operations.
+        needs = [optional(n) for op in operations for n in op.needs]
+        
         # compile network
         net = Network()
         for op in operations:
