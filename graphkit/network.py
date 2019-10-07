@@ -331,6 +331,9 @@ class Network(plot.Plotter):
             broken_edges.update(broken_dag.in_edges(given))
         broken_dag.remove_edges_from(broken_edges)
 
+        # Drop stray input values and operations (if any).
+        broken_dag.remove_nodes_from(nx.isolates(broken_dag))
+
         if outputs:
             # If caller requested specific outputs, we can prune any
             # unrelated nodes further up the dag.
