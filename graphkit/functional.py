@@ -198,7 +198,9 @@ class compose(object):
             operations = merge_set
 
         provides = iset(chain(*[op.provides for op in operations]))
-        needs = iset(chain(*[op.needs for op in operations])) - provides
+        # Mark them all as optional, now that #18 calmly ignores
+        # non-fully satisfied operations.
+        needs = iset(chain(*[optional(n) for op in operations for n in op.needs ])) - provides
 
         # Build network
         net = Network()
