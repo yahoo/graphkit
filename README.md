@@ -6,6 +6,8 @@
 
 > It's a DAG all the way down
 
+![Sample graph](docs/source/images/test_pruning_not_overrides_given_intermediate-asked.png "Sample graph")
+
 ## Lightweight computation graphs for Python
 
 GraphKit is a lightweight Python module for creating and running ordered graphs of computations, where the nodes of the graph correspond to computational operations, and the edges correspond to output --> input dependencies between those operations.  Such graphs are useful in computer vision, machine learning, and many other domains.
@@ -54,9 +56,11 @@ As you can see, any function can be used as an operation in GraphKit, even ones 
 For debugging, you may plot the workflow with one of these methods:
 
 ```python
-   graph.net.plot(show=True)               # open a matplotlib window
-   graph.net.plot("path/to/workflow.png")  # supported files: .png .dot .jpg .jpeg .pdf .svg
+   graph.plot(show=True)               # open a matplotlib window
+   graph.plot("path/to/workflow.png")  # supported files: .png .dot .jpg .jpeg .pdf .svg
 ```
+This is the legend of the diagrams:
+![Graphkit Legend](docs/source/images/GraphkitLegend.png "Graphkit Legend")
 
 > **NOTE**: For plots, `graphviz` must be in your PATH, and `pydot` & `matplotlib` python packages installed.
 > You may install both when installing *graphkit* with its `plot` extras:

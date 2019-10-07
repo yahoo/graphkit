@@ -159,7 +159,7 @@ def test_output_based_pruning():
     sum_op3 = operation(name='sum_op3', needs=['c', 'sum2'], provides='sum3')(add)
     net = compose(name='test_net')(sum_op1, sum_op2, sum_op3)
 
-    results = net({'c': c, 'd': d}, outputs=['sum3'])
+    results = net({'a': 0, 'b': 0, 'c': c, 'd': d}, outputs=['sum3'])
 
     # Make sure we got expected result without having to pass a or b.
     assert 'sum3' in results
@@ -209,29 +209,30 @@ def test_pruning_raises_for_bad_output():
 def test_pruning_not_overrides_given_intermediate():
     # Test #25: v1.2.4 overwrites intermediate data when no output asked
     pipeline = compose(name="pipeline")(
-        operation(name="unjustly run", needs=["a"], provides=["overriden"])(scream),
+        operation(name="not run", needs=["a"], provides=["overriden"])(scream),
         operation(name="op", needs=["overriden", "c"], provides=["asked"])(add),
     )
 
+    inputs = {"a": 5, "overriden": 1, "c": 2}
     exp = {"a": 5, "overriden": 1, "c": 2, "asked": 3}
     # v1.2.4.ok
-    assert pipeline({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+    assert pipeline(inputs, ["asked"]) == filtdict(exp, "asked")
     # FAILs
     # - on v1.2.4 with (overriden, asked): = (5, 7) instead of (1, 3)
     # - on #18(unsatisfied) + #23(ordered-sets) with (overriden, asked) = (5, 7) instead of (1, 3)
     # FIXED on #26
-    assert pipeline({"a": 5, "overriden": 1, "c": 2}) == exp
+    assert pipeline(inputs) == exp
 
     ## Test OVERWITES
     #
     overwrites = {}
     pipeline.set_overwrites_collector(overwrites)
-    assert pipeline({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+    assert pipeline(inputs, ["asked"]) == filtdict(exp, "asked")
     assert overwrites == {}  # unjust must have been pruned
 
     overwrites = {}
     pipeline.set_overwrites_collector(overwrites)
-    assert pipeline({"a": 5, "overriden": 1, "c": 2}) == exp
+    assert pipeline(inputs) == exp
     assert overwrites == {}  # unjust must have been pruned
 
     ## Test Parallel
@@ -239,12 +240,12 @@ def test_pruning_not_overrides_given_intermediate():
     pipeline.set_execution_method("parallel")
     overwrites = {}
     pipeline.set_overwrites_collector(overwrites)
-    #assert pipeline({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+    #assert pipeline(inputs, ["asked"]) == filtdict(exp, "asked")
     assert overwrites == {}  # unjust must have been pruned
 
     overwrites = {}
     pipeline.set_overwrites_collector(overwrites)
-    assert pipeline({"a": 5, "overriden": 1, "c": 2}) == exp
+    assert pipeline(inputs) == exp
     assert overwrites == {}  # unjust must have been pruned
 
 
@@ -257,6 +258,7 @@ def test_pruning_multiouts_not_override_intermediates1():
         operation(name="add", needs=["overriden", "calced"], provides=["asked"])(add),
     )
 
+    inputs = {"a": 5, "overriden": 1, "c": 2}
     exp = {"a": 5, "overriden": 1, "calced": 10, "asked": 11}
     # FAILs
     # - on v1.2.4 with (overriden, asked) = (5, 15) instead of (1, 11)
@@ -267,7 +269,7 @@ def test_pruning_multiouts_not_override_intermediates1():
     # - on v1.2.4 with KeyError: 'e',
     # - on #18(unsatisfied) + #23(ordered-sets) with empty result.
     # FIXED on #26
-    assert pipeline({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+    assert pipeline(inputs, ["asked"]) == filtdict(exp, "asked")
 
     ## Test OVERWITES
     #
@@ -278,19 +280,21 @@ def test_pruning_multiouts_not_override_intermediates1():
 
     overwrites = {}
     pipeline.set_overwrites_collector(overwrites)
-    assert pipeline({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+    assert pipeline(inputs, ["asked"]) == filtdict(exp, "asked")
     assert overwrites == {'overriden': 5}
 
     ## Test parallel
     #
     pipeline.set_execution_method("parallel")
     assert pipeline({"a": 5, "overriden": 1}) == exp
-    assert pipeline({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+    assert pipeline(inputs, ["asked"]) == filtdict(exp, "asked")
 
 
 def test_pruning_multiouts_not_override_intermediates2():
     # Test #25: v.1.2.4 overrides intermediate data when a previous operation
     # must run for its other outputs (outputs asked or not)
+    # SPURIOUS FAILS in < PY3.6 due to unordered dicts, 
+    # eg https://travis-ci.org/ankostis/graphkit/jobs/594813119
     pipeline = compose(name="pipeline")(
         operation(name="must run", needs=["a"], provides=["overriden", "e"])
         (lambda x: (x, 2 * x)),
@@ -298,35 +302,36 @@ def test_pruning_multiouts_not_override_intermediates2():
         operation(name="op2", needs=["d", "e"], provides=["asked"])(mul),
     )
 
+    inputs = {"a": 5, "overriden": 1, "c": 2}
     exp = {"a": 5, "overriden": 1, "c": 2, "d": 3, "e": 10, "asked": 30}
     # FAILs
     # - on v1.2.4 with (overriden, asked) = (5, 70) instead of (1, 13)
     # - on #18(unsatisfied) + #23(ordered-sets) like v1.2.4.
     # FIXED on #26
-    assert pipeline({"a": 5, "overriden": 1, "c": 2}) == exp
+    assert pipeline(inputs) == exp
     # FAILs
     # - on v1.2.4 with KeyError: 'e',
     # - on #18(unsatisfied) + #23(ordered-sets) with empty result.
-    assert pipeline({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+    assert pipeline(inputs, ["asked"]) == filtdict(exp, "asked")
     # FIXED on #26
 
     ## Test OVERWITES
     #
     overwrites = {}
     pipeline.set_overwrites_collector(overwrites)
-    assert pipeline({"a": 5, "overriden": 1, "c": 2}) == exp
+    assert pipeline(inputs) == exp
     assert overwrites == {'overriden': 5}
 
     overwrites = {}
     pipeline.set_overwrites_collector(overwrites)
-    assert pipeline({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+    assert pipeline(inputs, ["asked"]) == filtdict(exp, "asked")
     assert overwrites == {'overriden': 5}
 
     ## Test parallel
     #
     pipeline.set_execution_method("parallel")
-    assert pipeline({"a": 5, "overriden": 1, "c": 2}) == exp
-    assert pipeline({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+    assert pipeline(inputs) == exp
+    assert pipeline(inputs, ["asked"]) == filtdict(exp, "asked")
 
 
 def test_pruning_with_given_intermediate_and_asked_out():
