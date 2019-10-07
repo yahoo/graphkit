@@ -62,9 +62,9 @@ class Plotter(object):
 
         *NODES:*
 
-        circle
-            function
         oval
+            function
+        circle
             subgraph function
         house
             given input
@@ -229,7 +229,7 @@ def build_pydot(
 
             if steps and nx_node in steps:
                 kw["penwdth"] = steps_thickness
-            shape = "oval" if isinstance(nx_node, NetworkOperation) else "circle"
+            shape = "oval" if isinstance(nx_node, NetworkOperation) else "oval"
             if executed and nx_node in executed:
                 kw["style"] = "filled"
                 kw["fillcolor"] = fill_color
