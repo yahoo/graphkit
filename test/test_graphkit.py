@@ -517,7 +517,7 @@ def test_sideffects():
             provides=modifiers.sideffect('c'))(increment),
     )
 
-    assert graph({'box': [0]})['box'] == [1, 2, 3]
+    assert graph({'box': [0], 'a': True})['box'] == [1, 2, 3]
 
     # Reverse order of functions.
     graph = compose('mygraph')(
@@ -531,7 +531,7 @@ def test_sideffects():
             provides=[modifiers.sideffect('c')])(extend),
     )
 
-    assert graph({'box': [0]})['box'] == [1, 1, 2]
+    assert graph({'box': [0], 'a': None})['box'] == [1, 1, 2]
 
 
 def test_optional_per_function_with_same_output():
