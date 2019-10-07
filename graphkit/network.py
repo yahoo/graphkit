@@ -1,8 +1,9 @@
 # Copyright 2016, Yahoo Inc.
 # Licensed under the terms of the Apache License, Version 2.0. See the LICENSE file associated with the project for terms.
 """" The main implementation of the network of operations & data to compute. """
-import time
 import os
+import sys
+import time
 import networkx as nx
 
 from collections import defaultdict
@@ -14,6 +15,22 @@ from boltons.setutils import IndexedSet as iset
 
 from .base import Operation
 from .modifiers import optional
+
+
+
+from networkx import DiGraph
+if sys.version_info < (3, 6):
+    """
+    Consistently ordered variant of :class:`~networkx.DiGraph`.
+    
+    PY3.6 has inmsertion-order dicts, but PY3.5 has not.
+    And behvavior *and TCs) in these environments may fail spuriously!
+    Still *subgraphs* may not patch!
+
+    Fix from: 
+    https://networkx.github.io/documentation/latest/reference/classes/ordered.html#module-networkx.classes.ordered
+    """
+    from networkx import OrderedDiGraph as DiGraph
 
 
 class DataPlaceholderNode(str):
@@ -121,7 +138,7 @@ class Network(object):
         """
 
         # directed graph of layer instances and data-names defining the net.
-        self.graph = nx.DiGraph()
+        self.graph = DiGraph()
         self._debug = kwargs.get("debug", False)
 
         # this holds the timing information for eache layer
