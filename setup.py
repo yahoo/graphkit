@@ -20,7 +20,6 @@ with io.open('graphkit/__init__.py', 'rt', encoding='utf8') as f:
     version = re.search(r'__version__ = \'(.*?)\'', f.read()).group(1)
 
 plot_reqs = [
-     "ipython; python_version >= '3.5'",     # to test jupyter plot.
      "matplotlib",   # to test plot
      "pydot",        # to test plot
 ]

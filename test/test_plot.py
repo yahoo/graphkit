@@ -61,7 +61,7 @@ def test_plot_formats(pipeline, tmp_path):
     solution = pipeline(inputs, outputs)
 
     # The 1st list does not working on my PC, or travis.
-    # NOTE: maintain the other lists manually from the Exception message. 
+    # NOTE: maintain the other lists manually from the Exception message.
     failing_formats = ".dia .hpgl .mif .mp .pcl .pic .vtx .xlib".split()
     # The subsequent format names producing the same dot-file.
     dupe_formats = [
@@ -150,6 +150,7 @@ def test_plot_write_file(pipeline, tmp_path):
     assert fpath.exists()
     assert dot1
 
+
 def _check_plt_img(img):
     assert img is not None
     assert len(img) > 0
@@ -169,22 +170,20 @@ def test_plot_matpotlib(pipeline, tmp_path):
     img = pipeline.plot(show=-1)
     _check_plt_img(img)
 
-@pytest.mark.skipif(sys.version_info < (3, 5), reason="ipython-7+ dropped PY3.4-")
+
 def test_plot_jupyter(pipeline, tmp_path):
     ## Try returned  Jupyter SVG.
 
-    dot = pipeline.plot(jupyter=True)
-    assert "display.SVG" in str(type(dot))
+    dot = pipeline.plot()
+    s = dot._repr_svg_()
+    assert "SVG" in s
 
-@pytest.mark.skipif(sys.version_info < (3, 5), reason="ipython-7+ dropped PY3.4-")
+
 def test_plot_legend(pipeline, tmp_path):
     ## Try returned  Jupyter SVG.
 
     dot = plot.legend()
     assert dot
-    
+
     img = plot.legend(show=-1)
     _check_plt_img(img)
-    
-    dot = plot.legend(jupyter=True)
-    assert "display.SVG" in str(type(dot))

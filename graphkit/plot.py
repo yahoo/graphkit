@@ -19,7 +19,7 @@ class Plotter(object):
     The purpose is to avoid copying this function & documentation here around.
     """
 
-    def plot(self, filename=None, show=False, jupyter=None, **kws):
+    def plot(self, filename=None, show=False, **kws):
         """
         :param str filename:
             Write diagram into a file.
@@ -28,9 +28,6 @@ class Plotter(object):
         :param show:
             If it evaluates to true, opens the  diagram in a  matplotlib window.
             If it equals `-1`, it plots but does not open the Window.
-        :param jupyter:
-            If it evaluates to true, return an SVG suitable to render
-            in *jupyter notebook cells* (`ipython` must be installed).
         :param inputs:
             an optional name list, any nodes in there are plotted
             as a "house"
@@ -52,7 +49,10 @@ class Plotter(object):
             an optional mapping of nodes --> cluster-names, to group them
 
         :return:
-            A :mod`pydot` instance
+            A ``pydot.Dot`` instance.
+            NOTE that the returned instance is monkeypatched to support
+            direct rendering in *jupyter cells* as SVG.
+
 
         Note that the `graph` argument is absent - Each Plotter provides
         its own graph internally;  use directly :func:`plot_graph()` to provide
@@ -93,10 +93,6 @@ class Plotter(object):
         wheat arrows
             broken provides during pruning
 
-        :return:
-            An instance of the :mod`pydot` graph or whatever rendered
-            (e.g. jupyter SVG or matplotlib image)
-
         **Sample code:**
 
         >>> from graphkit import compose, operation
@@ -115,7 +111,7 @@ class Plotter(object):
         >>> pipeline.last_plan.plot('plot2.svg', solution=solution);
         """
         dot = self._build_pydot(**kws)
-        return render_pydot(dot, filename=filename, show=show, jupyter=jupyter)
+        return render_pydot(dot, filename=filename, show=show)
 
     def _build_pydot(self, **kws):
         raise AssertionError("Must implement that!")
@@ -143,6 +139,18 @@ def _report_unmatched_user_props(user_props, kind):
         log.warning("Unmatched `%s_props`:\n  +--%s", kind, unmatched)
 
 
+def _monkey_patch_for_jupyter(pydot):
+    # Ensure Dot nstance render in Jupyter
+    # (see pydot/pydot#220)
+    if not hasattr(pydot.Dot, "_repr_svg_"):
+
+        def make_svg(self):
+            return self.create_svg().decode()
+
+        # monkey patch class
+        pydot.Dot._repr_svg_ = make_svg
+
+
 def build_pydot(
     graph,
     steps=None,
@@ -165,6 +173,8 @@ def build_pydot(
     from .base import NetworkOperation, Operation
     from .modifiers import optional
     from .network import DeleteInstruction, PinInstruction
+
+    _monkey_patch_for_jupyter(pydot)
 
     assert graph is not None
 
@@ -292,7 +302,7 @@ def supported_plot_formats():
     return [".%s" % f for f in pydot.Dot().formats]
 
 
-def render_pydot(dot, filename=None, show=False, jupyter=False):
+def render_pydot(dot, filename=None, show=False):
     """
     Plot a *Graphviz* dot in a matplotlib, in file or return it for Jupyter.
 
@@ -305,13 +315,9 @@ def render_pydot(dot, filename=None, show=False, jupyter=False):
     :param show:
         If it evaluates to true, opens the  diagram in a  matplotlib window.
         If it equals `-1`, it returns the image but does not open the Window.
-    :param jupyter:
-        If it evaluates to true, return an SVG suitable to render
-        in *jupyter notebook cells* (`ipython` must be installed).
 
     :return:
-        the matplotlib image if ``show=-1``, the SVG for Jupyter if ``jupyter=true``,
-        or `dot`.
+        the matplotlib image if ``show=-1``, or the `dot`.
 
     See :meth:`Plotter.plot()` for sample code.
     """
@@ -327,15 +333,6 @@ def render_pydot(dot, filename=None, show=False, jupyter=False):
             )
 
         dot.write(filename, format=ext.lower()[1:])
-
-    ## Return an SVG renderable in jupyter.
-    #
-    if jupyter:
-        # TODO: Alternatively use Plotly https://plot.ly/python/network-graphs/
-        # or this https://plot.ly/~empet/14007.embed
-        from IPython.display import SVG
-
-        return SVG(data=dot.create_svg())
 
     ## Display graph via matplotlib
     #
@@ -355,9 +352,11 @@ def render_pydot(dot, filename=None, show=False, jupyter=False):
     return dot
 
 
-def legend(filename=None, show=None, jupyter=None):
+def legend(filename=None, show=None):
     """Generate a legend for all plots (see Plotter.plot() for args)"""
     import pydot
+
+    _monkey_patch_for_jupyter(pydot)
 
     ## From https://stackoverflow.com/questions/3499056/making-a-legend-key-in-graphviz
     dot_text = """
@@ -365,7 +364,7 @@ def legend(filename=None, show=None, jupyter=None):
         rankdir=LR;
         subgraph cluster_legend {
         label="Graphkit Legend";
-        
+
         operation   [shape=oval];
         pipeline    [shape=circle];
         insteps     [penwidth=3 label="in steps"];
@@ -396,7 +395,7 @@ def legend(filename=None, show=None, jupyter=None):
         }
     }
     """
-   
+
     dot = pydot.graph_from_dot_data(dot_text)[0]
     # clus = pydot.Cluster("Graphkit legend", label="Graphkit legend")
     # dot.add_subgraph(clus)
@@ -404,4 +403,4 @@ def legend(filename=None, show=None, jupyter=None):
     # nodes = dot.Node()
     # clus.add_node("operation")
 
-    return render_pydot(dot, filename=filename, show=show, jupyter=jupyter)
+    return render_pydot(dot, filename=filename, show=show)
