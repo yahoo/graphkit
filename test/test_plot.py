@@ -150,6 +150,10 @@ def test_plot_write_file(pipeline, tmp_path):
     assert fpath.exists()
     assert dot1
 
+def _check_plt_img(img):
+    assert img is not None
+    assert len(img) > 0
+
 
 def test_plot_matpotlib(pipeline, tmp_path):
     ## Try matplotlib Window, but # without opening a Window.
@@ -163,13 +167,24 @@ def test_plot_matpotlib(pipeline, tmp_path):
         matplotlib.use("Agg")
     # do not open window in headless travis
     img = pipeline.plot(show=-1)
-    assert img is not None
-    assert len(img) > 0
-
+    _check_plt_img(img)
 
 @pytest.mark.skipif(sys.version_info < (3, 5), reason="ipython-7+ dropped PY3.4-")
 def test_plot_jupyter(pipeline, tmp_path):
     ## Try returned  Jupyter SVG.
 
     dot = pipeline.plot(jupyter=True)
+    assert "display.SVG" in str(type(dot))
+
+@pytest.mark.skipif(sys.version_info < (3, 5), reason="ipython-7+ dropped PY3.4-")
+def test_plot_legend(pipeline, tmp_path):
+    ## Try returned  Jupyter SVG.
+
+    dot = plot.legend()
+    assert dot
+    
+    img = plot.legend(show=-1)
+    _check_plt_img(img)
+    
+    dot = plot.legend(jupyter=True)
     assert "display.SVG" in str(type(dot))

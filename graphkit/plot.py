@@ -331,6 +331,8 @@ def render_pydot(dot, filename=None, show=False, jupyter=False):
     ## Return an SVG renderable in jupyter.
     #
     if jupyter:
+        # TODO: Alternatively use Plotly https://plot.ly/python/network-graphs/
+        # or this https://plot.ly/~empet/14007.embed
         from IPython.display import SVG
 
         return SVG(data=dot.create_svg())
@@ -351,3 +353,55 @@ def render_pydot(dot, filename=None, show=False, jupyter=False):
         return img
 
     return dot
+
+
+def legend(filename=None, show=None, jupyter=None):
+    """Generate a legend for all plots (see Plotter.plot() for args)"""
+    import pydot
+
+    ## From https://stackoverflow.com/questions/3499056/making-a-legend-key-in-graphviz
+    dot_text = """
+    digraph {
+        rankdir=LR;
+        subgraph cluster_legend {
+        label="Graphkit Legend";
+        
+        operation   [shape=oval];
+        pipeline    [shape=circle];
+        insteps     [penwidth=3 label="in steps"];
+        executed    [style=filled fillcolor=wheat];
+        operation -> pipeline -> insteps -> executed [style=invis];
+
+        data    [shape=rect];
+        input   [shape=invhouse];
+        output  [shape=house];
+        inp_out [shape=hexagon label="inp+out"];
+        evicted [shape=rect penwidth=3 color="#990000"];
+        pinned  [shape=rect penwidth=3 color="purple"];
+        evpin   [shape=rect penwidth=3 color=purple label="evict+pin"];
+        sol     [shape=rect style=filled fillcolor=wheat label="in solution"];
+        data -> input -> output -> inp_out -> evicted -> pinned -> evpin -> sol [style=invis];
+
+        a1 [style=invis] b1 [color=invis label="dependency"];
+        a1 -> b1;
+        a2 [style=invis] b2 [color=invis label="optional"];
+        a2 -> b2 [style=dashed];
+        a3 [style=invis] b3 [color=invis penwidth=3 label="broken dependency"];
+        a3 -> b3 [color=wheat penwidth=2];
+        a4 [style=invis] b4 [color=invis penwidth=4 label="steps sequence"];
+        a4 -> b4 [color="#009999" penwidth=4 style=dotted arrowhead=vee];
+        b1 -> a2 [style=invis];
+        b2 -> a3 [style=invis];
+        b3 -> a4 [style=invis];
+        }
+    }
+    """
+   
+    dot = pydot.graph_from_dot_data(dot_text)[0]
+    # clus = pydot.Cluster("Graphkit legend", label="Graphkit legend")
+    # dot.add_subgraph(clus)
+
+    # nodes = dot.Node()
+    # clus.add_node("operation")
+
+    return render_pydot(dot, filename=filename, show=show, jupyter=jupyter)
