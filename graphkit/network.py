@@ -65,6 +65,7 @@ Computations are based on 5 data-structures:
 """
 import logging
 import os
+import sys
 import time
 from collections import defaultdict, namedtuple
 from io import StringIO
@@ -78,6 +79,22 @@ from .base import Operation
 from .modifiers import optional
 
 log = logging.getLogger(__name__)
+
+
+from networkx import DiGraph
+if sys.version_info < (3, 6):
+    """
+    Consistently ordered variant of :class:`~networkx.DiGraph`.
+    
+    PY3.6 has inmsertion-order dicts, but PY3.5 has not.
+    And behvavior *and TCs) in these environments may fail spuriously!
+    Still *subgraphs* may not patch!
+
+    Fix from: 
+    https://networkx.github.io/documentation/latest/reference/classes/ordered.html#module-networkx.classes.ordered
+    """
+    from networkx import OrderedDiGraph as DiGraph
+
 
 class DataPlaceholderNode(str):
     """
@@ -123,7 +140,7 @@ class Network(plot.Plotter):
 
     def __init__(self, **kwargs):
         # directed graph of layer instances and data-names defining the net.
-        self.graph = nx.DiGraph()
+        self.graph = DiGraph()
 
         # this holds the timing information for each layer
         self.times = {}
