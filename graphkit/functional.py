@@ -5,7 +5,7 @@ from itertools import chain
 
 from .base import Operation, NetworkOperation
 from .network import Network
-from .modifiers import optional, token
+from .modifiers import optional, sideffect
 
 
 class FunctionalOperation(Operation):
@@ -14,23 +14,33 @@ class FunctionalOperation(Operation):
         Operation.__init__(self, **kwargs)
 
     def _compute(self, named_inputs, outputs=None):
-        inputs = [named_inputs[d]
-                  for d in self.needs
-                  if not isinstance(d, optional) and not isinstance(d, token)]
+        assert self.net
+
+        inputs = [
+            named_inputs[n]
+            for n in self.needs
+            if 'optional' not in self.net.graph.get_edge_data(n, self)
+            and not isinstance(n, sideffect)
+        ]
 
         # Find any optional inputs in named_inputs.  Get only the ones that
         # are present there, no extra `None`s.
-        optionals = {n: named_inputs[n] for n in self.needs if isinstance(n, optional) and n in named_inputs}
+        optionals = {
+            n: named_inputs[n]
+            for n in self.needs
+            if 'optional' in self.net.graph.get_edge_data(n, self)
+            and n in named_inputs
+        }
 
         # Combine params and optionals into one big glob of keyword arguments.
         kwargs = {k: v for d in (self.params, optionals) for k, v in d.items()}
 
         result = self.fn(*inputs, **kwargs)
 
-        # Don't expect token outputs.
-        provides = [n for n in self.provides if not isinstance(n, token)]
+        # Don't expect sideffect outputs.
+        provides = [n for n in self.provides if not isinstance(n, sideffect)]
         if not provides:
-            # All outputs were tokens.
+            # All outputs were sideffects.
             return {}
 
         if len(provides) == 1:
@@ -38,7 +48,7 @@ class FunctionalOperation(Operation):
 
         result = zip(provides, result)
         if outputs:
-            outputs = set(n for n in outputs if not isinstance(n, token))
+            outputs = set(n for n in outputs if not isinstance(n, sideffect))
             result = filter(lambda x: x[0] in outputs, result)
 
         return dict(result)

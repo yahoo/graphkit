@@ -32,7 +32,9 @@ def test_network():
     @operation(name='pow_op1', needs='sum_ab', provides=['sum_ab_p1', 'sum_ab_p2', 'sum_ab_p3'], params={'exponent': 3})
     def pow_op1(a, exponent=2):
         return [math.pow(a, y) for y in range(1, exponent+1)]
-
+    
+    # `_compute()` needs a` nx-DiGraph in  op's `net` attribute.
+    compose("mock graph")(pow_op1)
     print(pow_op1._compute({'sum_ab':2}, ['sum_ab_p2']))
 
     # Partial operation that is bound at a later time
@@ -207,7 +209,7 @@ def test_optional():
     assert 'sum' in results
     assert results['sum'] == sum(named_inputs.values())
 
-def test_tokens():
+def test_sideffects():
     # Function without return value.
     def extend(box):
         box.extend([1, 2])
@@ -216,16 +218,16 @@ def test_tokens():
         for i in range(len(box)):
             box[i] += 1
 
-    # Designate `a`, `b` as token inp/out arguments.
+    # Designate `a`, `b` as sideffect inp/out arguments.
     graph = compose('mygraph')(
         operation(
             name='extend',
-            needs=['box', modifiers.token('a')],
-            provides=[modifiers.token('b')])(extend),
+            needs=['box', modifiers.sideffect('a')],
+            provides=[modifiers.sideffect('b')])(extend),
         operation(
             name='increment',
-            needs=['box', modifiers.token('b')],
-            provides=modifiers.token('c'))(increment),
+            needs=['box', modifiers.sideffect('b')],
+            provides=modifiers.sideffect('c'))(increment),
     )
 
     assert graph({'box': [0]})['box'] == [1, 2, 3]
@@ -234,12 +236,12 @@ def test_tokens():
     graph = compose('mygraph')(
         operation(
             name='increment',
-            needs=['box', modifiers.token('a')],
-            provides=modifiers.token('b'))(increment),
+            needs=['box', modifiers.sideffect('a')],
+            provides=modifiers.sideffect('b'))(increment),
         operation(
             name='extend',
-            needs=['box', modifiers.token('b')],
-            provides=[modifiers.token('c')])(extend),
+            needs=['box', modifiers.sideffect('b')],
+            provides=[modifiers.sideffect('c')])(extend),
     )
 
     assert graph({'box': [0]})['box'] == [1, 1, 2]

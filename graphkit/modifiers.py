@@ -41,36 +41,37 @@ class optional(str):
     pass
 
 
-class token(str):
+class sideffect(str):
     """
-    Inputs & outputs in ``needs`` & ``provides`` may be designated as *tokens*
+    Inputs & outputs in ``needs`` & ``provides`` may be designated as *sideffects*
     using this modifier.  *Tokens* work as usual while solving the DAG but
     they are never assigned any values to/from the ``operation`` functions.
     Specifically:
 
-    - input tokens are NOT fed into the function;
-    - output tokens are NOT expected from the function.
+    - input sideffects are NOT fed into the function;
+    - output sideffects are NOT expected from the function.
 
-    Their purpose is to describe functions that have side-effects.
-    Note that an ``operation`` with just a single *token* output return
-    no value at all (it is called only for its side-effects).
+    Their purpose is to describe functions that have modify internal state
+    their arguments ("side-effects").
+    Note that an ``operation`` with just a single *sideffect* output return
+    no value at all, but it would still be called for its side-effects  only.
 
     A typical use case is to signify columns required to produce new ones in
     pandas dataframes::
 
         from graphkit import operation, compose
-        from graphkit.modifiers import token
+        from graphkit.modifiers import sideffect
 
         # Function appending a new dataframe column from two pre-existing ones.
         def addcolumns(df):
             df['sum'] = df['a'] + df['b']
 
-        # Designate `a`, `b` & `sum` column names as an token arguments.
+        # Designate `a`, `b` & `sum` column names as an sideffect arguments.
         graph = compose('mygraph')(
             operation(
                 name='addcolumns',
-                needs=['df', token('a'), token('b')],
-                provides=[token('sum')])(addcolumns)
+                needs=['df', sideffect('a'), sideffect('b')],
+                provides=[sideffect('sum')])(addcolumns)
         )
 
         # The graph works with and without 'c' provided as input.
