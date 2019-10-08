@@ -33,13 +33,13 @@ def filtdict(d, *keys):
     return type(d)(i for i in d.items() if i[0] in keys)
 
 
-def test_network():
+def test_network_smoke():
 
     # Sum operation, late-bind compute function
     sum_op1 = operation(name='sum_op1', needs=['a', 'b'], provides='sum_ab')(add)
 
     # sum_op1 is callable
-    print(sum_op1(1, 2))
+    assert sum_op1(1, 2) == 3
 
     # Multiply operation, decorate in-place
     @operation(name='mul_op1', needs=['sum_ab', 'b'], provides='sum_ab_times_b')
@@ -47,14 +47,14 @@ def test_network():
         return a * b
 
     # mul_op1 is callable
-    print(mul_op1(1, 2))
+    assert mul_op1(1, 2) == 2
 
     # Pow operation
     @operation(name='pow_op1', needs='sum_ab', provides=['sum_ab_p1', 'sum_ab_p2', 'sum_ab_p3'], params={'exponent': 3})
     def pow_op1(a, exponent=2):
         return [math.pow(a, y) for y in range(1, exponent+1)]
 
-    print(pow_op1._compute({'sum_ab':2}, ['sum_ab_p2']))
+    assert pow_op1._compute({'sum_ab':2}, ['sum_ab_p2']) == {'sum_ab_p2': 4.0}
 
     # Partial operation that is bound at a later time
     partial_op = operation(name='sum_op2', needs=['sum_ab_p1', 'sum_ab_p2'], provides='p1_plus_p2')
@@ -68,7 +68,7 @@ def test_network():
     sum_op3 = sum_op_factory(name='sum_op3', needs=['a', 'b'], provides='sum_ab2')
 
     # sum_op3 is callable
-    print(sum_op3(5, 6))
+    assert sum_op3(5, 6) == 11
 
     # compose network
     net = compose(name='my network')(sum_op1, mul_op1, pow_op1, sum_op2, sum_op3)
@@ -77,14 +77,25 @@ def test_network():
     # Running the network
     #
 
-    # # get all outputs
-    # pprint(net({'a': 1, 'b': 2}))
+    # get all outputs
+    exp = {'a': 1,
+        'b': 2,
+        'p1_plus_p2': 12.0,
+        'sum_ab': 3,
+        'sum_ab2': 3,
+        'sum_ab_p1': 3.0,
+        'sum_ab_p2': 9.0,
+        'sum_ab_p3': 27.0,
+        'sum_ab_times_b': 6}
+    assert net({'a': 1, 'b': 2}) == exp
 
-    # # get specific outputs
-    # pprint(net({'a': 1, 'b': 2}, outputs=["sum_ab_times_b"]))
+    # get specific outputs
+    exp = {'sum_ab_times_b': 6}
+    assert net({'a': 1, 'b': 2}, outputs=["sum_ab_times_b"]) == exp
 
     # start with inputs already computed
-    pprint(net({"sum_ab": 1, "b": 2}, outputs=["sum_ab_times_b"]))
+    exp = {'sum_ab_times_b': 2}
+    assert net({"sum_ab": 1, "b": 2}, outputs=["sum_ab_times_b"]) == exp
 
     # visualize network graph
     # net.plot(show=True)
@@ -96,15 +107,23 @@ def test_network_simple_merge():
     sum_op2 = operation(name='sum_op2', needs=['a', 'b'], provides='sum2')(add)
     sum_op3 = operation(name='sum_op3', needs=['sum1', 'c'], provides='sum3')(add)
     net1 = compose(name='my network 1')(sum_op1, sum_op2, sum_op3)
-    pprint(net1({'a': 1, 'b': 2, 'c': 4}))
+
+    exp = {'a': 1, 'b': 2, 'c': 4, 'sum1': 3, 'sum2': 3, 'sum3': 7}
+    sol = net1({'a': 1, 'b': 2, 'c': 4})
+    assert sol == exp
 
     sum_op4 = operation(name='sum_op1', needs=['d', 'e'], provides='a')(add)
     sum_op5 = operation(name='sum_op2', needs=['a', 'f'], provides='b')(add)
+
     net2 = compose(name='my network 2')(sum_op4, sum_op5)
-    pprint(net2({'d': 1, 'e': 2, 'f': 4}))
+    exp = {'a': 3, 'b': 7, 'd': 1, 'e': 2, 'f': 4}
+    sol = net2({'d': 1, 'e': 2, 'f': 4})
+    assert sol == exp
 
     net3 = compose(name='merged')(net1, net2)
-    pprint(net3({'c': 5, 'd': 1, 'e': 2, 'f': 4}))
+    exp = {'a': 3, 'b': 7, 'c': 5, 'd': 1, 'e': 2, 'f': 4, 'sum1': 10, 'sum2': 10, 'sum3': 15}
+    sol = net3({'c': 5, 'd': 1, 'e': 2, 'f': 4})
+    assert sol == exp
 
 
 def test_network_deep_merge():
@@ -113,15 +132,40 @@ def test_network_deep_merge():
     sum_op2 = operation(name='sum_op2', needs=['a', 'b'], provides='sum2')(add)
     sum_op3 = operation(name='sum_op3', needs=['sum1', 'c'], provides='sum3')(add)
     net1 = compose(name='my network 1')(sum_op1, sum_op2, sum_op3)
-    pprint(net1({'a': 1, 'b': 2, 'c': 4}))
+
+    exp = {'a': 1, 'b': 2, 'c': 4, 'sum1': 3, 'sum2': 3, 'sum3': 7}
+    assert net1({'a': 1, 'b': 2, 'c': 4}) == exp
 
     sum_op4 = operation(name='sum_op1', needs=['a', 'b'], provides='sum1')(add)
     sum_op5 = operation(name='sum_op4', needs=['sum1', 'b'], provides='sum2')(add)
     net2 = compose(name='my network 2')(sum_op4, sum_op5)
-    pprint(net2({'a': 1, 'b': 2}))
+    exp = {'a': 1, 'b': 2, 'sum1': 3, 'sum2': 5}
+    assert net2({'a': 1, 'b': 2}) == exp
 
     net3 = compose(name='merged', merge=True)(net1, net2)
-    pprint(net3({'a': 1, 'b': 2, 'c': 4}))
+    exp = {'a': 1, 'b': 2, 'c': 4, 'sum1': 3, 'sum2': 3, 'sum3': 7}
+    assert net3({'a': 1, 'b': 2, 'c': 4}) == exp
+
+
+def test_network_merge_in_doctests():
+    def abspow(a, p):
+        c = abs(a) ** p
+        return c
+
+    graphop = compose(name="graphop")(
+        operation(name="mul1", needs=["a", "b"], provides=["ab"])(mul),
+        operation(name="sub1", needs=["a", "ab"], provides=["a_minus_ab"])(sub),
+        operation(name="abspow1", needs=["a_minus_ab"], provides=["abs_a_minus_ab_cubed"], params={"p": 3})
+        (abspow)
+    )
+
+    another_graph = compose(name="another_graph")(
+    operation(name="mul1", needs=["a", "b"], provides=["ab"])(mul),
+    operation(name="mul2", needs=["c", "ab"], provides=["cab"])(mul)
+    )
+    merged_graph = compose(name="merged_graph", merge=True)(graphop, another_graph)
+    assert merged_graph.needs
+    assert merged_graph.provides
 
 
 def test_input_based_pruning():
@@ -293,7 +337,7 @@ def test_pruning_multiouts_not_override_intermediates1():
 def test_pruning_multiouts_not_override_intermediates2():
     # Test #25: v.1.2.4 overrides intermediate data when a previous operation
     # must run for its other outputs (outputs asked or not)
-    # SPURIOUS FAILS in < PY3.6 due to unordered dicts, 
+    # SPURIOUS FAILS in < PY3.6 due to unordered dicts,
     # eg https://travis-ci.org/ankostis/graphkit/jobs/594813119
     pipeline = compose(name="pipeline")(
         operation(name="must run", needs=["a"], provides=["overriden", "e"])
