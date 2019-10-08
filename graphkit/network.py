@@ -110,7 +110,7 @@ class DeleteInstruction(str):
 
     It's a step in :attr:`ExecutionPlan.steps` for the data-node `str` that
     frees its data-value from `solution` after it is no longer needed,
-    to reduce memory footprint while computing the pipeline.
+    to reduce memory footprint while computing the graph.
     """
     def __repr__(self):
         return 'DeleteInstruction("%s")' % self

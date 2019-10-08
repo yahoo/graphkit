@@ -16,9 +16,12 @@ GraphKit is a lightweight Python module for creating and running ordered graphs 
 
 Here's how to install:
 
-```
-pip install graphkit
-```    
+    pip install graphkit
+
+OR with dependencies for plotting support (and you need to install [`Graphviz`](https://graphviz.org)
+program separately with your OS tools)::
+
+    pip install graphkit[plot]
 
 Here's a Python script with an example GraphKit computation graph that produces multiple outputs (`a * b`, `a - a * b`, and `abs(a - a * b) ** 3`):
 
@@ -32,20 +35,20 @@ def abspow(a, p):
     return c
 
 # Compose the mul, sub, and abspow operations into a computation graph.
-graph = compose(name="graph")(
+graphop = compose(name="graphop")(
     operation(name="mul1", needs=["a", "b"], provides=["ab"])(mul),
     operation(name="sub1", needs=["a", "ab"], provides=["a_minus_ab"])(sub),
     operation(name="abspow1", needs=["a_minus_ab"], provides=["abs_a_minus_ab_cubed"], params={"p": 3})(abspow)
 )
 
 # Run the graph and request all of the outputs.
-out = graph({'a': 2, 'b': 5})
+out = graphop({'a': 2, 'b': 5})
 
 # Prints "{'a': 2, 'a_minus_ab': -8, 'b': 5, 'ab': 10, 'abs_a_minus_ab_cubed': 512}".
 print(out)
 
 # Run the graph and request a subset of the outputs.
-out = graph({'a': 2, 'b': 5}, outputs=["a_minus_ab"])
+out = graphop({'a': 2, 'b': 5}, outputs=["a_minus_ab"])
 
 # Prints "{'a_minus_ab': -8}".
 print(out)
@@ -53,19 +56,20 @@ print(out)
 
 As you can see, any function can be used as an operation in GraphKit, even ones imported from system modules!
 
-For debugging, you may plot the workflow with one of these methods:
+
+## Plotting
+
+For debugging the above graph-operation you may plot it using these methods:
 
 ```python
-   graph.plot(show=True)               # open a matplotlib window
-   graph.plot("path/to/workflow.png")  # supported files: .png .dot .jpg .jpeg .pdf .svg
+   graphop.plot(show=True, solution=out)  # open a matplotlib window with solution values in nodes
+   graphop.plot("intro.svg")              # other supported formats: png, jpg, pdf, ...
 ```
+
+![Intro graph](docs/source/images/intro.png "Intro graph")
 ![Graphkit Legend](docs/source/images/GraphkitLegend.svg "Graphkit Legend")
 
-> **NOTE**: For plots, `graphviz` must be in your PATH, and `pydot` & `matplotlib` python packages installed.
-> You may install both when installing *graphkit* with its `plot` extras:
-> ```python
-> pip install graphkit[plot]
-> ```
+> **TIP:** The `pydot.Dot` instances returned by `plot()` are rendered as SVG in *Jupyter/IPython*.
 
 # License
 

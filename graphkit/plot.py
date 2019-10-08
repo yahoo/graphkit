@@ -105,17 +105,18 @@ class Plotter(object):
         >>> from graphkit import compose, operation
         >>> from graphkit.modifiers import optional
 
-        >>> pipeline = compose(name="pipeline")(
+        >>> graphop = compose(name="graphop")(
         ...     operation(name="add", needs=["a", "b1"], provides=["ab1"])(add),
         ...     operation(name="sub", needs=["a", optional("b2")], provides=["ab2"])(lambda a, b=1: a-b),
         ...     operation(name="abb", needs=["ab1", "ab2"], provides=["asked"])(add),
         ... )
 
+        >>> graphop.plot(show=True);           # plot just the graph in a matplotlib window
         >>> inputs = {'a': 1, 'b1': 2}
-        >>> solution=pipeline(inputs)
+        >>> solution = graphop(inputs)           # now plots will include the execution-plan
 
-        >>> pipeline.plot('plot1.svg', inputs=inputs, outputs=['asked', 'b1'], solution=solution);
-        >>> pipeline.last_plan.plot('plot2.svg', solution=solution);
+        >>> graphop.plot('plot1.svg', inputs=inputs, outputs=['asked', 'b1'], solution=solution);
+        >>> graphop.plot(solution=solution)   # just get the `pydoit.Dot` object, renderable in Jupyter
         """
         dot = self._build_pydot(**kws)
         return render_pydot(dot, filename=filename, show=show)
@@ -303,7 +304,7 @@ def build_pydot(
 
 
 def supported_plot_formats():
-    """return automatically all `pydot` extensions withlike ``.png``"""
+    """return automatically all `pydot` extensions"""
     import pydot
 
     return [".%s" % f for f in pydot.Dot().formats]
