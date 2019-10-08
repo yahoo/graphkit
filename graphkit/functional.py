@@ -1,9 +1,7 @@
 # Copyright 2016, Yahoo Inc.
 # Licensed under the terms of the Apache License, Version 2.0. See the LICENSE file associated with the project for terms.
-
-from itertools import chain
-
 from boltons.setutils import IndexedSet as iset
+import networkx as nx
 
 from .base import Operation, NetworkOperation
 from .network import Network
@@ -190,17 +188,16 @@ class compose(object):
             merge_set = iset()  # Preseve given node order.
             for op in operations:
                 if isinstance(op, NetworkOperation):
-                    plan = op.net.compile()
-                    merge_set.update(s for s in plan.steps
-                                     if isinstance(s, Operation))
+                    netop_nodes = nx.topological_sort(op.net.graph)
+                    merge_set.update(s for s in netop_nodes if isinstance(s, Operation))
                 else:
                     merge_set.add(op)
             operations = merge_set
 
-        provides = iset(chain(*[op.provides for op in operations]))
+        provides = iset(p for op in operations for p in op.provides)
         # Mark them all as optional, now that #18 calmly ignores
         # non-fully satisfied operations.
-        needs = iset(chain(*[optional(n) for op in operations for n in op.needs ])) - provides
+        needs = iset(optional(n) for op in operations for n in op.needs) - provides
 
         # Build network
         net = Network()
