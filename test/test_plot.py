@@ -52,6 +52,7 @@ def test_plotting_docstring():
         assert ext in network.Network.plot.__doc__
 
 
+@pytest.mark.slow
 def test_plot_formats(pipeline, tmp_path):
     ## Generate all formats  (not needing to save files)
 

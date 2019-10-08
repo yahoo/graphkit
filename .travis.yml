@@ -22,6 +22,8 @@ install:
 
 script:
   - pytest -v --cov=graphkit
+  # In case you adopt -m 'not slow' in setup.cfg.
+  #- pytest -vm slow --cov=graphkit
 
 deploy:
   provider: pypi

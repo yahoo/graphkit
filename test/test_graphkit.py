@@ -578,6 +578,7 @@ def test_deleteinstructs_vary_with_inputs():
     assert count_deletions(steps12) != count_deletions(steps22)
 
 
+@pytest.mark.slow
 def test_parallel_execution():
     import time
 
@@ -633,6 +634,7 @@ def test_parallel_execution():
     # make sure results are the same using either method
     assert result_sequential == result_threaded
 
+@pytest.mark.slow
 def test_multi_threading():
     import time
     import random
