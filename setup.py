@@ -19,6 +19,15 @@ and many other domains.
 with io.open('graphkit/__init__.py', 'rt', encoding='utf8') as f:
     version = re.search(r'__version__ = \'(.*?)\'', f.read()).group(1)
 
+plot_reqs = [
+     "matplotlib",   # to test plot
+     "pydot",        # to test plot
+]
+test_reqs = plot_reqs + [
+     "pytest",
+     "pytest-cov",
+]
+
 setup(
      name='graphkit',
      version=version,
@@ -28,11 +37,16 @@ setup(
      author_email='huyng@yahoo-inc.com',
      url='http://github.com/yahoo/graphkit',
      packages=['graphkit'],
-     install_requires=['networkx'],
+     install_requires=[
+          "networkx; python_version >= '3.5'",
+          "networkx == 2.2; python_version < '3.5'",
+          "boltons"  # for IndexSet
+     ],
      extras_require={
-          'plot': ['pydot', 'matplotlib']
+          'plot': plot_reqs,
+          'test': test_reqs,
      },
-     tests_require=['numpy'],
+     tests_require=test_reqs,
      license='Apache-2.0',
      keywords=['graph', 'computation graph', 'DAG', 'directed acyclical graph'],
      classifiers=[
