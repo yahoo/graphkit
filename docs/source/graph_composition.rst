@@ -30,15 +30,15 @@ The simplest use case for ``compose`` is assembling a collection of individual o
       return c
 
    # Compose the mul, sub, and abspow operations into a computation graph.
-   graph = compose(name="graph")(
+   graphop = compose(name="graphop")(
       operation(name="mul1", needs=["a", "b"], provides=["ab"])(mul),
       operation(name="sub1", needs=["a", "ab"], provides=["a_minus_ab"])(sub),
       operation(name="abspow1", needs=["a_minus_ab"], provides=["abs_a_minus_ab_cubed"], params={"p": 3})(abspow)
    )
 
-The call here to ``compose()()`` yields a runnable computation graph that looks like this (where the circles are operations, squares are data, and octagons are parameters):
+The call here to ``compose()`` yields a runnable computation graph that looks like this (where the circles are operations, squares are data, and octagons are parameters):
 
-.. image:: images/example_graph.svg
+.. image:: images/intro.svg
 
 
 .. _graph-computations:
@@ -49,7 +49,7 @@ Running a computation graph
 The graph composed in the example above in :ref:`simple-graph-composition` can be run by simply calling it with a dictionary argument whose keys correspond to the names of inputs to the graph and whose values are the corresponding input values.  For example, if ``graph`` is as defined above, we can run it like this::
 
    # Run the graph and request all of the outputs.
-   out = graph({'a': 2, 'b': 5})
+   out = graphop({'a': 2, 'b': 5})
 
    # Prints "{'a': 2, 'a_minus_ab': -8, 'b': 5, 'ab': 10, 'abs_a_minus_ab_cubed': 512}".
    print(out)
@@ -57,10 +57,10 @@ The graph composed in the example above in :ref:`simple-graph-composition` can b
 Producing a subset of outputs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-By default, calling a graph on a set of inputs will yield all of that graph's outputs.  You can use the ``outputs`` parameter to request only a subset.  For example, if ``graph`` is as above::
+By default, calling a graph-operation on a set of inputs will yield all of that graph's outputs.  You can use the ``outputs`` parameter to request only a subset.  For example, if ``graphop`` is as above::
 
-   # Run the graph and request a subset of the outputs.
-   out = graph({'a': 2, 'b': 5}, outputs=["a_minus_ab"])
+   # Run the graph-operation and request a subset of the outputs.
+   out = graphop({'a': 2, 'b': 5}, outputs=["a_minus_ab"])
 
    # Prints "{'a_minus_ab': -8}".
    print(out)
@@ -70,17 +70,17 @@ When using ``outputs`` to request only a subset of a graph's outputs, GraphKit e
 Short-circuiting a graph computation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-You can short-circuit a graph computation, making certain inputs unnecessary, by providing a value in the graph that is further downstream in the graph than those inputs.  For example, in the graph we've been working with, you could provide the value of ``a_minus_ab`` to make the inputs ``a`` and ``b`` unnecessary::
+You can short-circuit a graph computation, making certain inputs unnecessary, by providing a value in the graph that is further downstream in the graph than those inputs.  For example, in the graph-operation we've been working with, you could provide the value of ``a_minus_ab`` to make the inputs ``a`` and ``b`` unnecessary::
 
-   # Run the graph and request a subset of the outputs.
-   out = graph({'a_minus_ab': -8})
+   # Run the graph-operation and request a subset of the outputs.
+   out = graphop({'a_minus_ab': -8})
 
    # Prints "{'a_minus_ab': -8, 'abs_a_minus_ab_cubed': 512}".
    print(out)
 
 When you do this, any ``operation`` nodes that are not on a path from the downstream input to the requested outputs (i.e. predecessors of the downstream input) are not computed.  For example, the ``mul1`` and ``sub1`` operations are not executed here.
 
-This can be useful if you have a graph that accepts alternative forms of the same input.  For example, if your graph requires a ``PIL.Image`` as input, you could allow your graph to be run in an API server by adding an earlier ``operation`` that accepts as input a string of raw image data and converts that data into the needed ``PIL.Image``.  Then, you can either provide the raw image data string as input, or you can provide the ``PIL.Image`` if you have it and skip providing the image data string.
+This can be useful if you have a graph-operation that accepts alternative forms of the same input.  For example, if your graph-operation requires a ``PIL.Image`` as input, you could allow your graph to be run in an API server by adding an earlier ``operation`` that accepts as input a string of raw image data and converts that data into the needed ``PIL.Image``.  Then, you can either provide the raw image data string as input, or you can provide the ``PIL.Image`` if you have it and skip providing the image data string.
 
 Adding on to an existing computation graph
 ------------------------------------------
@@ -109,7 +109,7 @@ Sometimes you will have two computation graphs---perhaps ones that share operati
 
    combined_graph = compose(name="combined_graph")(graph1, graph2)
 
-However, if you want to combine graphs that share operations and don't want to pay the price of running redundant computations, you can set the ``merge`` parameter of ``compose()`` to ``True``.  This will consolidate redundant ``operation`` nodes (based on ``name``) into a single node.  For example, let's say we have ``graph``, as in the examples above, along with this graph::
+However, if you want to combine graphs that share operations and don't want to pay the price of running redundant computations, you can set the ``merge`` parameter of ``compose()`` to ``True``.  This will consolidate redundant ``operation`` nodes (based on ``name``) into a single node.  For example, let's say we have ``graphop``, as in the examples above, along with this graph::
 
    # This graph shares the "mul1" operation with graph.
    another_graph = compose(name="another_graph")(
@@ -117,9 +117,9 @@ However, if you want to combine graphs that share operations and don't want to p
       operation(name="mul2", needs=["c", "ab"], provides=["cab"])(mul)
    )
 
-We can merge ``graph`` and ``another_graph`` like so, avoiding a redundant ``mul1`` operation::
+We can merge ``graphop`` and ``another_graph`` like so, avoiding a redundant ``mul1`` operation::
 
-   merged_graph = compose(name="merged_graph", merge=True)(graph, another_graph)
+   merged_graph = compose(name="merged_graph", merge=True)(graphop, another_graph)
 
 This ``merged_graph`` will look like this:
 
