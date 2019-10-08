@@ -59,8 +59,7 @@ For debugging, you may plot the workflow with one of these methods:
    graph.plot(show=True)               # open a matplotlib window
    graph.plot("path/to/workflow.png")  # supported files: .png .dot .jpg .jpeg .pdf .svg
 ```
-This is the legend of the diagrams:
-![Graphkit Legend](docs/source/images/GraphkitLegend.png "Graphkit Legend")
+![Graphkit Legend](docs/source/images/GraphkitLegend.svg "Graphkit Legend")
 
 > **NOTE**: For plots, `graphviz` must be in your PATH, and `pydot` & `matplotlib` python packages installed.
 > You may install both when installing *graphkit* with its `plot` extras:

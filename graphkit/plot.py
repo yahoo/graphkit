@@ -60,12 +60,17 @@ class Plotter(object):
 
         **Legend:**
 
+        . figure:: ../images/Graphkitlegend.svg
+            :alt: Graphkit Legend
+
+            see :func:`legend()`
+
         *NODES:*
 
         oval
             function
-        circle
-            subgraph function
+        egg
+            subgraph operation
         house
             given input
         inversed-house
@@ -76,10 +81,12 @@ class Plotter(object):
             intermediate data, neither given nor asked.
         red frame
             delete-instruction, to free up memory.
+        blue frame
+            pinned-instruction, not to overwrite intermediate inputs.
         filled
             data node has a value in `solution` OR function has been executed.
         thick frame
-            function/data node in `steps`.
+            function/data node in execution `steps`.
 
         *ARROWS*
 
@@ -88,10 +95,10 @@ class Plotter(object):
             sources-operations ``provide`` target-data)
         dashed black arrows
             optional needs
+        wheat arrows
+            broken dependency (``provide``) during pruning
         green-dotted arrows
             execution steps labeled in succession
-        wheat arrows
-            broken provides during pruning
 
         **Sample code:**
 
@@ -239,7 +246,7 @@ def build_pydot(
 
             if steps and nx_node in steps:
                 kw["penwdth"] = steps_thickness
-            shape = "oval" if isinstance(nx_node, NetworkOperation) else "oval"
+            shape = "egg" if isinstance(nx_node, NetworkOperation) else "oval"
             if executed and nx_node in executed:
                 kw["style"] = "filled"
                 kw["fillcolor"] = fill_color
@@ -366,32 +373,29 @@ def legend(filename=None, show=None):
         label="Graphkit Legend";
 
         operation   [shape=oval];
-        pipeline    [shape=circle];
-        insteps     [penwidth=3 label="in steps"];
+        graphop     [shape=egg label="graph operation"];
+        insteps     [penwidth=3 label="execution step"];
         executed    [style=filled fillcolor=wheat];
-        operation -> pipeline -> insteps -> executed [style=invis];
+        operation -> graphop -> insteps -> executed [style=invis];
 
         data    [shape=rect];
         input   [shape=invhouse];
         output  [shape=house];
         inp_out [shape=hexagon label="inp+out"];
         evicted [shape=rect penwidth=3 color="#990000"];
-        pinned  [shape=rect penwidth=3 color="purple"];
+        pinned  [shape=rect penwidth=3 color="blue"];
         evpin   [shape=rect penwidth=3 color=purple label="evict+pin"];
         sol     [shape=rect style=filled fillcolor=wheat label="in solution"];
         data -> input -> output -> inp_out -> evicted -> pinned -> evpin -> sol [style=invis];
 
-        a1 [style=invis] b1 [color=invis label="dependency"];
-        a1 -> b1;
-        a2 [style=invis] b2 [color=invis label="optional"];
-        a2 -> b2 [style=dashed];
-        a3 [style=invis] b3 [color=invis penwidth=3 label="broken dependency"];
-        a3 -> b3 [color=wheat penwidth=2];
-        a4 [style=invis] b4 [color=invis penwidth=4 label="steps sequence"];
-        a4 -> b4 [color="#009999" penwidth=4 style=dotted arrowhead=vee];
-        b1 -> a2 [style=invis];
-        b2 -> a3 [style=invis];
-        b3 -> a4 [style=invis];
+        e1 [style=invis] e2 [color=invis label="dependency"];
+        e1 -> e2;
+        e3 [color=invis label="optional"];
+        e2 -> e3 [style=dashed];
+        e4 [color=invis penwidth=3 label="pruned dependency"];
+        e3 -> e4 [color=wheat penwidth=2];
+        e5 [color=invis penwidth=4 label="execution sequence"];
+        e4 -> e5 [color="#009999" penwidth=4 style=dotted arrowhead=vee label=1 fontcolor="#009999"];
         }
     }
     """

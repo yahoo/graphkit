@@ -71,8 +71,7 @@ As you can see, any function can be used as an operation in GraphKit, even ones 
 
 For debugging, you may plot the workflow with one of these methods::
 
-   graph.net.plot(show=True)               # open a matplotlib window
-   graph.net.plot("path/to/workflow.png")  # supported files: .png .dot .jpg .jpeg .pdf .svg
+.. figure:: images/GraphkitLegend.svg
 
 .. NOTE:: 
   For plots, ``graphviz`` must be in your PATH, and ``pydot` & ``matplotlib`` python packages installed.
