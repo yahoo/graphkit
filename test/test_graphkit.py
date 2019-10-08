@@ -28,7 +28,7 @@ def filtdict(d, *keys):
     Keep dict items with the given keys
 
     >>> filtdict({"a": 1, "b": 2}, "b")
-    {"b": 2}
+    {'b': 2}
     """
     return type(d)(i for i in d.items() if i[0] in keys)
 

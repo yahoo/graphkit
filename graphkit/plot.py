@@ -1,6 +1,6 @@
 # Copyright 2016, Yahoo Inc.
 # Licensed under the terms of the Apache License, Version 2.0. See the LICENSE file associated with the project for terms.
-
+""" Plotting graphkit graps"""
 import io
 import logging
 import os
@@ -91,8 +91,8 @@ class Plotter(object):
         *ARROWS*
 
         solid black arrows
-            dependencies (source-data are``need``-ed by target-operations,
-            sources-operations ``provide`` target-data)
+            dependencies (source-data *need*-ed by target-operations,
+            sources-operations *provides* target-data)
         dashed black arrows
             optional needs
         wheat arrows
@@ -104,6 +104,7 @@ class Plotter(object):
 
         >>> from graphkit import compose, operation
         >>> from graphkit.modifiers import optional
+        >>> from operator import add
 
         >>> graphop = compose(name="graphop")(
         ...     operation(name="add", needs=["a", "b1"], provides=["ab1"])(add),
@@ -111,12 +112,19 @@ class Plotter(object):
         ...     operation(name="abb", needs=["ab1", "ab2"], provides=["asked"])(add),
         ... )
 
-        >>> graphop.plot(show=True);           # plot just the graph in a matplotlib window
+        >>> graphop.plot(show=True);           # plot just the graph in a matplotlib window # doctest: +SKIP
         >>> inputs = {'a': 1, 'b1': 2}
         >>> solution = graphop(inputs)           # now plots will include the execution-plan
 
-        >>> graphop.plot('plot1.svg', inputs=inputs, outputs=['asked', 'b1'], solution=solution);
-        >>> graphop.plot(solution=solution)   # just get the `pydoit.Dot` object, renderable in Jupyter
+        >>> graphop.plot('plot1.svg', inputs=inputs, outputs=['asked', 'b1'], solution=solution);           # doctest: +SKIP
+        >>> dot = graphop.plot(solution=solution);   # just get the `pydoit.Dot` object, renderable in Jupyter
+        >>> print(dot)
+        digraph G {
+        fontname=italic;
+        label=graphop;
+        a [fillcolor=wheat, shape=invhouse, style=filled];
+        ...
+        ...
         """
         dot = self._build_pydot(**kws)
         return render_pydot(dot, filename=filename, show=show)

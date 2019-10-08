@@ -44,17 +44,21 @@ class Operation(object):
         important when connecting layers and data in a Network object, as the
         names are used to construct the graph.
 
-        :param str name: The name the operation (e.g. conv1, conv2, etc..)
+        :param str name:
+            The name the operation (e.g. conv1, conv2, etc..)
 
-        :param list needs: Names of input data objects this layer requires.
+        :param list needs:
+            Names of input data objects this layer requires.
 
-        :param list provides: Names of output data objects this provides.
+        :param list provides:
+            Names of output data objects this provides.
 
-        :param dict params: A dict of key/value pairs representing parameters
-                            associated with your operation. These values will be
-                            accessible using the ``.params`` attribute of your object.
-                            NOTE: It's important that any values stored in this
-                            argument must be pickelable.
+        :param dict params:
+            A dict of key/value pairs representing parameters
+            associated with your operation. These values will be
+            accessible using the ``.params`` attribute of your object.
+            NOTE: It's important that any values stored in this
+            argument must be pickelable.
         """
 
         # (Optional) names for this layer, and the data it needs and provides
@@ -85,6 +89,7 @@ class Operation(object):
         """
         This method must be implemented to perform this layer's feed-forward
         computation on a given set of inputs.
+
         :param list inputs:
             A list of :class:`Data` objects on which to run the layer's
             feed-forward computation.

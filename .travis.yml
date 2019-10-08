@@ -21,9 +21,16 @@ install:
   - cd ..
 
 script:
-  - pytest -v --cov=graphkit
-  # In case you adopt -m 'not slow' in setup.cfg.
-  #- pytest -vm slow --cov=graphkit
+  # OVERRIDE pytest-defaults adopted in `setup.cfg`:
+  #
+  # Run doctests in latest Python; certainly not < PY3.6 due to unstable dicts.
+  # Also give `-m 'slow or not slow'` since `not slow` adopted in `setup.cfg`.
+  - |
+    if [[ "$TRAVIS_PYTHON_VERSION" = '3.7' ]]; then
+      pytest -v --cov=graphkit -m 'slow or not slow'
+    else
+      pytest -v --cov=graphkit test/ 
+    fi
 
 deploy:
   provider: pypi

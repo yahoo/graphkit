@@ -20,21 +20,23 @@ class optional(str):
 
     Here is an example of an operation that uses an optional argument::
 
-        from graphkit import operation, compose
-        from graphkit.modifiers import optional
+        >>> from graphkit import operation, compose
+        >>> from graphkit.modifiers import optional
 
-        # Function that adds either two or three numbers.
-        def myadd(a, b, c=0):
-            return a + b + c
+        >>> # Function that adds either two or three numbers.
+        >>> def myadd(a, b, c=0):
+        ...    return a + b + c
 
-        # Designate c as an optional argument.
-        graph = compose('mygraph')(
-            operation(name='myadd', needs=['a', 'b', optional('c')], provides='sum')(myadd)
-        )
+        >>> # Designate c as an optional argument.
+        >>> graph = compose('mygraph')(
+        ...     operation(name='myadd', needs=['a', 'b', optional('c')], provides='sum')(myadd)
+        ... )
 
-        # The graph works with and without 'c' provided as input.
-        assert graph({'a': 5, 'b': 2, 'c': 4})['sum'] == 11
-        assert graph({'a': 5, 'b': 2})['sum'] == 7
+        >>> # The graph works with and without 'c' provided as input.
+        >>> graph({'a': 5, 'b': 2, 'c': 4})['sum']
+        11
+        >>> graph({'a': 5, 'b': 2})
+        {'a': 5, 'b': 2, 'sum': 7}
 
     """
 
@@ -59,24 +61,25 @@ class sideffect(str):
     A typical use case is to signify columns required to produce new ones in
     pandas dataframes::
 
-        from graphkit import operation, compose
-        from graphkit.modifiers import sideffect
+        >>> from graphkit import operation, compose
+        >>> from graphkit.modifiers import sideffect
 
-        # Function appending a new dataframe column from two pre-existing ones.
-        def addcolumns(df):
-            df['sum'] = df['a'] + df['b']
+        >>> # Function appending a new dataframe column from two pre-existing ones.
+        >>> def addcolumns(df):
+        ...    df['sum'] = df['a'] + df['b']
 
-        # Designate `a`, `b` & `sum` column names as an sideffect arguments.
-        graph = compose('mygraph')(
-            operation(
-                name='addcolumns',
-                needs=['df', sideffect('a'), sideffect('b')],
-                provides=[sideffect('sum')])(addcolumns)
-        )
+        >>> # Designate `a`, `b` & `sum` column names as an sideffect arguments.
+        >>> graph = compose('mygraph')(
+        ...     operation(
+        ...         name='addcolumns',
+        ...         needs=['df', sideffect('a'), sideffect('b')],
+        ...         provides=[sideffect('sum')])(addcolumns)
+        ... )
 
-        # The graph works with and without 'c' provided as input.
-        df = pd.DataFrame({'a': [5], 'b': [2]})
-        assert graph({'df': df})['sum'] == 11
+        >>> # The graph works with and without 'c' provided as input.
+        >>> df = pd.DataFrame({'a': [5], 'b': [2]})         # doctest: +SKIP
+        >>> graph({'df': df})['sum'] == 11                  # doctest: +SKIP
+        True
 
     """
 
