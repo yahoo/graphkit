@@ -51,15 +51,15 @@ Let's look again at the operations from the script in :ref:`quick-start`, for ex
       return c
 
    # Compose the mul, sub, and abspow operations into a computation graph.
-   graph = compose(name="graph")(
+   graphop = compose(name="graphop")(
       operation(name="mul1", needs=["a", "b"], provides=["ab"])(mul),
       operation(name="sub1", needs=["a", "ab"], provides=["a_minus_ab"])(sub),
       operation(name="abspow1", needs=["a_minus_ab"], provides=["abs_a_minus_ab_cubed"], params={"p": 3})(abspow)
    )
 
-The ``needs`` and ``provides`` arguments to the operations in this script define a computation graph that looks like this (where the circles are operations, squares are data, and octagons are parameters):
+The ``needs`` and ``provides`` arguments to the operations in this script define a computation graph that looks like this (where the oval are operations, squares/houses are data):
 
-.. image:: images/example_graph.svg
+.. image:: images/intro.svg
 
 
 Constant operation parameters: ``params``
@@ -86,7 +86,7 @@ If you are defining your computation graph and the functions that comprise it al
    def foo(a, b, c):
       return c * (a + b)
 
-   graph = compose(name='foo_graph')(foo)
+   graphop = compose(name='foo_graph')(foo)
 
 Functional specification
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -99,7 +99,7 @@ If the functions underlying your computation graph operations are defined elsewh
    add_op = operation(name='add_op', needs=['a', 'b'], provides='sum')(add)
    mul_op = operation(name='mul_op', needs=['c', 'sum'], provides='product')(mul)
 
-   graph = compose(name='add_mul_graph')(add_op, mul_op)
+   graphop = compose(name='add_mul_graph')(add_op, mul_op)
 
 The functional specification is also useful if you want to create multiple ``operation`` instances from the same function, perhaps with different parameter values, e.g.::
 
@@ -111,7 +111,7 @@ The functional specification is also useful if you want to create multiple ``ope
    pow_op1 = operation(name='pow_op1', needs=['a'], provides='a_squared')(mypow)
    pow_op2 = operation(name='pow_op2', needs=['a'], params={'p': 3}, provides='a_cubed')(mypow)
 
-   graph = compose(name='two_pows_graph')(pow_op1, pow_op2)
+   graphop = compose(name='two_pows_graph')(pow_op1, pow_op2)
 
 A slightly different approach can be used here to accomplish the same effect by creating an operation "factory"::
 
@@ -125,7 +125,7 @@ A slightly different approach can be used here to accomplish the same effect by 
    pow_op1 = pow_op_factory(name='pow_op1', needs=['a'], provides='a_squared')
    pow_op2 = pow_op_factory(name='pow_op2', needs=['a'], params={'p': 3}, provides='a_cubed')
 
-   graph = compose(name='two_pows_graph')(pow_op1, pow_op2)
+   graphop = compose(name='two_pows_graph')(pow_op1, pow_op2)
 
 
 Modifiers on ``operation`` inputs and outputs

@@ -52,3 +52,8 @@ docs/_build/
 
 # PyBuilder
 target/
+
+# Plots genersated when running sample code
+/*.png
+/*.svg
+/*.pdf

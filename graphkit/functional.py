@@ -1,7 +1,7 @@
 # Copyright 2016, Yahoo Inc.
 # Licensed under the terms of the Apache License, Version 2.0. See the LICENSE file associated with the project for terms.
-
-from itertools import chain
+from boltons.setutils import IndexedSet as iset
+import networkx as nx
 
 from .base import Operation, NetworkOperation
 from .network import Network
@@ -207,27 +207,23 @@ class compose(object):
 
         # If merge is desired, deduplicate operations before building network
         if self.merge:
-            merge_set = set()
+            merge_set = iset()  # Preseve given node order.
             for op in operations:
                 if isinstance(op, NetworkOperation):
-                    net_ops = filter(lambda x: isinstance(x, Operation), op.net.steps)
-                    merge_set.update(net_ops)
+                    netop_nodes = nx.topological_sort(op.net.graph)
+                    merge_set.update(s for s in netop_nodes if isinstance(s, Operation))
                 else:
                     merge_set.add(op)
-            operations = list(merge_set)
+            operations = merge_set
 
-        def order_preserving_uniquifier(seq, seen=None):
-            seen = seen if seen else set()
-            seen_add = seen.add
-            return [x for x in seq if not (x in seen or seen_add(x))]
+        provides = iset(p for op in operations for p in op.provides)
+        # Mark them all as optional, now that #18 calmly ignores
+        # non-fully satisfied operations.
+        needs = iset(optional(n) for op in operations for n in op.needs) - provides
 
-        provides = order_preserving_uniquifier(chain(*[op.provides for op in operations]))
-        needs = order_preserving_uniquifier(chain(*[op.needs for op in operations]), set(provides))
-
-        # compile network
+        # Build network
         net = Network()
         for op in operations:
             net.add_op(op)
-        net.compile()
 
         return NetworkOperation(name=self.name, needs=needs, provides=provides, params={}, net=net)
