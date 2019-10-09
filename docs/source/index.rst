@@ -8,14 +8,20 @@
 GraphKit
 ========
 
-.. image:: https://badge.fury.io/py/graphkit.svg
-   :target: https://badge.fury.io/py/graphkit
-.. image:: https://travis-ci.org/yahoo/graphkit.svg?branch=master
-   :target: https://travis-ci.org/yahoo/graphkit
-.. image:: https://codecov.io/gh/yahoo/graphkit/branch/master/graph/badge.svg
-   :target: https://codecov.io/gh/yahoo/graphkit
+|travis-status| |cover-status| |gh-version| |pypi-version| |python-ver|
+|dev-status| |downloads-count| |codestyle| |proj-lic|
 
-**It's a DAG all the way down**
+|gh-watch| |gh-star| |gh-fork| |gh-issues|
+
+**It's a DAG all the way down!** |sample-plot|
+
+Lightweight computation graphs for Python
+-----------------------------------------
+
+GraphKit is a lightweight Python module for creating and running ordered graphs of computations,
+where the nodes of the graph correspond to computational operations, and the edges
+correspond to output --> input dependencies between those operations.
+Such graphs are useful in computer vision, machine learning, and many other domains.
 
 .. toctree::
    :maxdepth: 2
@@ -24,11 +30,6 @@ GraphKit
    graph_composition
    changes
 
-
-Lightweight computation graphs for Python
------------------------------------------
-
-GraphKit is a lightweight Python module for creating and running ordered graphs of computations, where the nodes of the graph correspond to computational operations, and the edges correspond to output --> input dependencies between those operations.  Such graphs are useful in computer vision, machine learning, and many other domains.
 
 .. _quick-start:
 
@@ -113,3 +114,61 @@ License
 -------
 
 Code licensed under the Apache License, Version 2.0 license. See LICENSE file for terms.
+
+
+.. |travis-status| image:: https://travis-ci.org/yahoo/graphkit.svg
+    :alt: Travis continuous integration testing ok? (Linux)
+    :scale: 100%
+    :target: https://travis-ci.org/yahoo/graphkit/builds
+
+.. |cover-status| image:: https://codecov.io/gh/yahoo/graphkit/branch/master/graph/badge.svg
+    :target: https://codecov.io/gh/yahoo/graphkit
+
+.. |gh-version| image::  https://img.shields.io/github/v/release/yahoo/graphkit.svg?label=GitHub%20release&include_prereleases
+    :target: https://github.com/yahoo/graphkit/releases
+    :alt: Latest version in GitHub
+
+.. |pypi-version| image::  https://img.shields.io/pypi/v/graphkit.svg?label=PyPi%20version
+    :target: https://pypi.python.org/pypi/graphkit/
+    :alt: Latest version in PyPI
+
+.. |python-ver| image:: https://img.shields.io/pypi/pyversions/graphkit.svg?label=Python
+    :target: https://pypi.python.org/pypi/graphkit/
+    :alt: Supported Python versions of latest release in PyPi
+
+.. |dev-status| image:: https://pypip.in/status/graphkit/badge.svg
+    :target: https://pypi.python.org/pypi/graphkit/
+    :alt: Development Status
+
+.. |downloads-count| image:: https://pypip.in/download/graphkit/badge.svg?period=month&label=PyPi%20downloads
+    :target: https://pypi.python.org/pypi/graphkit/
+    :alt: PyPi downloads
+
+.. |codestyle| image:: https://img.shields.io/badge/code%20style-black-black.svg
+    :target: https://github.com/ambv/black
+    :alt: Code Style
+
+.. |gh-watch| image:: https://img.shields.io/github/watchers/yahoo/graphkit.svg?style=social
+    :target: https://github.com/yahoo/graphkit
+    :alt: Github watchers
+
+.. |gh-star| image:: https://img.shields.io/github/stars/yahoo/graphkit.svg?style=social
+    :target: https://github.com/yahoo/graphkit
+    :alt: Github stargazers
+
+.. |gh-fork| image:: https://img.shields.io/github/forks/yahoo/graphkit.svg?style=social
+    :target: https://github.com/yahoo/graphkit
+    :alt: Github forks
+
+.. |gh-issues| image:: http://img.shields.io/github/issues/yahoo/graphkit.svg?style=social
+    :target: https://github.com/yahoo/graphkit/issues
+    :alt: Issues count
+
+.. |proj-lic| image:: https://img.shields.io/pypi/l/graphkit.svg
+    :target:  https://www.apache.org/licenses/LICENSE-2.0
+    :alt: Apache License, version 2.0
+
+.. |sample-plot| image:: images/sample_plot.svg
+    :alt: sample graphkit plot
+    :width: 120px
+    :align: middle

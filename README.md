@@ -1,6 +1,8 @@
 # GraphKit
 
-[![PyPI version](https://badge.fury.io/py/graphkit.svg)](https://badge.fury.io/py/graphkit) [![Build Status](https://travis-ci.org/yahoo/graphkit.svg?branch=master)](https://travis-ci.org/yahoo/graphkit) [![codecov](https://codecov.io/gh/yahoo/graphkit/branch/master/graph/badge.svg)](https://codecov.io/gh/yahoo/graphkit)
+[![Latest version in PyPI](https://img.shields.io/pypi/v/graphkit.svg?label=PyPi%20version)](https://img.shields.io/pypi/v/graphkit.svg?label=PyPi%20version) [![Latest version in GitHub](https://img.shields.io/github/v/release/yahoo/graphkit.svg?label=GitHub%20release&include_prereleases)](https://img.shields.io/github/v/release/yahoo/graphkit.svg?label=GitHub%20release&include_prereleases) [![Supported Python versions of latest release in PyPi](https://img.shields.io/pypi/pyversions/graphkit.svg?label=Python)](https://img.shields.io/pypi/pyversions/graphkit.svg?label=Python) [![Build Status](https://travis-ci.org/yahoo/graphkit.svg?branch=master)](https://travis-ci.org/yahoo/graphkit) [![codecov](https://codecov.io/gh/yahoo/graphkit/branch/master/graph/badge.svg)](https://codecov.io/gh/yahoo/graphkit) [![License](https://img.shields.io/pypi/l/graphkit.svg)](https://img.shields.io/pypi/l/graphkit.svg)
+
+[![Github watchers](https://img.shields.io/github/watchers/yahoo/graphkit.svg?style=social)](https://img.shields.io/github/watchers/yahoo/graphkit.svg?style=social) [![Github stargazers](https://img.shields.io/github/stars/yahoo/graphkit.svg?style=social)](https://img.shields.io/github/stars/yahoo/graphkit.svg?style=social) [![Github forks](https://img.shields.io/github/forks/yahoo/graphkit.svg?style=social)](https://img.shields.io/github/forks/yahoo/graphkit.svg?style=social) [![Issues count](http://img.shields.io/github/issues/yahoo/graphkit.svg?style=social)](http://img.shields.io/github/issues/yahoo/graphkit.svg?style=social) 
 
 [Full Documentation](https://pythonhosted.org/graphkit/)
 
@@ -78,3 +80,4 @@ of the last computation it using these methods::
 # License
 
 Code licensed under the Apache License, Version 2.0 license. See LICENSE file for terms.
+
