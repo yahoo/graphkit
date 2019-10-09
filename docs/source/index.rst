@@ -22,6 +22,7 @@ GraphKit
 
    operations
    graph_composition
+   changes
 
 
 Lightweight computation graphs for Python
