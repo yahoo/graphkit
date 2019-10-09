@@ -30,7 +30,8 @@ setup(
      version=version,
      description='Lightweight computation graphs for Python',
      long_description=long_description,
-     author='Huy Nguyen, Arel Cordero, Pierre Garrigues, Rob Hess, Tobi Baumgartner, Clayton Mellina',
+     author='Huy Nguyen, Arel Cordero, Pierre Garrigues, Rob Hess, '
+     'Tobi Baumgartner, Clayton Mellina, ankostis@gmail.com',
      author_email='huyng@yahoo-inc.com',
      url='http://github.com/yahoo/graphkit',
      packages=['graphkit'],
