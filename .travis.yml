@@ -13,7 +13,7 @@ addons:
 
 
 install:
-  - pip install Sphinx sphinx_rtd_theme codecov packaging
+  - pip install Sphinx codecov packaging
   - "python -c $'import os, packaging.version as version\\nv = version.parse(os.environ.get(\"TRAVIS_TAG\", \"1.0\")).public\\nwith open(\"VERSION\", \"w\") as f: f.write(v)'"
   - pip install -e .[test]
   - cd docs
