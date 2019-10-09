@@ -5,6 +5,7 @@ __author__ = "hnguyen"
 __version__ = "1.3.0"
 
 from .functional import operation, compose
+from .modifiers import *  # noqa, on purpose to include any new modifiers
 
 # For backwards compatibility
 from .base import Operation
