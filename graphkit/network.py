@@ -530,9 +530,10 @@ class ExecutionPlan(
         return build_pydot(**mykws)
 
     def __repr__(self):
-            return (
-                "ExecutionPlan:\n  +--inputs:%s, \n  +--outputs=%s\n  +--steps=%s)"
-                % (self.inputs, self.outputs, self.steps))
+        steps = ["\n  +--%s" % s for s in self.steps]
+        return (
+            "ExecutionPlan(inputs=%s, outputs=%s, steps:%s)"
+            % (self.inputs, self.outputs, ''.join(steps)))
 
     def get_data_node(self, name):
         """
