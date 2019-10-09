@@ -29,6 +29,7 @@ Such graphs are useful in computer vision, machine learning, and many other doma
    operations
    graph_composition
    changes
+   reference
 
 
 .. _quick-start:

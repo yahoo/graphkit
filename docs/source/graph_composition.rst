@@ -163,4 +163,4 @@ or the ``net`` that compiled it.
 Execution internals
 -------------------
 .. automodule:: graphkit.network
-
+   :noindex:
