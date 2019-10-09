@@ -17,6 +17,7 @@ class Data(object):
     This class an "abstract" class that should be extended by
     any class working with data in the HiC framework.
     """
+
     def __init__(self, **kwargs):
         pass
 
@@ -25,6 +26,7 @@ class Data(object):
 
     def set_data(self, data):
         raise NotImplementedError
+
 
 class Operation(object):
     """
@@ -62,10 +64,10 @@ class Operation(object):
         """
 
         # (Optional) names for this layer, and the data it needs and provides
-        self.name = kwargs.get('name')
-        self.needs = kwargs.get('needs')
-        self.provides = kwargs.get('provides')
-        self.params = kwargs.get('params', {})
+        self.name = kwargs.get("name")
+        self.needs = kwargs.get("needs")
+        self.provides = kwargs.get("provides")
+        self.params = kwargs.get("params", {})
 
         # call _after_init as final step of initialization
         self._after_init()
@@ -75,8 +77,7 @@ class Operation(object):
         Operation equality is based on name of layer.
         (__eq__ and __hash__ must be overridden together)
         """
-        return bool(self.name is not None and
-                    self.name == getattr(other, 'name', None))
+        return bool(self.name is not None and self.name == getattr(other, "name", None))
 
     def __hash__(self):
         """
@@ -133,11 +134,11 @@ class Operation(object):
         result = {}
         # this check should get deprecated soon. its for downward compatibility
         # with earlier pickled operation objects
-        if hasattr(self, 'params'):
-            result["params"] = self.__dict__['params']
-        result["needs"] = self.__dict__['needs']
-        result["provides"] = self.__dict__['provides']
-        result["name"] = self.__dict__['name']
+        if hasattr(self, "params"):
+            result["params"] = self.__dict__["params"]
+        result["needs"] = self.__dict__["needs"]
+        result["provides"] = self.__dict__["provides"]
+        result["name"] = self.__dict__["name"]
 
         return result
 
@@ -153,16 +154,17 @@ class Operation(object):
         """
         Display more informative names for the Operation class
         """
-        return u"%s(name='%s', needs=%s, provides=%s)" % \
-            (self.__class__.__name__,
-             getattr(self, "name", None),
-             getattr(self, "needs", None),
-             getattr(self, "provides", None))
+        return u"%s(name='%s', needs=%s, provides=%s)" % (
+            self.__class__.__name__,
+            getattr(self, "name", None),
+            getattr(self, "needs", None),
+            getattr(self, "provides", None),
+        )
 
 
 class NetworkOperation(Operation, plot.Plotter):
     def __init__(self, **kwargs):
-        self.net = kwargs.pop('net')
+        self.net = kwargs.pop("net")
         Operation.__init__(self, **kwargs)
 
         # set execution mode to single-threaded sequential by default
@@ -177,8 +179,11 @@ class NetworkOperation(Operation, plot.Plotter):
 
     def _compute(self, named_inputs, outputs=None):
         return self.net.compute(
-            named_inputs, outputs, method=self._execution_method,
-            overwrites_collector=self._overwrites_collector)
+            named_inputs,
+            outputs,
+            method=self._execution_method,
+            overwrites_collector=self._overwrites_collector,
+        )
 
     def __call__(self, *args, **kwargs):
         return self._compute(*args, **kwargs)
@@ -194,11 +199,11 @@ class NetworkOperation(Operation, plot.Plotter):
             If "parallel", execute graph operations concurrently
             using a threadpool.
         """
-        choices = ['parallel', 'sequential']
+        choices = ["parallel", "sequential"]
         if method not in choices:
             raise ValueError(
-                "Invalid computation method %r!  Must be one of %s"
-                (method, choices))
+                "Invalid computation method %r!  Must be one of %s"(method, choices)
+            )
         self._execution_method = method
 
     def set_overwrites_collector(self, collector):
@@ -215,11 +220,11 @@ class NetworkOperation(Operation, plot.Plotter):
         """
         if collector is not None and not isinstance(collector, abc.MutableMapping):
             raise ValueError(
-                "Overwrites collector was not a MutableMapping, but: %r"
-                % collector)
+                "Overwrites collector was not a MutableMapping, but: %r" % collector
+            )
         self._overwrites_collector = collector
 
     def __getstate__(self):
         state = Operation.__getstate__(self)
-        state['net'] = self.__dict__['net']
+        state["net"] = self.__dict__["net"]
         return state

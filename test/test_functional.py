@@ -6,17 +6,17 @@ import pytest
 from graphkit import Operation, operation
 
 
-@pytest.fixture(params=[None, ['some']])
+@pytest.fixture(params=[None, ["some"]])
 def opname(request):
     return request.param
 
 
-@pytest.fixture(params=[None, ['some']])
+@pytest.fixture(params=[None, ["some"]])
 def opneeds(request):
     return request.param
 
 
-@pytest.fixture(params=[None, ['some']])
+@pytest.fixture(params=[None, ["some"]])
 def opprovides(request):
     return request.param
 

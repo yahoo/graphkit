@@ -10,7 +10,7 @@ from .modifiers import optional, sideffect
 
 class FunctionalOperation(Operation):
     def __init__(self, **kwargs):
-        self.fn = kwargs.pop('fn')
+        self.fn = kwargs.pop("fn")
         Operation.__init__(self, **kwargs)
 
     def _compute(self, named_inputs, outputs=None):
@@ -19,7 +19,7 @@ class FunctionalOperation(Operation):
         inputs = [
             named_inputs[n]
             for n in self.needs
-            if 'optional' not in self.net.graph.get_edge_data(n, self)
+            if "optional" not in self.net.graph.get_edge_data(n, self)
             and not isinstance(n, sideffect)
         ]
 
@@ -28,8 +28,7 @@ class FunctionalOperation(Operation):
         optionals = {
             n: named_inputs[n]
             for n in self.needs
-            if 'optional' in self.net.graph.get_edge_data(n, self)
-            and n in named_inputs
+            if "optional" in self.net.graph.get_edge_data(n, self) and n in named_inputs
         }
 
         # Combine params and optionals into one big glob of keyword arguments.
@@ -58,7 +57,7 @@ class FunctionalOperation(Operation):
 
     def __getstate__(self):
         state = Operation.__getstate__(self)
-        state['fn'] = self.__dict__['fn']
+        state["fn"] = self.__dict__["fn"]
         return state
 
 
@@ -96,24 +95,26 @@ class operation(Operation):
     def _normalize_kwargs(self, kwargs):
 
         # Allow single value for needs parameter
-        needs = kwargs['needs']
+        needs = kwargs["needs"]
         if isinstance(needs, str) and not isinstance(needs, optional):
             assert needs, "empty string provided for `needs` parameters"
-            kwargs['needs'] = [needs]
+            kwargs["needs"] = [needs]
 
         # Allow single value for provides parameter
-        provides = kwargs.get('provides')
+        provides = kwargs.get("provides")
         if isinstance(provides, str):
             assert provides, "empty string provided for `needs` parameters"
-            kwargs['provides'] = [provides]
+            kwargs["provides"] = [provides]
 
-        assert kwargs['name'], "operation needs a name"
-        assert isinstance(kwargs['needs'], list), "no `needs` parameter provided"
-        assert isinstance(kwargs['provides'], list), "no `provides` parameter provided"
-        assert hasattr(kwargs['fn'], '__call__'), "operation was not provided with a callable"
+        assert kwargs["name"], "operation needs a name"
+        assert isinstance(kwargs["needs"], list), "no `needs` parameter provided"
+        assert isinstance(kwargs["provides"], list), "no `provides` parameter provided"
+        assert hasattr(
+            kwargs["fn"], "__call__"
+        ), "operation was not provided with a callable"
 
-        if type(kwargs['params']) is not dict:
-            kwargs['params'] = {}
+        if type(kwargs["params"]) is not dict:
+            kwargs["params"] = {}
 
         return kwargs
 
@@ -156,14 +157,13 @@ class operation(Operation):
         """
         func_name = getattr(self, "fn")
         func_name = func_name and getattr(func_name, "__name__", None)
-        return u"%s(name='%s', needs=%s, provides=%s, fn=%s)" % \
-            (self.__class__.__name__,
-             getattr(self, "name", None),
-             getattr(self, "needs", None),
-             getattr(self, "provides", None),
-             func_name)
-
-
+        return u"%s(name='%s', needs=%s, provides=%s, fn=%s)" % (
+            self.__class__.__name__,
+            getattr(self, "name", None),
+            getattr(self, "needs", None),
+            getattr(self, "provides", None),
+            func_name,
+        )
 
 
 class compose(object):
@@ -228,4 +228,6 @@ class compose(object):
         for op in operations:
             net.add_op(op)
 
-        return NetworkOperation(name=self.name, needs=needs, provides=provides, params={}, net=net)
+        return NetworkOperation(
+            name=self.name, needs=needs, provides=provides, params={}, net=net
+        )

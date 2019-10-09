@@ -83,6 +83,7 @@ log = logging.getLogger(__name__)
 
 
 from networkx import DiGraph
+
 if sys.version_info < (3, 6):
     """
     Consistently ordered variant of :class:`~networkx.DiGraph`.
@@ -101,6 +102,7 @@ class DataPlaceholderNode(str):
     """
     Dag node naming a data-value produced or required by an operation.
     """
+
     def __repr__(self):
         return 'DataPlaceholderNode("%s")' % self
 
@@ -113,6 +115,7 @@ class DeleteInstruction(str):
     frees its data-value from `solution` after it is no longer needed,
     to reduce memory footprint while computing the graph.
     """
+
     def __repr__(self):
         return 'DeleteInstruction("%s")' % self
 
@@ -129,6 +132,7 @@ class PinInstruction(str):
     its providing function(s) could not be pruned, because their other outputs
     are needed elesewhere.
     """
+
     def __repr__(self):
         return 'PinInstruction("%s")' % self
 
@@ -157,7 +161,7 @@ class Network(plot.Plotter):
     def _build_pydot(self, **kws):
         from .plot import build_pydot
 
-        kws.setdefault('graph', self.graph)
+        kws.setdefault("graph", self.graph)
 
         return build_pydot(**kws)
 
@@ -194,7 +198,6 @@ class Network(plot.Plotter):
         # add nodes and edges to graph describing what this layer provides
         for p in operation.provides:
             self.graph.add_edge(operation, DataPlaceholderNode(p))
-
 
     def _build_execution_steps(self, dag, inputs, outputs):
         """
@@ -244,7 +247,7 @@ class Network(plot.Plotter):
                 # is no longer needed by future Operations.
                 for need in self.graph.pred[node]:
                     log.debug("checking if node %s can be deleted", need)
-                    for future_node in ordered_nodes[i+1:]:
+                    for future_node in ordered_nodes[i + 1 :]:
                         if (
                             isinstance(future_node, Operation)
                             and need in future_node.needs
@@ -295,8 +298,9 @@ class Network(plot.Plotter):
                 else:
                     # It's ok not to dig into edge-data("optional") here,
                     # we care about all needs, including broken ones.
-                    real_needs = set(n for n in node.needs
-                                     if not isinstance(n, optional))
+                    real_needs = set(
+                        n for n in node.needs if not isinstance(n, optional)
+                    )
                     if real_needs.issubset(op_satisfaction[node]):
                         # We have a satisfied operation; mark its output-data
                         # as ok.
@@ -304,8 +308,8 @@ class Network(plot.Plotter):
                     else:
                         # Prune operations with partial inputs.
                         unsatisfied.append(node)
-            elif isinstance(node, (DataPlaceholderNode, str)): # `str` are givens
-                  if node in ok_data:
+            elif isinstance(node, (DataPlaceholderNode, str)):  # `str` are givens
+                if node in ok_data:
                     # mark satisfied-needs on all future operations
                     for future_op in dag.adj[node]:
                         op_satisfaction[future_op].add(node)
@@ -313,7 +317,6 @@ class Network(plot.Plotter):
                 raise AssertionError("Unrecognized network graph node %r" % node)
 
         return unsatisfied
-
 
     def _prune_graph(self, outputs, inputs):
         """
@@ -342,8 +345,8 @@ class Network(plot.Plotter):
         unknown_outputs = iset(outputs) - dag.nodes
         if unknown_outputs:
             raise ValueError(
-                "Unknown output node(s) requested: %s"
-                % ", ".join(unknown_outputs))
+                "Unknown output node(s) requested: %s" % ", ".join(unknown_outputs)
+            )
 
         broken_dag = dag.copy()  # preserve net's graph
 
@@ -368,7 +371,6 @@ class Network(plot.Plotter):
             for input_name in outputs:
                 ending_in_outputs.update(nx.ancestors(dag, input_name))
             broken_dag = broken_dag.subgraph(ending_in_outputs | set(outputs))
-
 
         # Prune unsatisfied operations (those with partial inputs or no outputs).
         unsatisfied = self._collect_unsatisfied_operations(broken_dag, inputs)
@@ -399,7 +401,7 @@ class Network(plot.Plotter):
         if not outputs:
             outputs = ()
         elif isinstance(outputs, str):
-            outputs = (outputs, )
+            outputs = (outputs,)
 
         # Make a stable cache-key
         cache_key = (tuple(sorted(inputs)), tuple(sorted(outputs)))
@@ -428,8 +430,7 @@ class Network(plot.Plotter):
 
         return plan
 
-    def compute(
-        self, named_inputs, outputs, method=None, overwrites_collector=None):
+    def compute(self, named_inputs, outputs, method=None, overwrites_collector=None):
         """
         Solve & execute the graph, sequentially or parallel.
 
@@ -455,8 +456,9 @@ class Network(plot.Plotter):
         :returns: a dictionary of output data objects, keyed by name.
         """
 
-        assert isinstance(outputs, (list, tuple)) or outputs is None,\
-            "The outputs argument must be a list"
+        assert (
+            isinstance(outputs, (list, tuple)) or outputs is None
+        ), "The outputs argument must be a list"
 
         # Build the execution plan.
         self.last_plan = plan = self.compile(named_inputs.keys(), outputs)
@@ -478,7 +480,7 @@ class Network(plot.Plotter):
 
 class ExecutionPlan(
     namedtuple("_ExePlan", "net inputs outputs dag broken_edges steps executed"),
-    plot.Plotter
+    plot.Plotter,
 ):
     """
     The result of the network's compilation phase.
@@ -525,7 +527,9 @@ class ExecutionPlan(
             "inputs": self.inputs,
             "outputs": self.outputs,
             "executed": self.executed,
-            "edge_props": {e: {"color": "wheat", "penwidth": 2} for e in self.broken_edges},
+            "edge_props": {
+                e: {"color": "wheat", "penwidth": 2} for e in self.broken_edges
+            },
             "clusters": clusters,
         }
         mykws.update(kws)
@@ -534,9 +538,11 @@ class ExecutionPlan(
 
     def __repr__(self):
         steps = ["\n  +--%s" % s for s in self.steps]
-        return (
-            "ExecutionPlan(inputs=%s, outputs=%s, steps:%s)"
-            % (self.inputs, self.outputs, ''.join(steps)))
+        return "ExecutionPlan(inputs=%s, outputs=%s, steps:%s)" % (
+            self.inputs,
+            self.outputs,
+            "".join(steps),
+        )
 
     def get_data_node(self, name):
         """
@@ -560,8 +566,9 @@ class ExecutionPlan(
         """
         # Use `broken_dag` to allow executing operations after given inputs
         # regardless of whether their producers have yet to run.
-        dependencies = set(n for n in nx.ancestors(self.broken_dag, op)
-                           if isinstance(n, Operation))
+        dependencies = set(
+            n for n in nx.ancestors(self.broken_dag, op) if isinstance(n, Operation)
+        )
         return dependencies.issubset(self.executed)
 
     def _can_evict_value(self, name):
@@ -576,8 +583,9 @@ class ExecutionPlan(
         data_node = self.get_data_node(name)
         # Use `broken_dag` not to block a successor waiting for this data,
         # since in any case will use a given input, not some pipe of this data.
-        return data_node and set(
-            self.broken_dag.successors(data_node)).issubset(self.executed)
+        return data_node and set(self.broken_dag.successors(data_node)).issubset(
+            self.executed
+        )
 
     def _pin_data_in_solution(self, value_name, solution, inputs, overwrites):
         value_name = str(value_name)
@@ -593,8 +601,8 @@ class ExecutionPlan(
             ex.execution_plan = self
             raise
 
-    def _execute_thread_pool_barrier_method(self, inputs, solution, overwrites,
-                                            thread_pool_size=10
+    def _execute_thread_pool_barrier_method(
+        self, inputs, solution, overwrites, thread_pool_size=10
     ):
         """
         This method runs the graph using a parallel pool of thread executors.
@@ -627,10 +635,7 @@ class ExecutionPlan(
                     # Only delete if all successors for the data node
                     # have been executed.
                     # An optional need may not have a value in the solution.
-                    if (
-                        node in solution
-                        and self._can_evict_value(node)
-                    ):
+                    if node in solution and self._can_evict_value(node):
                         log.debug("removing data '%s' from solution.", node)
                         del solution[node]
                 elif isinstance(node, PinInstruction):
@@ -638,9 +643,7 @@ class ExecutionPlan(
                     # providers of the data have executed.
                     # An optional need may not have a value in the solution.
                     if node in solution:
-                        self._pin_data_in_solution(
-                            node, solution, inputs, overwrites)
-
+                        self._pin_data_in_solution(node, solution, inputs, overwrites)
 
             # stop if no nodes left to schedule, exit out of the loop
             if len(upnext) == 0:
@@ -648,12 +651,12 @@ class ExecutionPlan(
 
             ## TODO: accept pool from caller
             done_iterator = pool.imap_unordered(
-                (lambda op: (op, self._call_operation(op, solution))), upnext)
+                (lambda op: (op, self._call_operation(op, solution))), upnext
+            )
 
             for op, result in done_iterator:
                 solution.update(result)
                 self.executed.add(op)
-
 
     def _execute_sequential_method(self, inputs, solution, overwrites):
         """
@@ -664,7 +667,7 @@ class ExecutionPlan(
 
             if isinstance(step, Operation):
 
-                log.debug("%sexecuting step: %s", "-"*32, step.name)
+                log.debug("%sexecuting step: %s", "-" * 32, step.name)
 
                 # time execution...
                 t0 = time.time()
@@ -708,15 +711,18 @@ class ExecutionPlan(
         self.executed.clear()
 
         # choose a method of execution
-        executor = (self._execute_thread_pool_barrier_method
-                    if method == "parallel" else
-                    self._execute_sequential_method)
+        executor = (
+            self._execute_thread_pool_barrier_method
+            if method == "parallel"
+            else self._execute_sequential_method
+        )
 
         # clone and keep orignal inputs in solution intact
         executor(dict(solution), solution, overwrites)
 
         # return it, but caller can also see the results in `solution` dict.
         return solution
+
 
 # TODO: maybe class Solution(object):
 #     values = {}

@@ -16,7 +16,8 @@ from graphkit.network import DeleteInstruction
 
 def scream(*args, **kwargs):
     raise AssertionError(
-        "Must not have run!\n    args: %s\n  kwargs: %s", (args, kwargs))
+        "Must not have run!\n    args: %s\n  kwargs: %s", (args, kwargs)
+    )
 
 
 def identity(x):
@@ -36,13 +37,13 @@ def filtdict(d, *keys):
 def test_network_smoke():
 
     # Sum operation, late-bind compute function
-    sum_op1 = operation(name='sum_op1', needs=['a', 'b'], provides='sum_ab')(add)
+    sum_op1 = operation(name="sum_op1", needs=["a", "b"], provides="sum_ab")(add)
 
     # sum_op1 is callable
     assert sum_op1(1, 2) == 3
 
     # Multiply operation, decorate in-place
-    @operation(name='mul_op1', needs=['sum_ab', 'b'], provides='sum_ab_times_b')
+    @operation(name="mul_op1", needs=["sum_ab", "b"], provides="sum_ab_times_b")
     def mul_op1(a, b):
         return a * b
 
@@ -50,16 +51,23 @@ def test_network_smoke():
     assert mul_op1(1, 2) == 2
 
     # Pow operation
-    @operation(name='pow_op1', needs='sum_ab', provides=['sum_ab_p1', 'sum_ab_p2', 'sum_ab_p3'], params={'exponent': 3})
+    @operation(
+        name="pow_op1",
+        needs="sum_ab",
+        provides=["sum_ab_p1", "sum_ab_p2", "sum_ab_p3"],
+        params={"exponent": 3},
+    )
     def pow_op1(a, exponent=2):
-        return [math.pow(a, y) for y in range(1, exponent+1)]
+        return [math.pow(a, y) for y in range(1, exponent + 1)]
 
     # `_compute()` needs a` nx-DiGraph in  op's `net` attribute.
     compose("mock graph")(pow_op1)
-    assert pow_op1._compute({'sum_ab':2}, ['sum_ab_p2']) == {'sum_ab_p2': 4.0}
+    assert pow_op1._compute({"sum_ab": 2}, ["sum_ab_p2"]) == {"sum_ab_p2": 4.0}
 
     # Partial operation that is bound at a later time
-    partial_op = operation(name='sum_op2', needs=['sum_ab_p1', 'sum_ab_p2'], provides='p1_plus_p2')
+    partial_op = operation(
+        name="sum_op2", needs=["sum_ab_p1", "sum_ab_p2"], provides="p1_plus_p2"
+    )
 
     # Bind the partial operation
     sum_op2 = partial_op(add)
@@ -67,36 +75,38 @@ def test_network_smoke():
     # Sum operation, early-bind compute function
     sum_op_factory = operation(add)
 
-    sum_op3 = sum_op_factory(name='sum_op3', needs=['a', 'b'], provides='sum_ab2')
+    sum_op3 = sum_op_factory(name="sum_op3", needs=["a", "b"], provides="sum_ab2")
 
     # sum_op3 is callable
     assert sum_op3(5, 6) == 11
 
     # compose network
-    net = compose(name='my network')(sum_op1, mul_op1, pow_op1, sum_op2, sum_op3)
+    net = compose(name="my network")(sum_op1, mul_op1, pow_op1, sum_op2, sum_op3)
 
     #
     # Running the network
     #
 
     # get all outputs
-    exp = {'a': 1,
-        'b': 2,
-        'p1_plus_p2': 12.0,
-        'sum_ab': 3,
-        'sum_ab2': 3,
-        'sum_ab_p1': 3.0,
-        'sum_ab_p2': 9.0,
-        'sum_ab_p3': 27.0,
-        'sum_ab_times_b': 6}
-    assert net({'a': 1, 'b': 2}) == exp
+    exp = {
+        "a": 1,
+        "b": 2,
+        "p1_plus_p2": 12.0,
+        "sum_ab": 3,
+        "sum_ab2": 3,
+        "sum_ab_p1": 3.0,
+        "sum_ab_p2": 9.0,
+        "sum_ab_p3": 27.0,
+        "sum_ab_times_b": 6,
+    }
+    assert net({"a": 1, "b": 2}) == exp
 
     # get specific outputs
-    exp = {'sum_ab_times_b': 6}
-    assert net({'a': 1, 'b': 2}, outputs=["sum_ab_times_b"]) == exp
+    exp = {"sum_ab_times_b": 6}
+    assert net({"a": 1, "b": 2}, outputs=["sum_ab_times_b"]) == exp
 
     # start with inputs already computed
-    exp = {'sum_ab_times_b': 2}
+    exp = {"sum_ab_times_b": 2}
     assert net({"sum_ab": 1, "b": 2}, outputs=["sum_ab_times_b"]) == exp
 
     # visualize network graph
@@ -105,48 +115,58 @@ def test_network_smoke():
 
 def test_network_simple_merge():
 
-    sum_op1 = operation(name='sum_op1', needs=['a', 'b'], provides='sum1')(add)
-    sum_op2 = operation(name='sum_op2', needs=['a', 'b'], provides='sum2')(add)
-    sum_op3 = operation(name='sum_op3', needs=['sum1', 'c'], provides='sum3')(add)
-    net1 = compose(name='my network 1')(sum_op1, sum_op2, sum_op3)
+    sum_op1 = operation(name="sum_op1", needs=["a", "b"], provides="sum1")(add)
+    sum_op2 = operation(name="sum_op2", needs=["a", "b"], provides="sum2")(add)
+    sum_op3 = operation(name="sum_op3", needs=["sum1", "c"], provides="sum3")(add)
+    net1 = compose(name="my network 1")(sum_op1, sum_op2, sum_op3)
 
-    exp = {'a': 1, 'b': 2, 'c': 4, 'sum1': 3, 'sum2': 3, 'sum3': 7}
-    sol = net1({'a': 1, 'b': 2, 'c': 4})
+    exp = {"a": 1, "b": 2, "c": 4, "sum1": 3, "sum2": 3, "sum3": 7}
+    sol = net1({"a": 1, "b": 2, "c": 4})
     assert sol == exp
 
-    sum_op4 = operation(name='sum_op1', needs=['d', 'e'], provides='a')(add)
-    sum_op5 = operation(name='sum_op2', needs=['a', 'f'], provides='b')(add)
+    sum_op4 = operation(name="sum_op1", needs=["d", "e"], provides="a")(add)
+    sum_op5 = operation(name="sum_op2", needs=["a", "f"], provides="b")(add)
 
-    net2 = compose(name='my network 2')(sum_op4, sum_op5)
-    exp = {'a': 3, 'b': 7, 'd': 1, 'e': 2, 'f': 4}
-    sol = net2({'d': 1, 'e': 2, 'f': 4})
+    net2 = compose(name="my network 2")(sum_op4, sum_op5)
+    exp = {"a": 3, "b": 7, "d": 1, "e": 2, "f": 4}
+    sol = net2({"d": 1, "e": 2, "f": 4})
     assert sol == exp
 
-    net3 = compose(name='merged')(net1, net2)
-    exp = {'a': 3, 'b': 7, 'c': 5, 'd': 1, 'e': 2, 'f': 4, 'sum1': 10, 'sum2': 10, 'sum3': 15}
-    sol = net3({'c': 5, 'd': 1, 'e': 2, 'f': 4})
+    net3 = compose(name="merged")(net1, net2)
+    exp = {
+        "a": 3,
+        "b": 7,
+        "c": 5,
+        "d": 1,
+        "e": 2,
+        "f": 4,
+        "sum1": 10,
+        "sum2": 10,
+        "sum3": 15,
+    }
+    sol = net3({"c": 5, "d": 1, "e": 2, "f": 4})
     assert sol == exp
 
 
 def test_network_deep_merge():
 
-    sum_op1 = operation(name='sum_op1', needs=['a', 'b'], provides='sum1')(add)
-    sum_op2 = operation(name='sum_op2', needs=['a', 'b'], provides='sum2')(add)
-    sum_op3 = operation(name='sum_op3', needs=['sum1', 'c'], provides='sum3')(add)
-    net1 = compose(name='my network 1')(sum_op1, sum_op2, sum_op3)
+    sum_op1 = operation(name="sum_op1", needs=["a", "b"], provides="sum1")(add)
+    sum_op2 = operation(name="sum_op2", needs=["a", "b"], provides="sum2")(add)
+    sum_op3 = operation(name="sum_op3", needs=["sum1", "c"], provides="sum3")(add)
+    net1 = compose(name="my network 1")(sum_op1, sum_op2, sum_op3)
 
-    exp = {'a': 1, 'b': 2, 'c': 4, 'sum1': 3, 'sum2': 3, 'sum3': 7}
-    assert net1({'a': 1, 'b': 2, 'c': 4}) == exp
+    exp = {"a": 1, "b": 2, "c": 4, "sum1": 3, "sum2": 3, "sum3": 7}
+    assert net1({"a": 1, "b": 2, "c": 4}) == exp
 
-    sum_op4 = operation(name='sum_op1', needs=['a', 'b'], provides='sum1')(add)
-    sum_op5 = operation(name='sum_op4', needs=['sum1', 'b'], provides='sum2')(add)
-    net2 = compose(name='my network 2')(sum_op4, sum_op5)
-    exp = {'a': 1, 'b': 2, 'sum1': 3, 'sum2': 5}
-    assert net2({'a': 1, 'b': 2}) == exp
+    sum_op4 = operation(name="sum_op1", needs=["a", "b"], provides="sum1")(add)
+    sum_op5 = operation(name="sum_op4", needs=["sum1", "b"], provides="sum2")(add)
+    net2 = compose(name="my network 2")(sum_op4, sum_op5)
+    exp = {"a": 1, "b": 2, "sum1": 3, "sum2": 5}
+    assert net2({"a": 1, "b": 2}) == exp
 
-    net3 = compose(name='merged', merge=True)(net1, net2)
-    exp = {'a': 1, 'b': 2, 'c': 4, 'sum1': 3, 'sum2': 3, 'sum3': 7}
-    assert net3({'a': 1, 'b': 2, 'c': 4}) == exp
+    net3 = compose(name="merged", merge=True)(net1, net2)
+    exp = {"a": 1, "b": 2, "c": 4, "sum1": 3, "sum2": 3, "sum3": 7}
+    assert net3({"a": 1, "b": 2, "c": 4}) == exp
 
 
 def test_network_merge_in_doctests():
@@ -157,13 +177,17 @@ def test_network_merge_in_doctests():
     graphop = compose(name="graphop")(
         operation(name="mul1", needs=["a", "b"], provides=["ab"])(mul),
         operation(name="sub1", needs=["a", "ab"], provides=["a_minus_ab"])(sub),
-        operation(name="abspow1", needs=["a_minus_ab"], provides=["abs_a_minus_ab_cubed"], params={"p": 3})
-        (abspow)
+        operation(
+            name="abspow1",
+            needs=["a_minus_ab"],
+            provides=["abs_a_minus_ab_cubed"],
+            params={"p": 3},
+        )(abspow),
     )
 
     another_graph = compose(name="another_graph")(
-    operation(name="mul1", needs=["a", "b"], provides=["ab"])(mul),
-    operation(name="mul2", needs=["c", "ab"], provides=["cab"])(mul)
+        operation(name="mul1", needs=["a", "b"], provides=["ab"])(mul),
+        operation(name="mul2", needs=["c", "ab"], provides=["cab"])(mul),
     )
     merged_graph = compose(name="merged_graph", merge=True)(graphop, another_graph)
     assert merged_graph.needs
@@ -179,16 +203,16 @@ def test_input_based_pruning():
 
     # Set up a net such that if sum1 and sum2 are provided directly, we don't
     # need to provide a and b.
-    sum_op1 = operation(name='sum_op1', needs=['a', 'b'], provides='sum1')(add)
-    sum_op2 = operation(name='sum_op2', needs=['a', 'b'], provides='sum2')(add)
-    sum_op3 = operation(name='sum_op3', needs=['sum1', 'sum2'], provides='sum3')(add)
-    net = compose(name='test_net')(sum_op1, sum_op2, sum_op3)
+    sum_op1 = operation(name="sum_op1", needs=["a", "b"], provides="sum1")(add)
+    sum_op2 = operation(name="sum_op2", needs=["a", "b"], provides="sum2")(add)
+    sum_op3 = operation(name="sum_op3", needs=["sum1", "sum2"], provides="sum3")(add)
+    net = compose(name="test_net")(sum_op1, sum_op2, sum_op3)
 
-    results = net({'sum1': sum1, 'sum2': sum2})
+    results = net({"sum1": sum1, "sum2": sum2})
 
     # Make sure we got expected result without having to pass a or b.
-    assert 'sum3' in results
-    assert results['sum3'] == add(sum1, sum2)
+    assert "sum3" in results
+    assert results["sum3"] == add(sum1, sum2)
 
 
 def test_output_based_pruning():
@@ -200,16 +224,16 @@ def test_output_based_pruning():
 
     # Set up a network such that we don't need to provide a or b if we only
     # request sum3 as output.
-    sum_op1 = operation(name='sum_op1', needs=['a', 'b'], provides='sum1')(add)
-    sum_op2 = operation(name='sum_op2', needs=['c', 'd'], provides='sum2')(add)
-    sum_op3 = operation(name='sum_op3', needs=['c', 'sum2'], provides='sum3')(add)
-    net = compose(name='test_net')(sum_op1, sum_op2, sum_op3)
+    sum_op1 = operation(name="sum_op1", needs=["a", "b"], provides="sum1")(add)
+    sum_op2 = operation(name="sum_op2", needs=["c", "d"], provides="sum2")(add)
+    sum_op3 = operation(name="sum_op3", needs=["c", "sum2"], provides="sum3")(add)
+    net = compose(name="test_net")(sum_op1, sum_op2, sum_op3)
 
-    results = net({'a': 0, 'b': 0, 'c': c, 'd': d}, outputs=['sum3'])
+    results = net({"a": 0, "b": 0, "c": c, "d": d}, outputs=["sum3"])
 
     # Make sure we got expected result without having to pass a or b.
-    assert 'sum3' in results
-    assert results['sum3'] == add(c, add(c, d))
+    assert "sum3" in results
+    assert results["sum3"] == add(c, add(c, d))
 
 
 def test_input_output_based_pruning():
@@ -222,16 +246,16 @@ def test_input_output_based_pruning():
 
     # Set up a network such that we don't need to provide a or b d if we only
     # request sum3 as output and if we provide sum2.
-    sum_op1 = operation(name='sum_op1', needs=['a', 'b'], provides='sum1')(add)
-    sum_op2 = operation(name='sum_op2', needs=['c', 'd'], provides='sum2')(add)
-    sum_op3 = operation(name='sum_op3', needs=['c', 'sum2'], provides='sum3')(add)
-    net = compose(name='test_net')(sum_op1, sum_op2, sum_op3)
+    sum_op1 = operation(name="sum_op1", needs=["a", "b"], provides="sum1")(add)
+    sum_op2 = operation(name="sum_op2", needs=["c", "d"], provides="sum2")(add)
+    sum_op3 = operation(name="sum_op3", needs=["c", "sum2"], provides="sum3")(add)
+    net = compose(name="test_net")(sum_op1, sum_op2, sum_op3)
 
-    results = net({'c': c, 'sum2': sum2}, outputs=['sum3'])
+    results = net({"c": c, "sum2": sum2}, outputs=["sum3"])
 
     # Make sure we got expected result without having to pass a, b, or d.
-    assert 'sum3' in results
-    assert results['sum3'] == add(c, sum2)
+    assert "sum3" in results
+    assert results["sum3"] == add(c, sum2)
 
 
 def test_pruning_raises_for_bad_output():
@@ -240,17 +264,17 @@ def test_pruning_raises_for_bad_output():
 
     # Set up a network that doesn't have the output sum4, which we'll request
     # later.
-    sum_op1 = operation(name='sum_op1', needs=['a', 'b'], provides='sum1')(add)
-    sum_op2 = operation(name='sum_op2', needs=['c', 'd'], provides='sum2')(add)
-    sum_op3 = operation(name='sum_op3', needs=['c', 'sum2'], provides='sum3')(add)
-    net = compose(name='test_net')(sum_op1, sum_op2, sum_op3)
+    sum_op1 = operation(name="sum_op1", needs=["a", "b"], provides="sum1")(add)
+    sum_op2 = operation(name="sum_op2", needs=["c", "d"], provides="sum2")(add)
+    sum_op3 = operation(name="sum_op3", needs=["c", "sum2"], provides="sum3")(add)
+    net = compose(name="test_net")(sum_op1, sum_op2, sum_op3)
 
     # Request two outputs we can compute and one we can't compute.  Assert
     # that this raises a ValueError.
     with pytest.raises(ValueError) as exinfo:
-        net({'a': 1, 'b': 2, 'c': 3, 'd': 4},
-            outputs=['sum1', 'sum3', 'sum4'])
-    assert exinfo.match('sum4')
+        net({"a": 1, "b": 2, "c": 3, "d": 4}, outputs=["sum1", "sum3", "sum4"])
+    assert exinfo.match("sum4")
+
 
 def test_pruning_not_overrides_given_intermediate():
     # Test #25: v1.2.4 overwrites intermediate data when no output asked
@@ -286,7 +310,7 @@ def test_pruning_not_overrides_given_intermediate():
     pipeline.set_execution_method("parallel")
     overwrites = {}
     pipeline.set_overwrites_collector(overwrites)
-    #assert pipeline(inputs, ["asked"]) == filtdict(exp, "asked")
+    # assert pipeline(inputs, ["asked"]) == filtdict(exp, "asked")
     assert overwrites == {}  # unjust must have been pruned
 
     overwrites = {}
@@ -299,8 +323,9 @@ def test_pruning_multiouts_not_override_intermediates1():
     # Test #25: v.1.2.4 overwrites intermediate data when a previous operation
     # must run for its other outputs (outputs asked or not)
     pipeline = compose(name="pipeline")(
-        operation(name="must run", needs=["a"], provides=["overriden", "calced"])
-        (lambda x: (x, 2 * x)),
+        operation(name="must run", needs=["a"], provides=["overriden", "calced"])(
+            lambda x: (x, 2 * x)
+        ),
         operation(name="add", needs=["overriden", "calced"], provides=["asked"])(add),
     )
 
@@ -322,12 +347,12 @@ def test_pruning_multiouts_not_override_intermediates1():
     overwrites = {}
     pipeline.set_overwrites_collector(overwrites)
     assert pipeline({"a": 5, "overriden": 1}) == exp
-    assert overwrites == {'overriden': 5}
+    assert overwrites == {"overriden": 5}
 
     overwrites = {}
     pipeline.set_overwrites_collector(overwrites)
     assert pipeline(inputs, ["asked"]) == filtdict(exp, "asked")
-    assert overwrites == {'overriden': 5}
+    assert overwrites == {"overriden": 5}
 
     ## Test parallel
     #
@@ -342,8 +367,9 @@ def test_pruning_multiouts_not_override_intermediates2():
     # SPURIOUS FAILS in < PY3.6 due to unordered dicts,
     # eg https://travis-ci.org/ankostis/graphkit/jobs/594813119
     pipeline = compose(name="pipeline")(
-        operation(name="must run", needs=["a"], provides=["overriden", "e"])
-        (lambda x: (x, 2 * x)),
+        operation(name="must run", needs=["a"], provides=["overriden", "e"])(
+            lambda x: (x, 2 * x)
+        ),
         operation(name="op1", needs=["overriden", "c"], provides=["d"])(add),
         operation(name="op2", needs=["d", "e"], provides=["asked"])(mul),
     )
@@ -366,12 +392,12 @@ def test_pruning_multiouts_not_override_intermediates2():
     overwrites = {}
     pipeline.set_overwrites_collector(overwrites)
     assert pipeline(inputs) == exp
-    assert overwrites == {'overriden': 5}
+    assert overwrites == {"overriden": 5}
 
     overwrites = {}
     pipeline.set_overwrites_collector(overwrites)
     assert pipeline(inputs, ["asked"]) == filtdict(exp, "asked")
-    assert overwrites == {'overriden': 5}
+    assert overwrites == {"overriden": 5}
 
     ## Test parallel
     #
@@ -396,7 +422,9 @@ def test_pruning_with_given_intermediate_and_asked_out():
     # - on v1.2.4 with KeyError: 'a',
     # - on #18 (unsatisfied) with no result.
     # FIXED on #18+#26 (new dag solver).
-    assert pipeline({"given-1": 5, "b": 2, "given-2": 2}, ["asked"]) == filtdict(exp, "asked")
+    assert pipeline({"given-1": 5, "b": 2, "given-2": 2}, ["asked"]) == filtdict(
+        exp, "asked"
+    )
 
     ## Test OVERWITES
     #
@@ -407,7 +435,9 @@ def test_pruning_with_given_intermediate_and_asked_out():
 
     overwrites = {}
     pipeline.set_overwrites_collector(overwrites)
-    assert pipeline({"given-1": 5, "b": 2, "given-2": 2}, ["asked"]) == filtdict(exp, "asked")
+    assert pipeline({"given-1": 5, "b": 2, "given-2": 2}, ["asked"]) == filtdict(
+        exp, "asked"
+    )
     assert overwrites == {}
 
     ## Test parallel
@@ -415,7 +445,10 @@ def test_pruning_with_given_intermediate_and_asked_out():
     #
     pipeline.set_execution_method("parallel")
     assert pipeline({"given-1": 5, "b": 2, "given-2": 2}) == exp
-    assert pipeline({"given-1": 5, "b": 2, "given-2": 2}, ["asked"]) == filtdict(exp, "asked")
+    assert pipeline({"given-1": 5, "b": 2, "given-2": 2}, ["asked"]) == filtdict(
+        exp, "asked"
+    )
+
 
 def test_unsatisfied_operations():
     # Test that operations with partial inputs are culled and not failing.
@@ -443,6 +476,7 @@ def test_unsatisfied_operations():
     assert pipeline({"a": 10, "b2": 2}) == exp
     assert pipeline({"a": 10, "b2": 2}, outputs=["a-b2"]) == filtdict(exp, "a-b2")
 
+
 def test_unsatisfied_operations_same_out():
     # Test unsatisfied pairs of operations providing the same output.
     pipeline = compose(name="pipeline")(
@@ -453,11 +487,15 @@ def test_unsatisfied_operations_same_out():
 
     exp = {"a": 10, "b1": 2, "c": 1, "ab": 20, "ab_plus_c": 21}
     assert pipeline({"a": 10, "b1": 2, "c": 1}) == exp
-    assert pipeline({"a": 10, "b1": 2, "c": 1}, outputs=["ab_plus_c"]) == filtdict(exp, "ab_plus_c")
+    assert pipeline({"a": 10, "b1": 2, "c": 1}, outputs=["ab_plus_c"]) == filtdict(
+        exp, "ab_plus_c"
+    )
 
     exp = {"a": 10, "b2": 2, "c": 1, "ab": 5, "ab_plus_c": 6}
     assert pipeline({"a": 10, "b2": 2, "c": 1}) == exp
-    assert pipeline({"a": 10, "b2": 2, "c": 1}, outputs=["ab_plus_c"]) == filtdict(exp, "ab_plus_c")
+    assert pipeline({"a": 10, "b2": 2, "c": 1}, outputs=["ab_plus_c"]) == filtdict(
+        exp, "ab_plus_c"
+    )
 
     ## Test parallel
     #
@@ -465,12 +503,16 @@ def test_unsatisfied_operations_same_out():
     pipeline.set_execution_method("parallel")
     exp = {"a": 10, "b1": 2, "c": 1, "ab": 20, "ab_plus_c": 21}
     assert pipeline({"a": 10, "b1": 2, "c": 1}) == exp
-    assert pipeline({"a": 10, "b1": 2, "c": 1}, outputs=["ab_plus_c"]) == filtdict(exp, "ab_plus_c")
+    assert pipeline({"a": 10, "b1": 2, "c": 1}, outputs=["ab_plus_c"]) == filtdict(
+        exp, "ab_plus_c"
+    )
     #
     #  FAIL! in #26
     exp = {"a": 10, "b2": 2, "c": 1, "ab": 5, "ab_plus_c": 6}
     assert pipeline({"a": 10, "b2": 2, "c": 1}) == exp
-    assert pipeline({"a": 10, "b2": 2, "c": 1}, outputs=["ab_plus_c"]) == filtdict(exp, "ab_plus_c")
+    assert pipeline({"a": 10, "b2": 2, "c": 1}, outputs=["ab_plus_c"]) == filtdict(
+        exp, "ab_plus_c"
+    )
 
 
 def test_optional():
@@ -480,21 +522,24 @@ def test_optional():
     def addplusplus(a, b, c=0):
         return a + b + c
 
-    sum_op = operation(name='sum_op1', needs=['a', 'b', modifiers.optional('c')], provides='sum')(addplusplus)
+    sum_op = operation(
+        name="sum_op1", needs=["a", "b", modifiers.optional("c")], provides="sum"
+    )(addplusplus)
 
-    net = compose(name='test_net')(sum_op)
+    net = compose(name="test_net")(sum_op)
 
     # Make sure output with optional arg is as expected.
-    named_inputs = {'a': 4, 'b': 3, 'c': 2}
+    named_inputs = {"a": 4, "b": 3, "c": 2}
     results = net(named_inputs)
-    assert 'sum' in results
-    assert results['sum'] == sum(named_inputs.values())
+    assert "sum" in results
+    assert results["sum"] == sum(named_inputs.values())
 
     # Make sure output without optional arg is as expected.
-    named_inputs = {'a': 4, 'b': 3}
+    named_inputs = {"a": 4, "b": 3}
     results = net(named_inputs)
-    assert 'sum' in results
-    assert results['sum'] == sum(named_inputs.values())
+    assert "sum" in results
+    assert results["sum"] == sum(named_inputs.values())
+
 
 def test_sideffects():
     # Function without return value.
@@ -506,32 +551,36 @@ def test_sideffects():
             box[i] += 1
 
     # Designate `a`, `b` as sideffect inp/out arguments.
-    graph = compose('mygraph')(
+    graph = compose("mygraph")(
         operation(
-            name='extend',
-            needs=['box', modifiers.sideffect('a')],
-            provides=[modifiers.sideffect('b')])(extend),
+            name="extend",
+            needs=["box", modifiers.sideffect("a")],
+            provides=[modifiers.sideffect("b")],
+        )(extend),
         operation(
-            name='increment',
-            needs=['box', modifiers.sideffect('b')],
-            provides=modifiers.sideffect('c'))(increment),
+            name="increment",
+            needs=["box", modifiers.sideffect("b")],
+            provides=modifiers.sideffect("c"),
+        )(increment),
     )
 
-    assert graph({'box': [0], 'a': True})['box'] == [1, 2, 3]
+    assert graph({"box": [0], "a": True})["box"] == [1, 2, 3]
 
     # Reverse order of functions.
-    graph = compose('mygraph')(
+    graph = compose("mygraph")(
         operation(
-            name='increment',
-            needs=['box', modifiers.sideffect('a')],
-            provides=modifiers.sideffect('b'))(increment),
+            name="increment",
+            needs=["box", modifiers.sideffect("a")],
+            provides=modifiers.sideffect("b"),
+        )(increment),
         operation(
-            name='extend',
-            needs=['box', modifiers.sideffect('b')],
-            provides=[modifiers.sideffect('c')])(extend),
+            name="extend",
+            needs=["box", modifiers.sideffect("b")],
+            provides=[modifiers.sideffect("c")],
+        )(extend),
     )
 
-    assert graph({'box': [0], 'a': None})['box'] == [1, 1, 2]
+    assert graph({"box": [0], "a": None})["box"] == [1, 1, 2]
 
 
 def test_optional_per_function_with_same_output():
@@ -540,60 +589,60 @@ def test_optional_per_function_with_same_output():
     ## ATTENTION, the selected function is NOT the one with more inputs
     # but the 1st satisfiable function added in the network.
 
-    add_op = operation(name='add', needs=['a', 'b'], provides='a+-b')(add)
+    add_op = operation(name="add", needs=["a", "b"], provides="a+-b")(add)
     sub_op_optional = operation(
-        name='sub_opt', needs=['a', modifiers.optional('b')], provides='a+-b'
+        name="sub_opt", needs=["a", modifiers.optional("b")], provides="a+-b"
     )(lambda a, b=10: a - b)
 
     # Normal order
     #
-    pipeline = compose(name='partial_optionals')(add_op, sub_op_optional)
+    pipeline = compose(name="partial_optionals")(add_op, sub_op_optional)
     #
-    named_inputs = {'a': 1, 'b': 2}
-    assert pipeline(named_inputs) == {'a': 1, 'a+-b': 3, 'b': 2}
-    assert pipeline(named_inputs, ['a+-b']) == {'a+-b': 3}
+    named_inputs = {"a": 1, "b": 2}
+    assert pipeline(named_inputs) == {"a": 1, "a+-b": 3, "b": 2}
+    assert pipeline(named_inputs, ["a+-b"]) == {"a+-b": 3}
     #
-    named_inputs = {'a': 1}
-    assert pipeline(named_inputs) == {'a': 1, 'a+-b': -9}
-    assert pipeline(named_inputs, ['a+-b']) == {'a+-b': -9}
+    named_inputs = {"a": 1}
+    assert pipeline(named_inputs) == {"a": 1, "a+-b": -9}
+    assert pipeline(named_inputs, ["a+-b"]) == {"a+-b": -9}
 
     # Inverse op order
     #
-    pipeline = compose(name='partial_optionals')(sub_op_optional, add_op)
+    pipeline = compose(name="partial_optionals")(sub_op_optional, add_op)
     #
-    named_inputs = {'a': 1, 'b': 2}
-    assert pipeline(named_inputs) == {'a': 1, 'a+-b': -1, 'b': 2}
-    assert pipeline(named_inputs, ['a+-b']) == {'a+-b': -1}
+    named_inputs = {"a": 1, "b": 2}
+    assert pipeline(named_inputs) == {"a": 1, "a+-b": -1, "b": 2}
+    assert pipeline(named_inputs, ["a+-b"]) == {"a+-b": -1}
     #
-    named_inputs = {'a': 1}
-    assert pipeline(named_inputs) == {'a': 1, 'a+-b': -9}
-    assert pipeline(named_inputs, ['a+-b']) == {'a+-b': -9}
+    named_inputs = {"a": 1}
+    assert pipeline(named_inputs) == {"a": 1, "a+-b": -9}
+    assert pipeline(named_inputs, ["a+-b"]) == {"a+-b": -9}
 
     # PARALLEL + Normal order
     #
-    pipeline = compose(name='partial_optionals')(add_op, sub_op_optional)
+    pipeline = compose(name="partial_optionals")(add_op, sub_op_optional)
     pipeline.set_execution_method("parallel")
     #
-    named_inputs = {'a': 1, 'b': 2}
-    assert pipeline(named_inputs) == {'a': 1, 'a+-b': 3, 'b': 2}
-    assert pipeline(named_inputs, ['a+-b']) == {'a+-b': 3}
+    named_inputs = {"a": 1, "b": 2}
+    assert pipeline(named_inputs) == {"a": 1, "a+-b": 3, "b": 2}
+    assert pipeline(named_inputs, ["a+-b"]) == {"a+-b": 3}
     #
-    named_inputs = {'a': 1}
-    assert pipeline(named_inputs) == {'a': 1, 'a+-b': -9}
-    assert pipeline(named_inputs, ['a+-b']) == {'a+-b': -9}
+    named_inputs = {"a": 1}
+    assert pipeline(named_inputs) == {"a": 1, "a+-b": -9}
+    assert pipeline(named_inputs, ["a+-b"]) == {"a+-b": -9}
 
     # PARALLEL + Inverse op order
     #
-    pipeline = compose(name='partial_optionals')(sub_op_optional, add_op)
+    pipeline = compose(name="partial_optionals")(sub_op_optional, add_op)
     pipeline.set_execution_method("parallel")
     #
-    named_inputs = {'a': 1, 'b': 2}
-    assert pipeline(named_inputs) == {'a': 1, 'a+-b': -1, 'b': 2}
-    assert pipeline(named_inputs, ['a+-b']) == {'a+-b': -1}
+    named_inputs = {"a": 1, "b": 2}
+    assert pipeline(named_inputs) == {"a": 1, "a+-b": -1, "b": 2}
+    assert pipeline(named_inputs, ["a+-b"]) == {"a+-b": -1}
     #
-    named_inputs = {'a': 1}
-    assert pipeline(named_inputs) == {'a': 1, 'a+-b': -9}
-    assert pipeline(named_inputs, ['a+-b']) == {'a+-b': -9}
+    named_inputs = {"a": 1}
+    assert pipeline(named_inputs) == {"a": 1, "a+-b": -9}
+    assert pipeline(named_inputs, ["a+-b"]) == {"a+-b": -9}
 
 
 def test_deleted_optional():
@@ -605,13 +654,15 @@ def test_deleted_optional():
         return a + b + c
 
     # Here, a DeleteInstruction will be inserted for the optional need 'c'.
-    sum_op1 = operation(name='sum_op1', needs=['a', 'b', modifiers.optional('c')], provides='sum1')(addplusplus)
-    sum_op2 = operation(name='sum_op2', needs=['sum1', 'sum1'], provides='sum2')(add)
-    net = compose(name='test_net')(sum_op1, sum_op2)
+    sum_op1 = operation(
+        name="sum_op1", needs=["a", "b", modifiers.optional("c")], provides="sum1"
+    )(addplusplus)
+    sum_op2 = operation(name="sum_op2", needs=["sum1", "sum1"], provides="sum2")(add)
+    net = compose(name="test_net")(sum_op1, sum_op2)
 
     # DeleteInstructions are used only when a subset of outputs are requested.
-    results = net({'a': 4, 'b': 3}, outputs=['sum2'])
-    assert 'sum2' in results
+    results = net({"a": 4, "b": 3}, outputs=["sum2"])
+    assert "sum2" in results
 
 
 def test_deleteinstructs_vary_with_inputs():
@@ -622,12 +673,16 @@ def test_deleteinstructs_vary_with_inputs():
     pipeline = compose(name="pipeline")(
         operation(name="a free without b", needs=["a"], provides=["aa"])(identity),
         operation(name="satisfiable", needs=["a", "b"], provides=["ab"])(add),
-        operation(name="optional ab", needs=["aa", modifiers.optional("ab")], provides=["asked"])
-        (lambda a, ab=10: a + ab),
+        operation(
+            name="optional ab",
+            needs=["aa", modifiers.optional("ab")],
+            provides=["asked"],
+        )(lambda a, ab=10: a + ab),
     )
 
     inp = {"a": 2, "b": 3}
-    exp = inp.copy(); exp.update({"aa": 2, "ab": 5, "asked": 7})
+    exp = inp.copy()
+    exp.update({"aa": 2, "ab": 5, "asked": 7})
     res = pipeline(inp)
     assert res == exp  # ok
     steps11 = pipeline.compile(inp).steps
@@ -636,7 +691,8 @@ def test_deleteinstructs_vary_with_inputs():
     steps12 = pipeline.compile(inp, ["asked"]).steps
 
     inp = {"a": 2}
-    exp = inp.copy(); exp.update({"aa": 2, "asked": 12})
+    exp = inp.copy()
+    exp.update({"aa": 2, "asked": 12})
     res = pipeline(inp)
     assert res == exp  # ok
     steps21 = pipeline.compile(inp).steps
@@ -672,10 +728,10 @@ def test_parallel_execution():
         print("fn %s" % (time.time() - t0))
         return 1 + x
 
-    def fn2(a,b):
+    def fn2(a, b):
         time.sleep(delay)
         print("fn2 %s" % (time.time() - t0))
-        return a+b
+        return a + b
 
     def fn3(z, k=1):
         time.sleep(delay)
@@ -683,23 +739,15 @@ def test_parallel_execution():
         return z + k
 
     pipeline = compose(name="l", merge=True)(
-
         # the following should execute in parallel under threaded execution mode
         operation(name="a", needs="x", provides="ao")(fn),
         operation(name="b", needs="x", provides="bo")(fn),
-
         # this should execute after a and b have finished
         operation(name="c", needs=["ao", "bo"], provides="co")(fn2),
-
-        operation(name="d",
-                  needs=["ao", modifiers.optional("k")],
-                  provides="do")(fn3),
-
+        operation(name="d", needs=["ao", modifiers.optional("k")], provides="do")(fn3),
         operation(name="e", needs=["ao", "bo"], provides="eo")(fn2),
         operation(name="f", needs="eo", provides="fo")(fn),
-        operation(name="g", needs="fo", provides="go")(fn)
-
-
+        operation(name="g", needs="fo", provides="go")(fn),
     )
 
     t0 = time.time()
@@ -717,6 +765,7 @@ def test_parallel_execution():
     # make sure results are the same using either method
     assert result_sequential == result_threaded
 
+
 @pytest.mark.slow
 def test_multi_threading():
     import time
@@ -724,28 +773,31 @@ def test_multi_threading():
     from multiprocessing.dummy import Pool
 
     def op_a(a, b):
-        time.sleep(random.random()*.02)
-        return a+b
+        time.sleep(random.random() * 0.02)
+        return a + b
 
     def op_b(c, b):
-        time.sleep(random.random()*.02)
-        return c+b
+        time.sleep(random.random() * 0.02)
+        return c + b
 
     def op_c(a, b):
-        time.sleep(random.random()*.02)
-        return a*b
+        time.sleep(random.random() * 0.02)
+        return a * b
 
     pipeline = compose(name="pipeline", merge=True)(
-        operation(name="op_a", needs=['a', 'b'], provides='c')(op_a),
-        operation(name="op_b", needs=['c', 'b'], provides='d')(op_b),
-        operation(name="op_c", needs=['a', 'b'], provides='e')(op_c),
+        operation(name="op_a", needs=["a", "b"], provides="c")(op_a),
+        operation(name="op_b", needs=["c", "b"], provides="d")(op_b),
+        operation(name="op_c", needs=["a", "b"], provides="e")(op_c),
     )
 
     def infer(i):
         # data = open("616039-bradpitt.jpg").read()
         outputs = ["c", "d", "e"]
-        results = pipeline({"a": 1, "b":2}, outputs)
-        assert tuple(sorted(results.keys())) == tuple(sorted(outputs)), (outputs, results)
+        results = pipeline({"a": 1, "b": 2}, outputs)
+        assert tuple(sorted(results.keys())) == tuple(sorted(outputs)), (
+            outputs,
+            results,
+        )
         return results
 
     N = 33
@@ -763,30 +815,27 @@ def test_multi_threading():
 
 # We first define some basic operations
 class Sum(Operation):
-
     def compute(self, inputs):
         a = inputs[0]
         b = inputs[1]
-        return [a+b]
+        return [a + b]
 
 
 class Mul(Operation):
-
     def compute(self, inputs):
         a = inputs[0]
         b = inputs[1]
-        return [a*b]
+        return [a * b]
 
 
 # This is an example of an operation that takes a parameter.
 # It also illustrates an operation that returns multiple outputs
 class Pow(Operation):
-
     def compute(self, inputs):
 
         a = inputs[0]
         outputs = []
-        for y in range(1, self.params['exponent']+1):
+        for y in range(1, self.params["exponent"] + 1):
             p = math.pow(a, y)
             outputs.append(p)
         return outputs
@@ -794,26 +843,16 @@ class Pow(Operation):
 
 def test_backwards_compatibility():
 
-    sum_op1 = Sum(
-        name="sum_op1",
-        provides=["sum_ab"],
-        needs=["a", "b"]
-    )
-    mul_op1 = Mul(
-        name="mul_op1",
-        provides=["sum_ab_times_b"],
-        needs=["sum_ab", "b"]
-    )
+    sum_op1 = Sum(name="sum_op1", provides=["sum_ab"], needs=["a", "b"])
+    mul_op1 = Mul(name="mul_op1", provides=["sum_ab_times_b"], needs=["sum_ab", "b"])
     pow_op1 = Pow(
         name="pow_op1",
         needs=["sum_ab"],
         provides=["sum_ab_p1", "sum_ab_p2", "sum_ab_p3"],
-        params={"exponent": 3}
+        params={"exponent": 3},
     )
     sum_op2 = Sum(
-        name="sum_op2",
-        provides=["p1_plus_p2"],
-        needs=["sum_ab_p1", "sum_ab_p2"],
+        name="sum_op2", provides=["p1_plus_p2"], needs=["sum_ab_p1", "sum_ab_p2"]
     )
 
     net = network.Network()
@@ -831,20 +870,25 @@ def test_backwards_compatibility():
     #
 
     # get all outputs
-    exp = {'a': 1,
-        'b': 2,
-        'p1_plus_p2': 12.0,
-        'sum_ab': 3,
-        'sum_ab_p1': 3.0,
-        'sum_ab_p2': 9.0,
-        'sum_ab_p3': 27.0,
-        'sum_ab_times_b': 6}
-    assert net.compute(outputs=None, named_inputs={'a': 1, 'b': 2}) == exp
+    exp = {
+        "a": 1,
+        "b": 2,
+        "p1_plus_p2": 12.0,
+        "sum_ab": 3,
+        "sum_ab_p1": 3.0,
+        "sum_ab_p2": 9.0,
+        "sum_ab_p3": 27.0,
+        "sum_ab_times_b": 6,
+    }
+    assert net.compute(outputs=None, named_inputs={"a": 1, "b": 2}) == exp
 
     # get specific outputs
-    exp = {'sum_ab_times_b': 6}
-    assert net.compute(outputs=["sum_ab_times_b"], named_inputs={'a': 1, 'b': 2}) == exp
+    exp = {"sum_ab_times_b": 6}
+    assert net.compute(outputs=["sum_ab_times_b"], named_inputs={"a": 1, "b": 2}) == exp
 
     # start with inputs already computed
-    exp = {'sum_ab_times_b': 2}
-    assert net.compute(outputs=["sum_ab_times_b"], named_inputs={"sum_ab": 1, "b": 2}) == exp
+    exp = {"sum_ab_times_b": 2}
+    assert (
+        net.compute(outputs=["sum_ab_times_b"], named_inputs={"sum_ab": 1, "b": 2})
+        == exp
+    )
