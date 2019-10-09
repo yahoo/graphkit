@@ -26,6 +26,7 @@ plot_reqs = [
 test_reqs = plot_reqs + [
      "pytest",
      "pytest-cov",
+     "pytest-sphinx",
 ]
 
 setup(
