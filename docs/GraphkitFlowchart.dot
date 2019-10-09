@@ -1,0 +1,18 @@
+# Render it manually with this command, and remember to update result in git:
+#
+#   dot docs/GraphkitFlowchart.dot -Tsvg -odocs/source/images/GraphkitFlowchart.svg 
+#
+digraph {
+    label="graphkit-v1.2.4 flowchart";
+    labelloc=t;
+
+    operations  [shape=parallelogram fontname="italic"];
+    compose     [label="compose & compile" fontname="italic"];
+    network     [shape=parallelogram fontname="italic"];
+    data        [shape=rect label="inputs & outputs"];
+    compute     [fontname=italic fontname="italic"];
+    solution    [shape=rect];
+    
+    operations -> compose -> network    [arrowhead=vee];
+    {data network} -> compute -> solution [arrowhead=vee];
+}
