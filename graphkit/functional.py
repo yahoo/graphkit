@@ -86,7 +86,7 @@ class operation(Operation):
     :param dict params:
         A dict of key/value pairs representing constant parameters
         associated with your operation.  These can correspond to either
-        ``args`` or ``kwargs`` of ``fn`.
+        ``args`` or ``kwargs`` of ``fn``.
     """
 
     def __init__(self, fn=None, **kwargs):

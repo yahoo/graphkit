@@ -1,16 +1,17 @@
 # Copyright 2016, Yahoo Inc.
 # Licensed under the terms of the Apache License, Version 2.0. See the LICENSE file associated with the project for terms.
-""""
-The main implementation of the network of operations & data to compute.
+"""
+Network-based computation of operations & data.
 
-The execution of network *operations* (aka computation) is splitted
-in 2 phases:
+The execution of network *operations* is splitted in 2 phases:
 
-- COMPILE: prune unsatisfied nodes, sort dag topologically & solve it, and
-    derive the *execution steps* (see below) based on the given *inputs*
+COMPILE:
+    prune unsatisfied nodes, sort dag topologically & solve it, and
+    derive the *execution steps* (see below) based on the given *inputs*    
     and asked *outputs*.
 
-- EXECUTE: sequential or parallel invocation of the underlying functions
+EXECUTE:
+    sequential or parallel invocation of the underlying functions
     of the operations with arguments from the ``solution``.
 
 Computations are based on 5 data-structures:

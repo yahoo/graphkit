@@ -60,11 +60,14 @@ As you can see, any function can be used as an operation in GraphKit, even ones 
 
 ## Plotting
 
-For debugging the above graph-operation you may plot it using these methods:
+For debugging the above graph-operation you may plot the *execution plan*
+of the last computation it using these methods::
 
 ```python
-   graphop.plot(show=True, solution=out)  # open a matplotlib window with solution values in nodes
-   graphop.plot("intro.svg")              # original graph; other formats: png, jpg, pdf, ...
+   graphop.plot(show=True)                # open a matplotlib window
+   graphop.plot("intro.svg")              # other supported formats: png, jpg, pdf, ...
+   graphop.plot()                         # without arguments return a pydot.DOT object
+   graphop.plot(solution=out)             # annotate graph with solution values
 ```
 
 ![Intro graph](docs/source/images/intro.svg "Intro graph")

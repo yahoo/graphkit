@@ -98,7 +98,7 @@ Sometimes you will have an existing computation graph to which you want to add o
    >>> sol
    {'a_minus_ab_minus_c': -13}
 
-This yields a graph which looks like this (see :ref:`Plotting`):
+This yields a graph which looks like this (see :ref:`plotting`):
 
 .. image:: images/bigger_example_graph.svg
 
@@ -136,11 +136,12 @@ As always, we can run computations with this graph by simply calling it::
    {'cab': 50}
 
 
+
 Errors
 ------
 
 If an operation fails, its exception gets annotated with the folllowing properties
-as a debug aid::
+as a debug aid:
 
 >>> def scream(*args):
 ...     raise ValueError("Wrong!")
@@ -158,3 +159,8 @@ ExecutionPlan(inputs=('a',), outputs=(), steps:
 
 Of course from the :class:`ExecutionPlan` you can explore its ``dag`` property
 or the ``net`` that compiled it.
+
+Execution internals
+-------------------
+.. automodule:: graphkit.network
+
