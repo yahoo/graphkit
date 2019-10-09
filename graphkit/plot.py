@@ -251,7 +251,7 @@ def build_pydot(
                 # kw["tooltip"] = str(solution.get(nx_node))  # not working :-()
             node = pydot.Node(name=nx_node, shape=shape, **kw)
         else:  # Operation
-            kw = {}
+            kw = {"fontname": "italic"}
 
             if steps and nx_node in steps:
                 kw["penwdth"] = steps_thickness
@@ -337,6 +337,7 @@ def render_pydot(dot, filename=None, show=False):
 
     See :meth:`Plotter.plot()` for sample code.
     """
+    # TODO: research https://plot.ly/~empet/14007.embed
     # Save plot
     #
     if filename:
@@ -381,10 +382,10 @@ def legend(filename=None, show=None):
         subgraph cluster_legend {
         label="Graphkit Legend";
 
-        operation   [shape=oval];
-        graphop     [shape=egg label="graph operation"];
-        insteps     [penwidth=3 label="execution step"];
-        executed    [style=filled fillcolor=wheat];
+        operation   [shape=oval fontname=italic];
+        graphop     [shape=egg label="graph operation" fontname=italic];
+        insteps     [penwidth=3 label="execution step" fontname=italic];
+        executed    [style=filled fillcolor=wheat fontname=italic];
         operation -> graphop -> insteps -> executed [style=invis];
 
         data    [shape=rect];

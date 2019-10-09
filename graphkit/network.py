@@ -293,6 +293,8 @@ class Network(plot.Plotter):
                     # Prune operations that ended up providing no output.
                     unsatisfied.append(node)
                 else:
+                    # It's ok not to dig into edge-data("optional") here,
+                    # we care about all needs, including broken ones.
                     real_needs = set(n for n in node.needs
                                      if not isinstance(n, optional))
                     if real_needs.issubset(op_satisfaction[node]):
@@ -334,7 +336,7 @@ class Network(plot.Plotter):
         dag = self.graph
 
         # Ignore input names that aren't in the graph.
-        graph_inputs = iset(dag.nodes) & inputs  # preserve order
+        graph_inputs = set(dag.nodes) & set(inputs)  # unordered, iterated, but ok
 
         # Scream if some requested outputs aren't in the graph.
         unknown_outputs = iset(outputs) - dag.nodes
@@ -373,7 +375,7 @@ class Network(plot.Plotter):
         # Clone it so that it is picklable.
         pruned_dag = dag.subgraph(broken_dag.nodes - unsatisfied).copy()
 
-        return pruned_dag, tuple(broken_edges)
+        return pruned_dag, broken_edges
 
     def compile(self, inputs=(), outputs=()):
         """
@@ -644,6 +646,7 @@ class ExecutionPlan(
             if len(upnext) == 0:
                 break
 
+            ## TODO: accept pool from caller
             done_iterator = pool.imap_unordered(
                 (lambda op: (op, self._call_operation(op, solution))), upnext)
 
