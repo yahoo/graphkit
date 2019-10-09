@@ -134,3 +134,27 @@ As always, we can run computations with this graph by simply calling it::
 
    >>> merged_graph({'a': 2, 'b': 5, 'c': 5}, outputs=["cab"])
    {'cab': 50}
+
+
+Errors
+------
+
+If an operation fails, its exception gets annotated with the folllowing properties
+as a debug aid::
+
+>>> def scream(*args):
+...     raise ValueError("Wrong!")
+
+>>> try:
+...     compose("errgraph")(
+...        operation(name="screamer", needs=['a'], provides=["foo"])(scream)
+...     )({'a': None})
+... except ValueError as ex:
+...     print(ex.execution_node)
+...     print(ex.execution_plan)
+FunctionalOperation(name='screamer', needs=['a'], provides=['foo'])
+ExecutionPlan(inputs=('a',), outputs=(), steps:
+  +--FunctionalOperation(name='screamer', needs=['a'], provides=['foo']))
+
+Of course from the :class:`ExecutionPlan` you can explore its ``dag`` property
+or the ``net`` that compiled it.

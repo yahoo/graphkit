@@ -582,6 +582,14 @@ class ExecutionPlan(
             overwrites[value_name] = solution[value_name]
         solution[value_name] = inputs[value_name]
 
+    def _call_operation(self, op, solution):
+        try:
+            return op._compute(solution)
+        except Exception as ex:
+            ex.execution_node = op
+            ex.execution_plan = self
+            raise
+
     def _execute_thread_pool_barrier_method(self, inputs, solution, overwrites,
                                             thread_pool_size=10
     ):
@@ -636,8 +644,8 @@ class ExecutionPlan(
                 break
 
             done_iterator = pool.imap_unordered(
-                                lambda op: (op,op._compute(solution)),
-                                upnext)
+                (lambda op: (op, self._call_operation(op, solution))), upnext)
+
             for op, result in done_iterator:
                 solution.update(result)
                 self.executed.add(op)
@@ -658,7 +666,7 @@ class ExecutionPlan(
                 t0 = time.time()
 
                 # compute layer outputs
-                layer_outputs = step._compute(solution)
+                layer_outputs = self._call_operation(step, solution)
 
                 # add outputs to solution
                 solution.update(layer_outputs)
