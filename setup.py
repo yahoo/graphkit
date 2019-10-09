@@ -34,6 +34,12 @@ setup(
      'Tobi Baumgartner, Clayton Mellina, ankostis@gmail.com',
      author_email='huyng@yahoo-inc.com',
      url='http://github.com/yahoo/graphkit',
+     project_urls={
+          "Documentation": "https://pythonhosted.org/graphkit/",
+          "Release Notes": "https://pythonhosted.org/graphkit/changes.html",
+          "Sources": "https://github.com/yahoo/graphkit",
+          "Bug Tracker": "https://github.com/yahoo/graphkit/issues",
+     },
      packages=['graphkit'],
      install_requires=[
           "networkx; python_version >= '3.5'",
@@ -46,7 +52,9 @@ setup(
      },
      tests_require=test_reqs,
      license='Apache-2.0',
-     keywords=['graph', 'computation graph', 'DAG', 'directed acyclical graph'],
+     keywords=[
+          'graph', 'computation graph', 'DAG', 'directed acyclical graph',
+          'executor', 'scheduler', 'etl', 'workflow', 'pipeline'],
      classifiers=[
           'Development Status :: 5 - Production/Stable',
           'License :: OSI Approved :: Apache Software License',
@@ -61,8 +69,11 @@ setup(
           'Programming Language :: Python :: 2.7',
           'Programming Language :: Python :: 3.4',
           'Programming Language :: Python :: 3.5',
+          'Programming Language :: Python :: 3.6',
+          'Programming Language :: Python :: 3.7',
           'Topic :: Scientific/Engineering',
           'Topic :: Software Development'
     ],
+    zip_safe=True,
     platforms='Windows,Linux,Solaris,Mac OS-X,Unix'
 )
