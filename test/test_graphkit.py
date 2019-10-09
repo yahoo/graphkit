@@ -831,10 +831,20 @@ def test_backwards_compatibility():
     #
 
     # get all outputs
-    pprint(net.compute(outputs=None, named_inputs={'a': 1, 'b': 2}))
+    exp = {'a': 1,
+        'b': 2,
+        'p1_plus_p2': 12.0,
+        'sum_ab': 3,
+        'sum_ab_p1': 3.0,
+        'sum_ab_p2': 9.0,
+        'sum_ab_p3': 27.0,
+        'sum_ab_times_b': 6}
+    assert net.compute(outputs=None, named_inputs={'a': 1, 'b': 2}) == exp
 
     # get specific outputs
-    pprint(net.compute(outputs=["sum_ab_times_b"], named_inputs={'a': 1, 'b': 2}))
+    exp = {'sum_ab_times_b': 6}
+    assert net.compute(outputs=["sum_ab_times_b"], named_inputs={'a': 1, 'b': 2}) == exp
 
     # start with inputs already computed
-    pprint(net.compute(outputs=["sum_ab_times_b"], named_inputs={"sum_ab": 1, "b": 2}))
+    exp = {'sum_ab_times_b': 2}
+    assert net.compute(outputs=["sum_ab_times_b"], named_inputs={"sum_ab": 1, "b": 2}) == exp
