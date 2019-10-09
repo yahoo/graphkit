@@ -99,7 +99,7 @@ class Operation(object):
             ``inputs``.
         """
 
-        raise NotImplementedError
+        raise NotImplementedError("Define callable of %r!" % self)
 
     def _compute(self, named_inputs, outputs=None):
         inputs = [named_inputs[d] for d in self.needs]
@@ -155,9 +155,9 @@ class Operation(object):
         """
         return u"%s(name='%s', needs=%s, provides=%s)" % \
             (self.__class__.__name__,
-             self.name,
-             self.needs,
-             self.provides)
+             getattr(self, "name", None),
+             getattr(self, "needs", None),
+             getattr(self, "provides", None))
 
 
 class NetworkOperation(Operation, plot.Plotter):

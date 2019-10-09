@@ -154,12 +154,14 @@ class operation(Operation):
         """
         Display more informative names for the Operation class
         """
+        func_name = getattr(self, "fn")
+        func_name = func_name and getattr(func_name, "__name__", None)
         return u"%s(name='%s', needs=%s, provides=%s, fn=%s)" % \
             (self.__class__.__name__,
-             self.name,
-             self.needs,
-             self.provides,
-             self.fn.__name__)
+             getattr(self, "name", None),
+             getattr(self, "needs", None),
+             getattr(self, "provides", None),
+             func_name)
 
 
 
