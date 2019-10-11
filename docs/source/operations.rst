@@ -13,6 +13,7 @@ There are many ways to instantiate an ``operation``, and we'll get into more det
 .. autoclass:: graphkit.operation
    :members: __init__, __call__
    :member-order: bysource
+   :special-members:
 
 
 Operations are just functions

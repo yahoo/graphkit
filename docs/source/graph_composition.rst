@@ -1,7 +1,7 @@
 .. _graph-composition:
 
-Graph Composition and Use
-=========================
+Graph Composition
+=================
 
 GraphKit's ``compose`` class handles the work of tying together ``operation`` instances into a runnable computation graph.
 
@@ -12,6 +12,7 @@ For now, here's the specification of ``compose``.  We'll get into how to use it 
 
 .. autoclass:: graphkit.compose
    :members: __call__
+   :special-members:
 
 
 .. _simple-graph-composition:
