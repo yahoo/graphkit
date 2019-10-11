@@ -39,7 +39,7 @@ The simplest use case for ``compose`` is assembling a collection of individual o
 
 The call here to ``compose()`` yields a runnable computation graph that looks like this (where the circles are operations, squares are data, and octagons are parameters):
 
-.. image:: images/intro.svg
+.. image:: images/barebone_3ops.svg
 
 
 .. _graph-computations:

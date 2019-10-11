@@ -60,7 +60,7 @@ Let's look again at the operations from the script in :ref:`quick-start`, for ex
 
 The ``needs`` and ``provides`` arguments to the operations in this script define a computation graph that looks like this (where the oval are operations, squares/houses are data):
 
-.. image:: images/intro.svg
+.. image:: images/barebone_3ops.svg
 
 .. Tip::
   See :ref:`plotting` on how to make diagrams like this.

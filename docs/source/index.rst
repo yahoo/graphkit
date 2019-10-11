@@ -139,7 +139,7 @@ Code licensed under the Apache License, Version 2.0 license. See LICENSE file fo
     :target:  https://www.apache.org/licenses/LICENSE-2.0
     :alt: Apache License, version 2.0
 
-.. |sample-plot| image:: images/sample_plot.svg
+.. |sample-plot| image:: images/barebone_2ops.svg
     :alt: sample graphkit plot
     :width: 120px
     :align: middle

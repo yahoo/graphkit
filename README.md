@@ -16,7 +16,8 @@
 
 > It's a DAG all the way down
 
-![Sample graph](docs/source/images/test_pruning_not_overrides_given_intermediate-asked.png "Sample graph")
+<img src="docs/source/images/barebone_2ops.svg" width=100
+ alt="simple graphkit computation">
 
 ## Lightweight computation graphs for Python
 
@@ -55,6 +56,9 @@ multiple outputs (`a * b`, `a - a * b`, and `abs(a - a * b) ** 3`):
     ...     operation(name="abspow1", needs=["a_minus_ab"], provides=["abs_a_minus_ab_cubed"], params={"p": 3})(abspow)
     ... )
 
+<img src="docs/source/images/barebone_3ops.svg" width=100
+alt="simple graphkit computation">
+
     >>> # Run the graph and request all of the outputs.
     >>> out = graphop({'a': 2, 'b': 5})
     >>> print(out)
@@ -65,23 +69,24 @@ multiple outputs (`a * b`, `a - a * b`, and `abs(a - a * b) ** 3`):
     >>> print(out)
     {'a_minus_ab': -8}
 
-    
+<img src="docs/source/images/executed_3ops.svg" width=120
+ alt="simple graphkit computation">
+
 As you can see, any function can be used as an operation in GraphKit, even ones imported from system modules!
 
 
 ## Plotting
 
-For debugging the above graph-operation you may plot the *execution plan*
-of the last computation it using these methods:
+For debugging the above graph-operation you may plot either the newly omposed graph or the *execution plan* of the last computation executed,
+using these methods:
 
 ```python
 graphop.plot(show=True)                # open a matplotlib window
-graphop.plot("intro.svg")              # other supported formats: png, jpg, pdf, ...
+graphop.plot("graphop.svg")              # other supported formats: png, jpg, pdf, ...
 graphop.plot()                         # without arguments return a pydot.DOT object
 graphop.plot(solution=out)             # annotate graph with solution values
 ```
 
-![Intro graph](docs/source/images/intro.svg "Intro graph")
 ![Graphkit Legend](docs/source/images/GraphkitLegend.svg "Graphkit Legend")
 
 > **TIP:** The `pydot.Dot` instances returned by `plot()` are rendered as SVG in *Jupyter/IPython*.
