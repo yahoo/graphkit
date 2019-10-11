@@ -154,11 +154,17 @@ class Operation(object):
         """
         Display more informative names for the Operation class
         """
+
+        def aslist(i):
+            if i and not isinstance(i, str):
+                return list(i)
+            return i
+
         return u"%s(name='%s', needs=%s, provides=%s)" % (
             self.__class__.__name__,
             getattr(self, "name", None),
-            getattr(self, "needs", None),
-            getattr(self, "provides", None),
+            aslist(getattr(self, "needs", None)),
+            aslist(getattr(self, "provides", None)),
         )
 
 

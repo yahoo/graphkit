@@ -155,13 +155,19 @@ class operation(Operation):
         """
         Display more informative names for the Operation class
         """
+
+        def aslist(i):
+            if i and not isinstance(i, str):
+                return list(i)
+            return i
+
         func_name = getattr(self, "fn")
         func_name = func_name and getattr(func_name, "__name__", None)
         return u"%s(name='%s', needs=%s, provides=%s, fn=%s)" % (
             self.__class__.__name__,
             getattr(self, "name", None),
-            getattr(self, "needs", None),
-            getattr(self, "provides", None),
+            aslist(getattr(self, "needs", None)),
+            aslist(getattr(self, "provides", None)),
             func_name,
         )
 
