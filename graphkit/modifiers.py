@@ -20,8 +20,7 @@ class optional(str):
 
     Here is an example of an operation that uses an optional argument::
 
-        >>> from graphkit import operation, compose
-        >>> from graphkit.modifiers import optional
+        >>> from graphkit import operation, compose, optional
 
         >>> # Function that adds either two or three numbers.
         >>> def myadd(a, b, c=0):
@@ -31,7 +30,11 @@ class optional(str):
         >>> graph = compose('mygraph')(
         ...     operation(name='myadd', needs=['a', 'b', optional('c')], provides='sum')(myadd)
         ... )
-
+        >>> graph
+        NetworkOperation(name='mygraph',
+                         needs=[optional('a'), optional('b'), optional('c')],
+                         provides=['sum'])
+        
         >>> # The graph works with and without 'c' provided as input.
         >>> graph({'a': 5, 'b': 2, 'c': 4})['sum']
         11
@@ -40,7 +43,10 @@ class optional(str):
 
     """
 
-    pass
+    __slots__ = ()  # avoid __dict__ on instances
+
+    def __repr__(self):
+        return "optional('%s')" % self
 
 
 class sideffect(str):
@@ -61,8 +67,7 @@ class sideffect(str):
     A typical use case is to signify columns required to produce new ones in
     pandas dataframes::
 
-        >>> from graphkit import operation, compose
-        >>> from graphkit.modifiers import sideffect
+        >>> from graphkit import operation, compose, sideffect
 
         >>> # Function appending a new dataframe column from two pre-existing ones.
         >>> def addcolumns(df):
@@ -75,6 +80,8 @@ class sideffect(str):
         ...         needs=['df', sideffect('a'), sideffect('b')],
         ...         provides=[sideffect('sum')])(addcolumns)
         ... )
+        >>> graph
+        NetworkOperation(name='mygraph', needs=[optional('df'), optional('a'), optional('b')], provides=[sideffect('sum')])
 
         >>> # The graph works with and without 'c' provided as input.
         >>> df = pd.DataFrame({'a': [5], 'b': [2]})         # doctest: +SKIP
@@ -83,4 +90,7 @@ class sideffect(str):
 
     """
 
-    pass
+    __slots__ = ()  # avoid __dict__ on instances
+
+    def __repr__(self):
+        return "sideffect('%s')" % self
