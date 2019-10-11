@@ -35,10 +35,6 @@ class Operation(object):
     specific application.
     """
 
-    #: Owning :class:`~.network.Network`, set when added in a network.
-    #: Needed by `_compute()` to detect *optional needs* from edge-attributes.
-    net = None
-
     def __init__(self, **kwargs):
         """
         Create a new layer instance.

@@ -14,13 +14,10 @@ class FunctionalOperation(Operation):
         Operation.__init__(self, **kwargs)
 
     def _compute(self, named_inputs, outputs=None):
-        assert self.net
-
         inputs = [
             named_inputs[n]
             for n in self.needs
-            if "optional" not in self.net.graph.get_edge_data(n, self)
-            and not isinstance(n, sideffect)
+            if not isinstance(n, optional) and not isinstance(n, sideffect)
         ]
 
         # Find any optional inputs in named_inputs.  Get only the ones that
@@ -28,7 +25,7 @@ class FunctionalOperation(Operation):
         optionals = {
             n: named_inputs[n]
             for n in self.needs
-            if "optional" in self.net.graph.get_edge_data(n, self) and n in named_inputs
+            if isinstance(n, optional) and n in named_inputs
         }
 
         # Combine params and optionals into one big glob of keyword arguments.

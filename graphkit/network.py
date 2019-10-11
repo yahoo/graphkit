@@ -184,10 +184,6 @@ class Network(plot.Plotter):
 
         self._cached_plans = {}
 
-        # functionalOperations don't have that set.
-        if not operation.net:
-            operation.net = self
-
         # add nodes and edges to graph describing the data needs for this layer
         for n in operation.needs:
             if isinstance(n, optional):

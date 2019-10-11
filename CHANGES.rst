@@ -21,8 +21,8 @@ Network:
   The end result is that operations in the graph that do not have all inputs satisfied,
   they are skipped (in v1.2.4 they crashed).
 
-  Also started annotating edges with optionals, to make proper use of the underlying
-  ``networkx`` graph.
+  Also started annotating edges with optional/sideffects, to make proper use of
+  the underlying ``networkx`` graph.
 
   |v130-flowchart|
 
@@ -109,6 +109,8 @@ Chore & Docs:
 - enh(:gh:`30`): added "API reference' chapter.
 - drop(build): ``sphinx_rtd_theme`` library is the default theme for Sphinx now.
 - enh(build): Add ``test`` *pip extras*.
+- sound: https://www.youtube.com/watch?v=-527VazA4IQ,
+  https://www.youtube.com/watch?v=8J182LRi8sU&t=43s
 
 
 

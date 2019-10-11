@@ -61,8 +61,6 @@ def test_network_smoke():
     def pow_op1(a, exponent=2):
         return [math.pow(a, y) for y in range(1, exponent + 1)]
 
-    # `_compute()` needs a` nx-DiGraph in  op's `net` attribute.
-    compose("mock graph")(pow_op1)
     assert pow_op1._compute({"sum_ab": 2}, ["sum_ab_p2"]) == {"sum_ab_p2": 4.0}
 
     # Partial operation that is bound at a later time
