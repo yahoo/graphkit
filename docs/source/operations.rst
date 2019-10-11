@@ -62,6 +62,9 @@ The ``needs`` and ``provides`` arguments to the operations in this script define
 
 .. image:: images/intro.svg
 
+.. Tip::
+  See :ref:`plotting` on how to make diagrams like this.
+
 
 Constant operation parameters: ``params``
 -----------------------------------------
