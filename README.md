@@ -24,7 +24,7 @@ Here's how to install:
     pip install graphkit
 
 OR with dependencies for plotting support (and you need to install [`Graphviz`](https://graphviz.org)
-program separately with your OS tools)::
+program separately with your OS tools):
 
     pip install graphkit[plot]
 
@@ -56,20 +56,19 @@ multiple outputs (`a * b`, `a - a * b`, and `abs(a - a * b) ** 3`):
 >>> print(out)
 {'a_minus_ab': -8}
 
-
 As you can see, any function can be used as an operation in GraphKit, even ones imported from system modules!
 
 
 ## Plotting
 
 For debugging the above graph-operation you may plot the *execution plan*
-of the last computation it using these methods::
+of the last computation it using these methods:
 
 ```python
-   graphop.plot(show=True)                # open a matplotlib window
-   graphop.plot("intro.svg")              # other supported formats: png, jpg, pdf, ...
-   graphop.plot()                         # without arguments return a pydot.DOT object
-   graphop.plot(solution=out)             # annotate graph with solution values
+graphop.plot(show=True)                # open a matplotlib window
+graphop.plot("intro.svg")              # other supported formats: png, jpg, pdf, ...
+graphop.plot()                         # without arguments return a pydot.DOT object
+graphop.plot(solution=out)             # annotate graph with solution values
 ```
 
 ![Intro graph](docs/source/images/intro.svg "Intro graph")
@@ -80,4 +79,3 @@ of the last computation it using these methods::
 # License
 
 Code licensed under the Apache License, Version 2.0 license. See LICENSE file for terms.
-
