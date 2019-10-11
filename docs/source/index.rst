@@ -28,7 +28,7 @@ or become the core of a custom ETL pipelne.
    :maxdepth: 2
 
    operations
-   graph_composition
+   composition
    plotting
    reference
    changes
