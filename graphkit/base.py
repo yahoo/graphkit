@@ -204,7 +204,7 @@ class NetworkOperation(Operation, plot.Plotter):
         choices = ["parallel", "sequential"]
         if method not in choices:
             raise ValueError(
-                "Invalid computation method %r!  Must be one of %s"(method, choices)
+                "Invalid computation method %r!  Must be one of %s" % (method, choices)
             )
         self._execution_method = method
 
