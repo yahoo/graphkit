@@ -40,6 +40,7 @@ program separately with your OS tools):
 Here's a Python script with an example GraphKit computation graph that produces
 multiple outputs (`a * b`, `a - a * b`, and `abs(a - a * b) ** 3`):
 
+```python
 >>> from operator import mul, sub
 >>> from graphkit import compose, operation
 
@@ -64,6 +65,8 @@ multiple outputs (`a * b`, `a - a * b`, and `abs(a - a * b) ** 3`):
 >>> out = graphop({'a': 2, 'b': 5}, outputs=["a_minus_ab"])
 >>> print(out)
 {'a_minus_ab': -8}
+
+```
 
 As you can see, any function can be used as an operation in GraphKit, even ones imported from system modules!
 

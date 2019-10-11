@@ -102,12 +102,22 @@ class Operation(object):
         inputs = [named_inputs[d] for d in self.needs]
         results = self.compute(inputs)
 
-        results = zip(self.provides, results)
-        if outputs:
-            outputs = set(outputs)
-            results = filter(lambda x: x[0] in outputs, results)
+        try:
+            results = zip(self.provides, results)
 
-        return dict(results)
+            if outputs:
+                outputs = set(outputs)
+                results = filter(lambda x: x[0] in outputs, results)
+
+            return dict(results)
+        except Exception as ex:
+            ## Annotate exception with debugging aid on error 
+            #
+            ex.operation = self
+            ex.operation_inputs = inputs
+            ex.operation_asked = outputs
+            ex.operation_results = locals().get('results')
+            raise
 
     def _after_init(self):
         """

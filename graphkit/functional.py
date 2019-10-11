@@ -31,23 +31,32 @@ class FunctionalOperation(Operation):
         # Combine params and optionals into one big glob of keyword arguments.
         kwargs = {k: v for d in (self.params, optionals) for k, v in d.items()}
 
-        result = self.fn(*inputs, **kwargs)
-
         # Don't expect sideffect outputs.
         provides = [n for n in self.provides if not isinstance(n, sideffect)]
-        if not provides:
-            # All outputs were sideffects.
-            return {}
 
-        if len(provides) == 1:
-            result = [result]
+        try:
+            result = self.fn(*inputs, **kwargs)
 
-        result = zip(provides, result)
-        if outputs:
-            outputs = set(n for n in outputs if not isinstance(n, sideffect))
-            result = filter(lambda x: x[0] in outputs, result)
+            if not provides:
+                # All outputs were sideffects.
+                return {}
 
-        return dict(result)
+            if len(provides) == 1:
+                result = [result]
+
+            result = zip(provides, result)
+            if outputs:
+                outputs = set(n for n in outputs if not isinstance(n, sideffect))
+                result = filter(lambda x: x[0] in outputs, result)
+
+            return dict(result)
+        except Exception as ex:
+            ex.operation = self
+            ex.operation_inputs = (inputs, kwargs)
+            ex.operation_provides = provides
+            ex.operation_asked = outputs
+            ex.operation_results = locals().get('result')
+            raise
 
     def __call__(self, *args, **kwargs):
         return self.fn(*args, **kwargs)

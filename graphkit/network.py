@@ -597,7 +597,8 @@ class ExecutionPlan(
         try:
             return op._compute(solution)
         except Exception as ex:
-            ex.execution_node = op
+            ## Annotate exception with debugging aid on error 
+            #
             ex.execution_plan = self
             raise
 

@@ -153,7 +153,7 @@ as a debug aid:
 ...        operation(name="screamer", needs=['a'], provides=["foo"])(scream)
 ...     )({'a': None})
 ... except ValueError as ex:
-...     print(ex.execution_node)
+...     print(ex.operation)
 ...     print(ex.execution_plan)
 FunctionalOperation(name='screamer', needs=['a'], provides=['foo'])
 ExecutionPlan(inputs=('a',), outputs=(), steps:
