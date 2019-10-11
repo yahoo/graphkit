@@ -7,7 +7,7 @@ The execution of network *operations* is splitted in 2 phases:
 
 COMPILE:
     prune unsatisfied nodes, sort dag topologically & solve it, and
-    derive the *execution steps* (see below) based on the given *inputs*    
+    derive the *execution steps* (see below) based on the given *inputs*
     and asked *outputs*.
 
 EXECUTE:
@@ -136,356 +136,9 @@ class PinInstruction(str):
         return 'PinInstruction("%s")' % self
 
 
-class Network(plot.Plotter):
-    """
-    Assemble operations & data into a directed-acyclic-graph (DAG) to run them.
-
-    """
-
-    def __init__(self, **kwargs):
-        # directed graph of layer instances and data-names defining the net.
-        self.graph = DiGraph()
-
-        # this holds the timing information for each layer
-        self.times = {}
-
-        #: Speed up :meth:`compile()` call and avoid a multithreading issue(?)
-        #: that is occuring when accessing the dag in networkx.
-        self._cached_plans = {}
-
-        #: the execution_plan of the last call to :meth:`compute()`
-        #: (not ``compile()``!), for debugging purposes.
-        self.last_plan = None
-
-    def _build_pydot(self, **kws):
-        from .plot import build_pydot
-
-        kws.setdefault("graph", self.graph)
-
-        return build_pydot(**kws)
-
-    def add_op(self, operation):
-        """
-        Adds the given operation and its data requirements to the network graph
-        based on the name of the operation, the names of the operation's needs,
-        and the names of the data it provides.
-
-        :param Operation operation: Operation object to add.
-        """
-
-        # assert layer and its data requirements are named.
-        assert operation.name, "Operation must be named"
-        assert operation.needs is not None, "Operation's 'needs' must be named"
-        assert operation.provides is not None, "Operation's 'provides' must be named"
-
-        # assert layer is only added once to graph
-        assert operation not in self.graph.nodes, "Operation may only be added once"
-
-        self._cached_plans = {}
-
-        # add nodes and edges to graph describing the data needs for this layer
-        for n in operation.needs:
-            kw = {}
-            if isinstance(n, optional):
-                kw["optional"] = True
-            if isinstance(n, sideffect):
-                kw["sideffect"] = True
-            self.graph.add_edge(DataPlaceholderNode(n), operation, **kw)
-
-        # add nodes and edges to graph describing what this layer provides
-        for p in operation.provides:
-            kw = {}
-            if isinstance(n, sideffect):
-                kw["sideffect"] = True
-            self.graph.add_edge(operation, DataPlaceholderNode(p), **kw)
-
-    def _build_execution_steps(self, dag, inputs, outputs):
-        """
-        Create the list of operation-nodes & *instructions* evaluating all
-
-        operations & instructions needed a) to free memory and b) avoid
-        overwritting given intermediate inputs.
-
-        :param dag:
-            The original dag, pruned; not broken.
-        :param outputs:
-            outp-names to decide whether to add (and which) del-instructions
-
-        In the list :class:`DeleteInstructions` steps (DA) are inserted between
-        operation nodes to reduce the memory footprint of solution.
-        A DA is inserted whenever a *need* is not used by any other *operation*
-        further down the DAG.
-        Note that since the `solutions` are not shared across `compute()` calls,
-        any memory-reductions are for as long as a single computation runs.
-
-        """
-
-        steps = []
-
-        # create an execution order such that each layer's needs are provided.
-        ordered_nodes = iset(nx.topological_sort(dag))
-
-        # Add Operations evaluation steps, and instructions to free and "pin"
-        # data.
-        for i, node in enumerate(ordered_nodes):
-
-            if isinstance(node, DataPlaceholderNode):
-                if node in inputs and dag.pred[node]:
-                    # Command pinning only when there is another operation
-                    # generating this data as output.
-                    steps.append(PinInstruction(node))
-
-            elif isinstance(node, Operation):
-                steps.append(node)
-
-                # Keep all values in solution if not specific outputs asked.
-                if not outputs:
-                    continue
-
-                # Add instructions to delete predecessors as possible.  A
-                # predecessor may be deleted if it is a data placeholder that
-                # is no longer needed by future Operations.
-                for need in self.graph.pred[node]:
-                    log.debug("checking if node %s can be deleted", need)
-                    for future_node in ordered_nodes[i + 1 :]:
-                        if (
-                            isinstance(future_node, Operation)
-                            and need in future_node.needs
-                        ):
-                            break
-                    else:
-                        if need not in outputs:
-                            log.debug("  adding delete instruction for %s", need)
-                            steps.append(DeleteInstruction(need))
-
-            else:
-                raise AssertionError("Unrecognized network graph node %r" % node)
-
-        return steps
-
-    def _collect_unsatisfied_operations(self, dag, inputs):
-        """
-        Traverse topologically sorted dag to collect un-satisfied operations.
-
-        Unsatisfied operations are those suffering from ANY of the following:
-
-        - They are missing at least one compulsory need-input.
-          Since the dag is ordered, as soon as we're on an operation,
-          all its needs have been accounted, so we can get its satisfaction.
-
-        - Their provided outputs are not linked to any data in the dag.
-          An operation might not have any output link when :meth:`_prune_graph()`
-          has broken them, due to given intermediate inputs.
-
-        :param dag:
-            a graph with broken edges those arriving to existing inputs
-        :param inputs:
-            an iterable of the names of the input values
-        return:
-            a list of unsatisfied operations to prune
-        """
-        # To collect data that will be produced.
-        ok_data = set(inputs)
-        # To colect the map of operations --> satisfied-needs.
-        op_satisfaction = defaultdict(set)
-        # To collect the operations to drop.
-        unsatisfied = []
-        for node in nx.topological_sort(dag):
-            if isinstance(node, Operation):
-                if not dag.adj[node]:
-                    # Prune operations that ended up providing no output.
-                    unsatisfied.append(node)
-                else:
-                    # It's ok not to dig into edge-data("optional") here,
-                    # we care about all needs, including broken ones.
-                    real_needs = set(
-                        n for n in node.needs if not isinstance(n, optional)
-                    )
-                    if real_needs.issubset(op_satisfaction[node]):
-                        # We have a satisfied operation; mark its output-data
-                        # as ok.
-                        ok_data.update(dag.adj[node])
-                    else:
-                        # Prune operations with partial inputs.
-                        unsatisfied.append(node)
-            elif isinstance(node, (DataPlaceholderNode, str)):  # `str` are givens
-                if node in ok_data:
-                    # mark satisfied-needs on all future operations
-                    for future_op in dag.adj[node]:
-                        op_satisfaction[future_op].add(node)
-            else:
-                raise AssertionError("Unrecognized network graph node %r" % node)
-
-        return unsatisfied
-
-    def _prune_graph(self, outputs, inputs):
-        """
-        Determines what graph steps need to run to get to the requested
-        outputs from the provided inputs. :
-        - Eliminate steps that are not on a path arriving to requested outputs.
-        - Eliminate unsatisfied operations: partial inputs or no outputs needed.
-
-        :param iterable outputs:
-            A list of desired output names.  This can also be ``None``, in which
-            case the necessary steps are all graph nodes that are reachable
-            from one of the provided inputs.
-
-        :param iterable inputs:
-            The inputs names of all given inputs.
-
-        :return:
-            the *pruned_dag*
-        """
-        dag = self.graph
-
-        # Ignore input names that aren't in the graph.
-        graph_inputs = set(dag.nodes) & set(inputs)  # unordered, iterated, but ok
-
-        # Scream if some requested outputs aren't in the graph.
-        unknown_outputs = iset(outputs) - dag.nodes
-        if unknown_outputs:
-            raise ValueError(
-                "Unknown output node(s) requested: %s" % ", ".join(unknown_outputs)
-            )
-
-        broken_dag = dag.copy()  # preserve net's graph
-
-        # Break the incoming edges to all given inputs.
-        #
-        # Nodes producing any given intermediate inputs are unecessary
-        # (unless they are also used elsewhere).
-        # To discover which ones to prune, we break their incoming edges
-        # and they will drop out while collecting ancestors from the outputs.
-        broken_edges = set()  # unordered, not iterated
-        for given in graph_inputs:
-            broken_edges.update(broken_dag.in_edges(given))
-        broken_dag.remove_edges_from(broken_edges)
-
-        # Drop stray input values and operations (if any).
-        broken_dag.remove_nodes_from(nx.isolates(broken_dag))
-
-        if outputs:
-            # If caller requested specific outputs, we can prune any
-            # unrelated nodes further up the dag.
-            ending_in_outputs = set()
-            for input_name in outputs:
-                ending_in_outputs.update(nx.ancestors(dag, input_name))
-            broken_dag = broken_dag.subgraph(ending_in_outputs | set(outputs))
-
-        # Prune unsatisfied operations (those with partial inputs or no outputs).
-        unsatisfied = self._collect_unsatisfied_operations(broken_dag, inputs)
-        # Clone it so that it is picklable.
-        pruned_dag = dag.subgraph(broken_dag.nodes - unsatisfied).copy()
-
-        return pruned_dag, broken_edges
-
-    def compile(self, inputs=(), outputs=()):
-        """
-        Create or get from cache an execution-plan for the given inputs/outputs.
-
-        See :meth:`_prune_graph()` and :meth:`_build_execution_steps()`
-        for detailed description.
-
-        :param inputs:
-            An iterable with the names of all the given inputs.
-
-        :param outputs:
-            (optional) An iterable or the name of the output name(s).
-            If missing, requested outputs assumed all graph reachable nodes
-            from one of the given inputs.
-
-        :return:
-            the cached or fresh new execution-plan
-        """
-        # outputs must be iterable
-        if not outputs:
-            outputs = ()
-        elif isinstance(outputs, str):
-            outputs = (outputs,)
-
-        # Make a stable cache-key
-        cache_key = (tuple(sorted(inputs)), tuple(sorted(outputs)))
-        if cache_key in self._cached_plans:
-            # An execution plan has been compiled before
-            # for the same inputs & outputs.
-            plan = self._cached_plans[cache_key]
-        else:
-            # Build a new execution plan for the given inputs & outputs.
-            #
-            pruned_dag, broken_edges = self._prune_graph(outputs, inputs)
-            steps = self._build_execution_steps(pruned_dag, inputs, outputs)
-            plan = ExecutionPlan(
-                self,
-                tuple(inputs),
-                outputs,
-                pruned_dag,
-                tuple(broken_edges),
-                tuple(steps),
-                executed=iset(),
-            )
-
-            # Cache compilation results to speed up future runs
-            # with different values (but same number of inputs/outputs).
-            self._cached_plans[cache_key] = plan
-
-        return plan
-
-    def compute(self, named_inputs, outputs, method=None, overwrites_collector=None):
-        """
-        Solve & execute the graph, sequentially or parallel.
-
-        :param dict named_inputs:
-            A dict of key/value pairs where the keys represent the data nodes
-            you want to populate, and the values are the concrete values you
-            want to set for the data node.
-
-        :param list output:
-            once all necessary computations are complete.
-            If you set this variable to ``None``, all data nodes will be kept
-            and returned at runtime.
-
-        :param method:
-            if ``"parallel"``, launches multi-threading.
-            Set when invoking a composed graph or by
-            :meth:`~NetworkOperation.set_execution_method()`.
-
-        :param overwrites_collector:
-            (optional) a mutable dict to be fillwed with named values.
-            If missing, values are simply discarded.
-
-        :returns: a dictionary of output data objects, keyed by name.
-        """
-        try:
-            assert (
-                isinstance(outputs, (list, tuple)) or outputs is None
-            ), "The outputs argument must be a list"
-
-            # Build the execution plan.
-            self.last_plan = plan = self.compile(named_inputs.keys(), outputs)
-
-            # start with fresh data solution.
-            solution = dict(named_inputs)
-
-            plan.execute(solution, overwrites_collector, method)
-
-            if outputs:
-                # Filter outputs to just return what's requested.
-                # Otherwise, eturn the whole solution as output,
-                # including input and intermediate data nodes.
-                # TODO: assert no other outputs exists due to DelInstructs.
-                solution = dict(i for i in solution.items() if i[0] in outputs)
-
-            return solution
-        except Exception as ex:
-            ## Annotate exception with debugging aid on errorrs.
-            #
-            locs = locals()
-            err_aid = getattr(ex, "graphkit_aid", {})
-            err_aid.setdefault("network", locs.get("self"))
-            err_aid.setdefault("plan", locs.get("plan"))
-            err_aid.setdefault("solution", locs.get("solution"))
-            setattr(ex, "graphkit_aid", err_aid)
-            raise
+# TODO: maybe class Solution(object):
+#     values = {}
+#     overwrites = None
 
 
 class ExecutionPlan(
@@ -737,6 +390,357 @@ class ExecutionPlan(
         return solution
 
 
-# TODO: maybe class Solution(object):
-#     values = {}
-#     overwrites = None
+class Network(plot.Plotter):
+    """
+    Assemble operations & data into a directed-acyclic-graph (DAG) to run them.
+
+    """
+
+    def __init__(self, **kwargs):
+        # directed graph of layer instances and data-names defining the net.
+        self.graph = DiGraph()
+
+        # this holds the timing information for each layer
+        self.times = {}
+
+        #: Speed up :meth:`compile()` call and avoid a multithreading issue(?)
+        #: that is occuring when accessing the dag in networkx.
+        self._cached_plans = {}
+
+        #: the execution_plan of the last call to :meth:`compute()`
+        #: (not ``compile()``!), for debugging purposes.
+        self.last_plan = None
+
+    def _build_pydot(self, **kws):
+        from .plot import build_pydot
+
+        kws.setdefault("graph", self.graph)
+
+        return build_pydot(**kws)
+
+    def add_op(self, operation):
+        """
+        Adds the given operation and its data requirements to the network graph
+        based on the name of the operation, the names of the operation's needs,
+        and the names of the data it provides.
+
+        :param Operation operation: Operation object to add.
+        """
+
+        # assert layer and its data requirements are named.
+        assert operation.name, "Operation must be named"
+        assert operation.needs is not None, "Operation's 'needs' must be named"
+        assert operation.provides is not None, "Operation's 'provides' must be named"
+
+        # assert layer is only added once to graph
+        assert operation not in self.graph.nodes, "Operation may only be added once"
+
+        self._cached_plans = {}
+
+        # add nodes and edges to graph describing the data needs for this layer
+        for n in operation.needs:
+            kw = {}
+            if isinstance(n, optional):
+                kw["optional"] = True
+            if isinstance(n, sideffect):
+                kw["sideffect"] = True
+            self.graph.add_edge(DataPlaceholderNode(n), operation, **kw)
+
+        # add nodes and edges to graph describing what this layer provides
+        for p in operation.provides:
+            kw = {}
+            if isinstance(n, sideffect):
+                kw["sideffect"] = True
+            self.graph.add_edge(operation, DataPlaceholderNode(p), **kw)
+
+    def _collect_unsatisfied_operations(self, dag, inputs):
+        """
+        Traverse topologically sorted dag to collect un-satisfied operations.
+
+        Unsatisfied operations are those suffering from ANY of the following:
+
+        - They are missing at least one compulsory need-input.
+          Since the dag is ordered, as soon as we're on an operation,
+          all its needs have been accounted, so we can get its satisfaction.
+
+        - Their provided outputs are not linked to any data in the dag.
+          An operation might not have any output link when :meth:`_prune_graph()`
+          has broken them, due to given intermediate inputs.
+
+        :param dag:
+            a graph with broken edges those arriving to existing inputs
+        :param inputs:
+            an iterable of the names of the input values
+        return:
+            a list of unsatisfied operations to prune
+        """
+        # To collect data that will be produced.
+        ok_data = set(inputs)
+        # To colect the map of operations --> satisfied-needs.
+        op_satisfaction = defaultdict(set)
+        # To collect the operations to drop.
+        unsatisfied = []
+        for node in nx.topological_sort(dag):
+            if isinstance(node, Operation):
+                if not dag.adj[node]:
+                    # Prune operations that ended up providing no output.
+                    unsatisfied.append(node)
+                else:
+                    # It's ok not to dig into edge-data("optional") here,
+                    # we care about all needs, including broken ones.
+                    real_needs = set(
+                        n for n in node.needs if not isinstance(n, optional)
+                    )
+                    if real_needs.issubset(op_satisfaction[node]):
+                        # We have a satisfied operation; mark its output-data
+                        # as ok.
+                        ok_data.update(dag.adj[node])
+                    else:
+                        # Prune operations with partial inputs.
+                        unsatisfied.append(node)
+            elif isinstance(node, (DataPlaceholderNode, str)):  # `str` are givens
+                if node in ok_data:
+                    # mark satisfied-needs on all future operations
+                    for future_op in dag.adj[node]:
+                        op_satisfaction[future_op].add(node)
+            else:
+                raise AssertionError("Unrecognized network graph node %r" % node)
+
+        return unsatisfied
+
+    def _prune_graph(self, outputs, inputs):
+        """
+        Determines what graph steps need to run to get to the requested
+        outputs from the provided inputs. :
+        - Eliminate steps that are not on a path arriving to requested outputs.
+        - Eliminate unsatisfied operations: partial inputs or no outputs needed.
+
+        :param iterable outputs:
+            A list of desired output names.  This can also be ``None``, in which
+            case the necessary steps are all graph nodes that are reachable
+            from one of the provided inputs.
+
+        :param iterable inputs:
+            The inputs names of all given inputs.
+
+        :return:
+            the *pruned_dag*
+        """
+        dag = self.graph
+
+        # Ignore input names that aren't in the graph.
+        graph_inputs = set(dag.nodes) & set(inputs)  # unordered, iterated, but ok
+
+        # Scream if some requested outputs aren't in the graph.
+        unknown_outputs = iset(outputs) - dag.nodes
+        if unknown_outputs:
+            raise ValueError(
+                "Unknown output node(s) requested: %s" % ", ".join(unknown_outputs)
+            )
+
+        broken_dag = dag.copy()  # preserve net's graph
+
+        # Break the incoming edges to all given inputs.
+        #
+        # Nodes producing any given intermediate inputs are unecessary
+        # (unless they are also used elsewhere).
+        # To discover which ones to prune, we break their incoming edges
+        # and they will drop out while collecting ancestors from the outputs.
+        broken_edges = set()  # unordered, not iterated
+        for given in graph_inputs:
+            broken_edges.update(broken_dag.in_edges(given))
+        broken_dag.remove_edges_from(broken_edges)
+
+        # Drop stray input values and operations (if any).
+        broken_dag.remove_nodes_from(nx.isolates(broken_dag))
+
+        if outputs:
+            # If caller requested specific outputs, we can prune any
+            # unrelated nodes further up the dag.
+            ending_in_outputs = set()
+            for input_name in outputs:
+                ending_in_outputs.update(nx.ancestors(dag, input_name))
+            broken_dag = broken_dag.subgraph(ending_in_outputs | set(outputs))
+
+        # Prune unsatisfied operations (those with partial inputs or no outputs).
+        unsatisfied = self._collect_unsatisfied_operations(broken_dag, inputs)
+        # Clone it so that it is picklable.
+        pruned_dag = dag.subgraph(broken_dag.nodes - unsatisfied).copy()
+
+        return pruned_dag, broken_edges
+
+    def _build_execution_steps(self, dag, inputs, outputs):
+        """
+        Create the list of operation-nodes & *instructions* evaluating all
+
+        operations & instructions needed a) to free memory and b) avoid
+        overwritting given intermediate inputs.
+
+        :param dag:
+            The original dag, pruned; not broken.
+        :param outputs:
+            outp-names to decide whether to add (and which) del-instructions
+
+        In the list :class:`DeleteInstructions` steps (DA) are inserted between
+        operation nodes to reduce the memory footprint of solution.
+        A DA is inserted whenever a *need* is not used by any other *operation*
+        further down the DAG.
+        Note that since the `solutions` are not shared across `compute()` calls,
+        any memory-reductions are for as long as a single computation runs.
+
+        """
+
+        steps = []
+
+        # create an execution order such that each layer's needs are provided.
+        ordered_nodes = iset(nx.topological_sort(dag))
+
+        # Add Operations evaluation steps, and instructions to free and "pin"
+        # data.
+        for i, node in enumerate(ordered_nodes):
+
+            if isinstance(node, DataPlaceholderNode):
+                if node in inputs and dag.pred[node]:
+                    # Command pinning only when there is another operation
+                    # generating this data as output.
+                    steps.append(PinInstruction(node))
+
+            elif isinstance(node, Operation):
+                steps.append(node)
+
+                # Keep all values in solution if not specific outputs asked.
+                if not outputs:
+                    continue
+
+                # Add instructions to delete predecessors as possible.  A
+                # predecessor may be deleted if it is a data placeholder that
+                # is no longer needed by future Operations.
+                # It shouldn't make a difference if it were the broken dag
+                # bc these are preds of data (provides), and we scan here
+                # preds of ops (need).
+                for need in dag.pred[node]:
+                    log.debug("checking if node %s can be deleted", need)
+                    for future_node in ordered_nodes[i + 1 :]:
+                        if (
+                            isinstance(future_node, Operation)
+                            and need in future_node.needs
+                        ):
+                            break
+                    else:
+                        if need not in outputs:
+                            log.debug("  adding delete instruction for %s", need)
+                            steps.append(DeleteInstruction(need))
+
+            else:
+                raise AssertionError("Unrecognized network graph node %r" % node)
+
+        return steps
+
+    def compile(self, inputs=(), outputs=()):
+        """
+        Create or get from cache an execution-plan for the given inputs/outputs.
+
+        See :meth:`_prune_graph()` and :meth:`_build_execution_steps()`
+        for detailed description.
+
+        :param inputs:
+            An iterable with the names of all the given inputs.
+
+        :param outputs:
+            (optional) An iterable or the name of the output name(s).
+            If missing, requested outputs assumed all graph reachable nodes
+            from one of the given inputs.
+
+        :return:
+            the cached or fresh new execution-plan
+        """
+        # outputs must be iterable
+        if not outputs:
+            outputs = ()
+        elif isinstance(outputs, str):
+            outputs = (outputs,)
+
+        # Make a stable cache-key
+        cache_key = (tuple(sorted(inputs)), tuple(sorted(outputs)))
+        if cache_key in self._cached_plans:
+            # An execution plan has been compiled before
+            # for the same inputs & outputs.
+            plan = self._cached_plans[cache_key]
+        else:
+            # Build a new execution plan for the given inputs & outputs.
+            #
+            pruned_dag, broken_edges = self._prune_graph(outputs, inputs)
+            steps = self._build_execution_steps(pruned_dag, inputs, outputs)
+            plan = ExecutionPlan(
+                self,
+                tuple(inputs),
+                outputs,
+                pruned_dag,
+                tuple(broken_edges),
+                tuple(steps),
+                executed=iset(),
+            )
+
+            # Cache compilation results to speed up future runs
+            # with different values (but same number of inputs/outputs).
+            self._cached_plans[cache_key] = plan
+
+        return plan
+
+    def compute(self, named_inputs, outputs, method=None, overwrites_collector=None):
+        """
+        Solve & execute the graph, sequentially or parallel.
+
+        :param dict named_inputs:
+            A dict of key/value pairs where the keys represent the data nodes
+            you want to populate, and the values are the concrete values you
+            want to set for the data node.
+
+        :param list output:
+            once all necessary computations are complete.
+            If you set this variable to ``None``, all data nodes will be kept
+            and returned at runtime.
+
+        :param method:
+            if ``"parallel"``, launches multi-threading.
+            Set when invoking a composed graph or by
+            :meth:`~NetworkOperation.set_execution_method()`.
+
+        :param overwrites_collector:
+            (optional) a mutable dict to be fillwed with named values.
+            If missing, values are simply discarded.
+
+        :returns: a dictionary of output data objects, keyed by name.
+        """
+        try:
+            assert (
+                isinstance(outputs, (list, tuple)) or outputs is None
+            ), "The outputs argument must be a list"
+
+            # Build the execution plan.
+            self.last_plan = plan = self.compile(named_inputs.keys(), outputs)
+
+            # start with fresh data solution.
+            solution = dict(named_inputs)
+
+            plan.execute(solution, overwrites_collector, method)
+
+            if outputs:
+                # Filter outputs to just return what's requested.
+                # Otherwise, eturn the whole solution as output,
+                # including input and intermediate data nodes.
+                # TODO: assert no other outputs exists due to DelInstructs.
+                solution = dict(i for i in solution.items() if i[0] in outputs)
+
+            return solution
+        except Exception as ex:
+            ## Annotate exception with debugging aid on errorrs.
+            #
+            locs = locals()
+            err_aid = getattr(ex, "graphkit_aid", {})
+            err_aid.setdefault("network", locs.get("self"))
+            err_aid.setdefault("plan", locs.get("plan"))
+            err_aid.setdefault("solution", locs.get("solution"))
+            setattr(ex, "graphkit_aid", err_aid)
+            raise
+
