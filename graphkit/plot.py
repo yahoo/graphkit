@@ -76,7 +76,7 @@ class Plotter(object):
         square
             intermediate data, neither given nor asked.
         red frame
-            delete-instruction, to free up memory.
+            evict-instruction, to free up memory.
         blue frame
             pinned-instruction, not to overwrite intermediate inputs.
         filled
@@ -189,7 +189,7 @@ def build_pydot(
     import pydot
     from .base import NetworkOperation, Operation
     from .modifiers import optional
-    from .network import DeleteInstruction, PinInstruction
+    from .network import _EvictInstruction, _PinInstruction
 
     _monkey_patch_for_jupyter(pydot)
 
@@ -231,8 +231,8 @@ def build_pydot(
             # FrameColor change by step type
             if steps and nx_node in steps:
                 choice = _merge_conditions(
-                    _is_class_value_in_list(steps, DeleteInstruction, nx_node),
-                    _is_class_value_in_list(steps, PinInstruction, nx_node),
+                    _is_class_value_in_list(steps, _EvictInstruction, nx_node),
+                    _is_class_value_in_list(steps, _PinInstruction, nx_node),
                 )
                 # 0 is singled out because `nx_node` exists in `steps`.
                 color = "NOPE #990000 blue purple".split()[choice]

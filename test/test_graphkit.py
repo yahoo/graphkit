@@ -12,7 +12,7 @@ import pytest
 import graphkit.modifiers as modifiers
 import graphkit.network as network
 from graphkit import Operation, compose, operation
-from graphkit.network import DeleteInstruction
+from graphkit.network import _EvictInstruction
 
 
 def scream(*args, **kwargs):
@@ -654,30 +654,30 @@ def test_optional_per_function_with_same_output():
     assert pipeline(named_inputs, ["a+-b"]) == {"a+-b": -9}
 
 
-def test_deleted_optional():
-    # Test that DeleteInstructions included for optionals do not raise
+def test_evicted_optional():
+    # Test that _EvictInstructions included for optionals do not raise
     # exceptions when the corresponding input is not prodided.
 
     # Function to add two values plus an optional third value.
     def addplusplus(a, b, c=0):
         return a + b + c
 
-    # Here, a DeleteInstruction will be inserted for the optional need 'c'.
+    # Here, a _EvictInstruction will be inserted for the optional need 'c'.
     sum_op1 = operation(
         name="sum_op1", needs=["a", "b", modifiers.optional("c")], provides="sum1"
     )(addplusplus)
     sum_op2 = operation(name="sum_op2", needs=["sum1", "sum1"], provides="sum2")(add)
     net = compose(name="test_net")(sum_op1, sum_op2)
 
-    # DeleteInstructions are used only when a subset of outputs are requested.
+    # _EvictInstructions are used only when a subset of outputs are requested.
     results = net({"a": 4, "b": 3}, outputs=["sum2"])
     assert "sum2" in results
 
 
-def test_deleteinstructs_vary_with_inputs():
-    # Check #21: DeleteInstructions positions vary when inputs change.
-    def count_deletions(steps):
-        return sum(isinstance(n, DeleteInstruction) for n in steps)
+def test_evict_instructions_vary_with_inputs():
+    # Check #21: _EvictInstructions positions vary when inputs change.
+    def count_evictions(steps):
+        return sum(isinstance(n, _EvictInstruction) for n in steps)
 
     pipeline = compose(name="pipeline")(
         operation(name="a free without b", needs=["a"], provides=["aa"])(identity),
@@ -709,21 +709,21 @@ def test_deleteinstructs_vary_with_inputs():
     assert res == filtdict(exp, "asked")  # ok
     steps22 = pipeline.compile(inp, ["asked"]).steps
 
-    # When no outs, no del-instructs.
+    # When no outs, no evict-instructions.
     assert steps11 != steps12
-    assert count_deletions(steps11) == 0
+    assert count_evictions(steps11) == 0
     assert steps21 != steps22
-    assert count_deletions(steps21) == 0
+    assert count_evictions(steps21) == 0
 
     # Check steps vary with inputs
     #
     # FAILs in v1.2.4 + #18, PASS in #26
     assert steps11 != steps21
 
-    # Check deletes vary with inputs
+    # Check evicts vary with inputs
     #
     # FAILs in v1.2.4 + #18, PASS in #26
-    assert count_deletions(steps12) != count_deletions(steps22)
+    assert count_evictions(steps12) != count_evictions(steps22)
 
 
 @pytest.mark.slow

@@ -34,7 +34,7 @@ Network:
 
 + ENH(:gh:`26`): "Pin* input values that may be overriten by calculated ones.
 
-  This required the introduction of the new :class:`PinInstruction` in
+  This required the introduction of the new :class:`_PinInstruction` in
   the execution plan.
 
 + FIX(:gh:`23`, :gh:`22`-2.4.3): Keep consistent order of ``networkx.DiGraph``
@@ -63,7 +63,7 @@ Plotting:
 
 
     - execution-steps & order
-    - delete & pin instructions
+    - evict & pin instructions
     - given inputs & asked outputs
     - solution values (just if they are present)
     - "optional" needs & broken links during pruning

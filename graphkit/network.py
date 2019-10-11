@@ -18,7 +18,7 @@ Computations are based on 5 data-structures:
 
 :attr:`Network.graph`
     A ``networkx`` graph (yet a DAG) containing interchanging layers of
-    :class:`Operation` and :class:`DataPlaceholderNode` nodes.
+    :class:`Operation` and :class:`_DataNode` nodes.
     They are layed out and connected by repeated calls of
     :meth:`~Network.add_OP`.
 
@@ -36,7 +36,7 @@ Computations are based on 5 data-structures:
 :attr:`ExecutionPlan.steps`
     It is the list of the operation-nodes only
     from the dag (above), topologically sorted, and interspersed with
-    *instructions steps* needed to complete the run.
+    *instruction steps* needed to complete the run.
     It is built by :meth:`~Network._build_execution_steps()` based on
     the subgraph dag extracted above.
     The containing :class:`ExecutionPlan.steps` instance is cached
@@ -44,11 +44,11 @@ Computations are based on 5 data-structures:
 
     The *instructions* items achieve the following:
 
-    - :class:`DeleteInstruction`: delete items from `solution` as soon as
+    - :class:`_EvictInstruction`: evicts items from `solution` as soon as
         they are not needed further down the dag, to reduce memory footprint
         while computing.
 
-    - :class:`PinInstruction`: avoid overwritting any given intermediate
+    - :class:`_PinInstruction`: avoid overwritting any given intermediate
         inputs, and still allow their providing operations to run
         (because they are needed for their other outputs).
 
@@ -97,18 +97,18 @@ if sys.version_info < (3, 6):
     from networkx import OrderedDiGraph as DiGraph
 
 
-class DataPlaceholderNode(str):
+class _DataNode(str):
     """
     Dag node naming a data-value produced or required by an operation.
     """
 
     def __repr__(self):
-        return 'DataPlaceholderNode("%s")' % self
+        return 'DataNone("%s")' % self
 
 
-class DeleteInstruction(str):
+class _EvictInstruction(str):
     """
-    Execution step to delete a computed value from the `solution`.
+    Execution step to evict a computed value from the `solution`.
 
     It's a step in :attr:`ExecutionPlan.steps` for the data-node `str` that
     frees its data-value from `solution` after it is no longer needed,
@@ -116,12 +116,12 @@ class DeleteInstruction(str):
     """
 
     def __repr__(self):
-        return 'DeleteInstruction("%s")' % self
+        return 'EvictInstruction("%s")' % self
 
 
-class PinInstruction(str):
+class _PinInstruction(str):
     """
-    Execution step to replace a computed value in the `solution` from the inputs,
+    Execution step to overwrite a computed value in the `solution` from the inputs,
 
     and to store the computed one in the ``overwrites`` instead
     (both `solution` & ``overwrites`` are local-vars in :meth:`~Network.compute()`).
@@ -212,7 +212,7 @@ class ExecutionPlan(
         Retuen the data node from a graph using its name, or None.
         """
         node = self.dag.nodes[name]
-        if isinstance(node, DataPlaceholderNode):
+        if isinstance(node, _DataNode):
             return node
 
     def _can_schedule_operation(self, op):
@@ -236,12 +236,12 @@ class ExecutionPlan(
 
     def _can_evict_value(self, name):
         """
-        Determines if a DataPlaceholderNode is ready to be deleted from solution.
+        Determines if a _DataNode is ready to be evicted from solution.
 
         :param name:
             The name of the data node to check
         :return:
-            A boolean indicating whether the data node can be deleted or not.
+            A boolean indicating whether the data node can be evicted or not.
         """
         data_node = self.get_data_node(name)
         # Use `broken_dag` not to block a successor waiting for this data,
@@ -297,14 +297,14 @@ class ExecutionPlan(
                     and node not in self.executed
                 ):
                     upnext.append(node)
-                elif isinstance(node, DeleteInstruction):
-                    # Only delete if all successors for the data node
+                elif isinstance(node, _EvictInstruction):
+                    # Only evict if all successors for the data node
                     # have been executed.
                     # An optional need may not have a value in the solution.
                     if node in solution and self._can_evict_value(node):
                         log.debug("removing data '%s' from solution.", node)
                         del solution[node]
-                elif isinstance(node, PinInstruction):
+                elif isinstance(node, _PinInstruction):
                     # Always and repeatedely pin the value, even if not all
                     # providers of the data have executed.
                     # An optional need may not have a value in the solution.
@@ -350,13 +350,13 @@ class ExecutionPlan(
                 self.times[step.name] = t_complete
                 log.debug("step completion time: %s", t_complete)
 
-            elif isinstance(step, DeleteInstruction):
+            elif isinstance(step, _EvictInstruction):
                 # Cache value may be missing if it is optional.
                 if step in solution:
                     log.debug("removing data '%s' from solution.", step)
                     del solution[step]
 
-            elif isinstance(step, PinInstruction):
+            elif isinstance(step, _PinInstruction):
                 self._pin_data_in_solution(step, solution, inputs, overwrites)
             else:
                 raise AssertionError("Unrecognized instruction.%r" % step)
@@ -444,14 +444,14 @@ class Network(plot.Plotter):
                 kw["optional"] = True
             if isinstance(n, sideffect):
                 kw["sideffect"] = True
-            self.graph.add_edge(DataPlaceholderNode(n), operation, **kw)
+            self.graph.add_edge(_DataNode(n), operation, **kw)
 
         # add nodes and edges to graph describing what this layer provides
         for p in operation.provides:
             kw = {}
             if isinstance(n, sideffect):
                 kw["sideffect"] = True
-            self.graph.add_edge(operation, DataPlaceholderNode(p), **kw)
+            self.graph.add_edge(operation, _DataNode(p), **kw)
 
     def _collect_unsatisfied_operations(self, dag, inputs):
         """
@@ -498,7 +498,7 @@ class Network(plot.Plotter):
                     else:
                         # Prune operations with partial inputs.
                         unsatisfied.append(node)
-            elif isinstance(node, (DataPlaceholderNode, str)):  # `str` are givens
+            elif isinstance(node, (_DataNode, str)):  # `str` are givens
                 if node in ok_data:
                     # mark satisfied-needs on all future operations
                     for future_op in dag.adj[node]:
@@ -579,15 +579,13 @@ class Network(plot.Plotter):
         :param dag:
             The original dag, pruned; not broken.
         :param outputs:
-            outp-names to decide whether to add (and which) del-instructions
+            outp-names to decide whether to add (and which) evict-instructions
 
-        In the list :class:`DeleteInstructions` steps (DA) are inserted between
-        operation nodes to reduce the memory footprint of solution.
-        A DA is inserted whenever a *need* is not used by any other *operation*
-        further down the DAG.
-        Note that since the `solutions` are not shared across `compute()` calls,
-        any memory-reductions are for as long as a single computation runs.
-
+        Instances of :class:`_EvictInstructions` are inserted in `steps` between
+        operation nodes to reduce the memory footprint of solutions while 
+        the computation is running.
+        An evict-instruction is inserted whenever a *need* is not used
+        by any other *operation* further down the DAG.
         """
 
         steps = []
@@ -599,11 +597,11 @@ class Network(plot.Plotter):
         # data.
         for i, node in enumerate(ordered_nodes):
 
-            if isinstance(node, DataPlaceholderNode):
+            if isinstance(node, _DataNode):
                 if node in inputs and dag.pred[node]:
-                    # Command pinning only when there is another operation
+                    # Add a pin-instruction only when there is another operation
                     # generating this data as output.
-                    steps.append(PinInstruction(node))
+                    steps.append(_PinInstruction(node))
 
             elif isinstance(node, Operation):
                 steps.append(node)
@@ -612,14 +610,14 @@ class Network(plot.Plotter):
                 if not outputs:
                     continue
 
-                # Add instructions to delete predecessors as possible.  A
-                # predecessor may be deleted if it is a data placeholder that
+                # Add instructions to evict predecessors as possible.  A
+                # predecessor may be evicted if it is a data placeholder that
                 # is no longer needed by future Operations.
                 # It shouldn't make a difference if it were the broken dag
                 # bc these are preds of data (provides), and we scan here
                 # preds of ops (need).
                 for need in dag.pred[node]:
-                    log.debug("checking if node %s can be deleted", need)
+                    log.debug("checking if node %s can be evicted", need)
                     for future_node in ordered_nodes[i + 1 :]:
                         if (
                             isinstance(future_node, Operation)
@@ -628,8 +626,8 @@ class Network(plot.Plotter):
                             break
                     else:
                         if need not in outputs:
-                            log.debug("  adding delete instruction for %s", need)
-                            steps.append(DeleteInstruction(need))
+                            log.debug("  adding evict-instruction for %s", need)
+                            steps.append(_EvictInstruction(need))
 
             else:
                 raise AssertionError("Unrecognized network graph node %r" % node)
@@ -727,9 +725,9 @@ class Network(plot.Plotter):
 
             if outputs:
                 # Filter outputs to just return what's requested.
-                # Otherwise, eturn the whole solution as output,
+                # Otherwise, return the whole solution as output,
                 # including input and intermediate data nodes.
-                # TODO: assert no other outputs exists due to DelInstructs.
+                # TODO: assert no other outputs exists due to evict-instructions.
                 solution = dict(i for i in solution.items() if i[0] in outputs)
 
             return solution
@@ -743,4 +741,3 @@ class Network(plot.Plotter):
             err_aid.setdefault("solution", locs.get("solution"))
             setattr(ex, "graphkit_aid", err_aid)
             raise
-
