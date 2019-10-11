@@ -1,8 +1,16 @@
 # GraphKit
 
-[![Latest version in PyPI](https://img.shields.io/pypi/v/graphkit.svg?label=PyPi%20version)](https://img.shields.io/pypi/v/graphkit.svg?label=PyPi%20version) [![Latest version in GitHub](https://img.shields.io/github/v/release/yahoo/graphkit.svg?label=GitHub%20release&include_prereleases)](https://img.shields.io/github/v/release/yahoo/graphkit.svg?label=GitHub%20release&include_prereleases) [![Supported Python versions of latest release in PyPi](https://img.shields.io/pypi/pyversions/graphkit.svg?label=Python)](https://img.shields.io/pypi/pyversions/graphkit.svg?label=Python) [![Build Status](https://travis-ci.org/yahoo/graphkit.svg?branch=master)](https://travis-ci.org/yahoo/graphkit) [![codecov](https://codecov.io/gh/yahoo/graphkit/branch/master/graph/badge.svg)](https://codecov.io/gh/yahoo/graphkit) [![License](https://img.shields.io/pypi/l/graphkit.svg)](https://img.shields.io/pypi/l/graphkit.svg)
+[![Latest version in PyPI](https://img.shields.io/pypi/v/graphkit.svg?label=PyPi%20version)](https://img.shields.io/pypi/v/graphkit.svg?label=PyPi%20version)
+[![Latest version in GitHub](https://img.shields.io/github/v/release/yahoo/graphkit.svg?label=GitHub%20release&include_prereleases)](https://img.shields.io/github/v/release/yahoo/graphkit.svg?label=GitHub%20release&include_prereleases)
+[![Supported Python versions of latest release in PyPi](https://img.shields.io/pypi/pyversions/graphkit.svg?label=Python)](https://img.shields.io/pypi/pyversions/graphkit.svg?label=Python)
+[![Build Status](https://travis-ci.org/yahoo/graphkit.svg?branch=master)](https://travis-ci.org/yahoo/graphkit)
+[![codecov](https://codecov.io/gh/yahoo/graphkit/branch/master/graph/badge.svg)](https://codecov.io/gh/yahoo/graphkit)
+[![License](https://img.shields.io/pypi/l/graphkit.svg)](https://img.shields.io/pypi/l/graphkit.svg)
 
-[![Github watchers](https://img.shields.io/github/watchers/yahoo/graphkit.svg?style=social)](https://img.shields.io/github/watchers/yahoo/graphkit.svg?style=social) [![Github stargazers](https://img.shields.io/github/stars/yahoo/graphkit.svg?style=social)](https://img.shields.io/github/stars/yahoo/graphkit.svg?style=social) [![Github forks](https://img.shields.io/github/forks/yahoo/graphkit.svg?style=social)](https://img.shields.io/github/forks/yahoo/graphkit.svg?style=social) [![Issues count](http://img.shields.io/github/issues/yahoo/graphkit.svg?style=social)](http://img.shields.io/github/issues/yahoo/graphkit.svg?style=social) 
+[![Github watchers](https://img.shields.io/github/watchers/yahoo/graphkit.svg?style=social)](https://img.shields.io/github/watchers/yahoo/graphkit.svg?style=social)
+[![Github stargazers](https://img.shields.io/github/stars/yahoo/graphkit.svg?style=social)](https://img.shields.io/github/stars/yahoo/graphkit.svg?style=social)
+[![Github forks](https://img.shields.io/github/forks/yahoo/graphkit.svg?style=social)](https://img.shields.io/github/forks/yahoo/graphkit.svg?style=social)
+[![Issues count](http://img.shields.io/github/issues/yahoo/graphkit.svg?style=social)](http://img.shields.io/github/issues/yahoo/graphkit.svg?style=social)
 
 [Full Documentation](https://pythonhosted.org/graphkit/)
 
@@ -12,10 +20,11 @@
 
 ## Lightweight computation graphs for Python
 
-GraphKit is a lightweight Python module for creating and running ordered graphs of computations,
-where the nodes of the graph correspond to computational operations, and the edges
-correspond to output --> input dependencies between those operations.
-Such graphs are useful in computer vision, machine learning, and many other domains.
+GraphKit is an an understandable and lightweight Python module for building and running
+ordered graphs of computations.
+The API posits a fair compromise between features and complexity without precluding any.
+It might be of use in computer vision, machine learning and other data science domains,
+or become the core of a custom ETL pipelne.
 
 ## Quick start
 
