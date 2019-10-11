@@ -139,11 +139,13 @@ As always, we can run computations with this graph by simply calling it::
 
 
 
-Errors
-------
+Errors & debugging
+------------------
 
-If an operation fails, its exception gets annotated with the folllowing properties
-as a debug aid:
+If an operation fails, the original exception gets annotated
+with the folllowing properties, as a debug aid:
+
+>>> from pprint import pprint
 
 >>> def scream(*args):
 ...     raise ValueError("Wrong!")
@@ -153,14 +155,50 @@ as a debug aid:
 ...        operation(name="screamer", needs=['a'], provides=["foo"])(scream)
 ...     )({'a': None})
 ... except ValueError as ex:
-...     print(ex.operation)
-...     print(ex.execution_plan)
-FunctionalOperation(name='screamer', needs=['a'], provides=['foo'])
-ExecutionPlan(inputs=('a',), outputs=(), steps:
-  +--FunctionalOperation(name='screamer', needs=['a'], provides=['foo']))
+...     pprint(ex.graphkit_aid)
+{'network':
+  ...
+ 'operation': FunctionalOperation(name='screamer', needs=['a'], provides=['foo']),
+ 'operation_args': {'args': [None], 'kwargs': {}},
+ 'operation_fnouts': None,
+ 'operation_outs': None,
+ 'operation_results': None,
+ 'plan': ExecutionPlan(inputs=('a',), outputs=(), steps:
+  +--FunctionalOperation(name='screamer', needs=['a'], provides=['foo'])),
+ 'solution': {'a': None}}
 
-Of course from the :class:`ExecutionPlan` you can explore its ``dag`` property
-or the ``net`` that compiled it.
+
+The following annotated attributes might have values on an exception ``ex``:
+
+``ex.network``
+   the innermost network owning the failed operation/function
+
+``ex.plan``
+   the innermost plan that executing when a operation crashed
+
+``ex.operation``
+   the innermost operation that failed
+
+``ex.operation_args``
+    either a 2-tuple ``(args, kwargs)`` or just the ``args`` fed to the operation
+
+``ex.operation_fnouts``
+    the names of the outputs the function was expected to return
+
+``ex.operation_outs``
+    the names eventually the graph needed from the operation
+    (a subset of the above)
+
+``ex.operation_results``
+    the values dict, if any; it maybe a *zip* of the provides
+    with the actual returned values of the function, ot the raw results.
+
+.. note::
+   The :ref:`plotting` capabilities, along with the above annotation of exceptions
+   with the internal state of plan/operation often renders a debugger session
+   unnecessary.  But since the state of the annotated values might be incomple,
+   you may not always avoid one.
+
 
 Execution internals
 -------------------

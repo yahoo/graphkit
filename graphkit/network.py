@@ -455,27 +455,37 @@ class Network(plot.Plotter):
 
         :returns: a dictionary of output data objects, keyed by name.
         """
+        try:
+            assert (
+                isinstance(outputs, (list, tuple)) or outputs is None
+            ), "The outputs argument must be a list"
 
-        assert (
-            isinstance(outputs, (list, tuple)) or outputs is None
-        ), "The outputs argument must be a list"
+            # Build the execution plan.
+            self.last_plan = plan = self.compile(named_inputs.keys(), outputs)
 
-        # Build the execution plan.
-        self.last_plan = plan = self.compile(named_inputs.keys(), outputs)
+            # start with fresh data solution.
+            solution = dict(named_inputs)
 
-        # start with fresh data solution.
-        solution = dict(named_inputs)
+            plan.execute(solution, overwrites_collector, method)
 
-        plan.execute(solution, overwrites_collector, method)
+            if outputs:
+                # Filter outputs to just return what's requested.
+                # Otherwise, eturn the whole solution as output,
+                # including input and intermediate data nodes.
+                # TODO: assert no other outputs exists due to DelInstructs.
+                solution = dict(i for i in solution.items() if i[0] in outputs)
 
-        if outputs:
-            # Filter outputs to just return what's requested.
-            # Otherwise, eturn the whole solution as output,
-            # including input and intermediate data nodes.
-            # TODO: assert no other outputs exists due to DelInstructs.
-            solution = dict(i for i in solution.items() if i[0] in outputs)
-
-        return solution
+            return solution
+        except Exception as ex:
+            ## Annotate exception with debugging aid on errorrs.
+            #
+            locs = locals()
+            err_aid = getattr(ex, "graphkit_aid", {})
+            err_aid.setdefault("network", locs.get("self"))
+            err_aid.setdefault("plan", locs.get("plan"))
+            err_aid.setdefault("solution", locs.get("solution"))
+            setattr(ex, "graphkit_aid", err_aid)
+            raise
 
 
 class ExecutionPlan(
@@ -597,9 +607,11 @@ class ExecutionPlan(
         try:
             return op._compute(solution)
         except Exception as ex:
-            ## Annotate exception with debugging aid on error 
+            ## Annotate exception with debugging aid on errors.
             #
-            ex.execution_plan = self
+            err_aid = getattr(ex, "graphkit_aid", {})
+            err_aid.setdefault("plan", self)
+            setattr(ex, "graphkit_aid", err_aid)
             raise
 
     def _execute_thread_pool_barrier_method(

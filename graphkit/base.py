@@ -99,24 +99,28 @@ class Operation(object):
         raise NotImplementedError("Define callable of %r!" % self)
 
     def _compute(self, named_inputs, outputs=None):
-        inputs = [named_inputs[d] for d in self.needs]
-        results = self.compute(inputs)
-
         try:
+            args = [named_inputs[d] for d in self.needs]
+            results = self.compute(args)
+
             results = zip(self.provides, results)
 
             if outputs:
-                outputs = set(outputs)
-                results = filter(lambda x: x[0] in outputs, results)
+                outs = set(outputs)
+                results = filter(lambda x: x[0] in outs, results)
 
             return dict(results)
         except Exception as ex:
-            ## Annotate exception with debugging aid on error 
+            ## Annotate exception with debugging aid on errors.
             #
-            ex.operation = self
-            ex.operation_inputs = inputs
-            ex.operation_asked = outputs
-            ex.operation_results = locals().get('results')
+            locs = locals()
+            err_aid = getattr(ex, "graphkit_aid", {})
+            err_aid.setdefault("operation", self)
+            err_aid.setdefault("operation_args", locs.get("args"))
+            err_aid.setdefault("operation_fnouts", locs.get("outputs"))
+            err_aid.setdefault("operation_outs", locs.get("outputs"))
+            err_aid.setdefault("operation_results", locs.get("results"))
+            setattr(ex, "graphkit_aid", err_aid)
             raise
 
     def _after_init(self):

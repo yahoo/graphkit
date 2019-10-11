@@ -1,11 +1,11 @@
 # Copyright 2016, Yahoo Inc.
 # Licensed under the terms of the Apache License, Version 2.0. See the LICENSE file associated with the project for terms.
-from boltons.setutils import IndexedSet as iset
 import networkx as nx
+from boltons.setutils import IndexedSet as iset
 
-from .base import Operation, NetworkOperation
-from .network import Network
+from .base import NetworkOperation, Operation
 from .modifiers import optional, sideffect
+from .network import Network
 
 
 class FunctionalOperation(Operation):
@@ -14,28 +14,28 @@ class FunctionalOperation(Operation):
         Operation.__init__(self, **kwargs)
 
     def _compute(self, named_inputs, outputs=None):
-        inputs = [
-            named_inputs[n]
-            for n in self.needs
-            if not isinstance(n, optional) and not isinstance(n, sideffect)
-        ]
-
-        # Find any optional inputs in named_inputs.  Get only the ones that
-        # are present there, no extra `None`s.
-        optionals = {
-            n: named_inputs[n]
-            for n in self.needs
-            if isinstance(n, optional) and n in named_inputs
-        }
-
-        # Combine params and optionals into one big glob of keyword arguments.
-        kwargs = {k: v for d in (self.params, optionals) for k, v in d.items()}
-
-        # Don't expect sideffect outputs.
-        provides = [n for n in self.provides if not isinstance(n, sideffect)]
-
         try:
-            result = self.fn(*inputs, **kwargs)
+            args = [
+                named_inputs[n]
+                for n in self.needs
+                if not isinstance(n, optional) and not isinstance(n, sideffect)
+            ]
+
+            # Find any optional inputs in named_inputs.  Get only the ones that
+            # are present there, no extra `None`s.
+            optionals = {
+                n: named_inputs[n]
+                for n in self.needs
+                if isinstance(n, optional) and n in named_inputs
+            }
+
+            # Combine params and optionals into one big glob of keyword arguments.
+            kwargs = {k: v for d in (self.params, optionals) for k, v in d.items()}
+
+            # Don't expect sideffect outputs.
+            provides = [n for n in self.provides if not isinstance(n, sideffect)]
+
+            result = self.fn(*args, **kwargs)
 
             if not provides:
                 # All outputs were sideffects.
@@ -51,11 +51,19 @@ class FunctionalOperation(Operation):
 
             return dict(result)
         except Exception as ex:
-            ex.operation = self
-            ex.operation_inputs = (inputs, kwargs)
-            ex.operation_provides = provides
-            ex.operation_asked = outputs
-            ex.operation_results = locals().get('result')
+            ## Annotate exception with debugging aid on errors.
+            #
+            locs = locals()
+            err_aid = getattr(ex, "graphkit_aid", {})
+            err_aid.setdefault("operation", self)
+            err_aid.setdefault(
+                "operation_args",
+                {"args": locs.get("args"), "kwargs": locs.get("kwargs")},
+            )
+            err_aid.setdefault("operation_fnouts", locs.get("outputs"))
+            err_aid.setdefault("operation_outs", locs.get("outputs"))
+            err_aid.setdefault("operation_results", locs.get("results"))
+            setattr(ex, "graphkit_aid", err_aid)
             raise
 
     def __call__(self, *args, **kwargs):
