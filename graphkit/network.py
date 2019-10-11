@@ -74,15 +74,14 @@ from itertools import chain
 
 import networkx as nx
 from boltons.setutils import IndexedSet as iset
+from networkx import DiGraph
 
 from . import plot
 from .base import Operation
-from .modifiers import optional
+from .modifiers import optional, sideffect
 
 log = logging.getLogger(__name__)
 
-
-from networkx import DiGraph
 
 if sys.version_info < (3, 6):
     """
@@ -186,14 +185,19 @@ class Network(plot.Plotter):
 
         # add nodes and edges to graph describing the data needs for this layer
         for n in operation.needs:
+            kw = {}
             if isinstance(n, optional):
-                self.graph.add_edge(DataPlaceholderNode(n), operation, optional=True)
-            else:
-                self.graph.add_edge(DataPlaceholderNode(n), operation)
+                kw["optional"] = True
+            if isinstance(n, sideffect):
+                kw["sideffect"] = True
+            self.graph.add_edge(DataPlaceholderNode(n), operation, **kw)
 
         # add nodes and edges to graph describing what this layer provides
         for p in operation.provides:
-            self.graph.add_edge(operation, DataPlaceholderNode(p))
+            kw = {}
+            if isinstance(n, sideffect):
+                kw["sideffect"] = True
+            self.graph.add_edge(operation, DataPlaceholderNode(p), **kw)
 
     def _build_execution_steps(self, dag, inputs, outputs):
         """

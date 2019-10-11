@@ -14,7 +14,7 @@ class Plotter(object):
     Classes wishing to plot their graphs should inherit this and ...
 
     implement property ``_plot`` to return a "partial" callable that somehow
-    ends up calling  :func:`plot.plot_graph()` with the `graph` or any other
+    ends up calling  :func:`plot.render_pydot()` with the `graph` or any other
     args binded appropriately.
     The purpose is to avoid copying this function & documentation here around.
     """
@@ -55,15 +55,11 @@ class Plotter(object):
 
 
         Note that the `graph` argument is absent - Each Plotter provides
-        its own graph internally;  use directly :func:`plot_graph()` to provide
+        its own graph internally;  use directly :func:`render_pydot()` to provide
         a different graph.
 
-        **Legend:**
-
-        . figure:: ../images/Graphkitlegend.svg
+        .. image:: images/GraphkitLegend.svg
             :alt: Graphkit Legend
-
-            see :func:`legend()`
 
         *NODES:*
 
@@ -95,10 +91,15 @@ class Plotter(object):
             sources-operations *provides* target-data)
         dashed black arrows
             optional needs
+        blue arrows
+            sideffect needs/provides
         wheat arrows
             broken dependency (``provide``) during pruning
         green-dotted arrows
             execution steps labeled in succession
+
+
+        To generate the **legend**, see :func:`legend()`.
 
         **Sample code:**
 
@@ -270,15 +271,18 @@ def build_pydot(
     append_any_clusters(dot)
 
     # draw edges
-    for src, dst in graph.edges:
+    for src, dst, data in graph.edges(data=True):
         src_name = get_node_name(src)
         dst_name = get_node_name(dst)
+
         kw = {}
-        if isinstance(dst, Operation) and _is_class_value_in_list(
-            dst.needs, optional, src
-        ):
+        if data.get("optional"):
             kw["style"] = "dashed"
-        edge = pydot.Edge(src=src_name, dst=dst_name, **kw)
+        if data.get("sideffect"):
+            kw["color"] = "blue"
+
+        # `splines=ortho` not working :-()
+        edge = pydot.Edge(src=src_name, dst=dst_name, splines="ortho", **kw)
 
         _apply_user_props(edge, edge_props, key=(src, dst))
 
@@ -305,6 +309,7 @@ def build_pydot(
                 fontsize=18,
                 penwidth=steps_thickness,
                 arrowhead="vee",
+                splines=True,
             )
             dot.add_edge(edge)
 
@@ -402,8 +407,10 @@ def legend(filename=None, show=None):
         e1 -> e2;
         e3 [color=invis label="optional"];
         e2 -> e3 [style=dashed];
+        e33 [color=invis label="sideffect"];
+        e3 -> e33 [color=blue];
         e4 [color=invis penwidth=3 label="pruned dependency"];
-        e3 -> e4 [color=wheat penwidth=2];
+        e33 -> e4 [color=wheat penwidth=2];
         e5 [color=invis penwidth=4 label="execution sequence"];
         e4 -> e5 [color="#009999" penwidth=4 style=dotted arrowhead=vee label=1 fontcolor="#009999"];
         }

@@ -119,7 +119,6 @@ Code licensed under the Apache License, Version 2.0 license. See LICENSE file fo
 
 .. |travis-status| image:: https://travis-ci.org/yahoo/graphkit.svg
     :alt: Travis continuous integration testing ok? (Linux)
-    :scale: 100%
     :target: https://travis-ci.org/yahoo/graphkit/builds
 
 .. |cover-status| image:: https://codecov.io/gh/yahoo/graphkit/branch/master/graph/badge.svg
