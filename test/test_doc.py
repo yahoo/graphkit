@@ -4,6 +4,7 @@ import os.path as osp
 import subprocess
 import sys
 
+
 def test_README_as_PyPi_landing_page(monkeypatch):
     from docutils import core as dcore
 
