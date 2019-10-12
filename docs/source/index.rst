@@ -51,34 +51,30 @@ OR with dependencies for plotting support (and you need to install `Graphviz
 
 Here's a Python script with an example GraphKit computation graph that produces multiple outputs (``a * b``, ``a - a * b``, and ``abs(a - a * b) ** 3``)::
 
-   from operator import mul, sub
-   from graphkit import compose, operation
+   >>> from operator import mul, sub
+   >>> from graphkit import compose, operation
 
    # Computes |a|^p.
-   def abspow(a, p):
-      c = abs(a) ** p
-      return c
+   >>> def abspow(a, p):
+   ...    c = abs(a) ** p
+   ...    return c
 
-   # Compose the mul, sub, and abspow operations into a computation graph.
-   graphop = compose(name="graphop")(
-      operation(name="mul1", needs=["a", "b"], provides=["ab"])(mul),
-      operation(name="sub1", needs=["a", "ab"], provides=["a_minus_ab"])(sub),
-      operation(name="abspow1", needs=["a_minus_ab"], provides=["abs_a_minus_ab_cubed"], params={"p": 3})(abspow)
-   )
+   >>> # Compose the mul, sub, and abspow operations into a computation graph.
+   >>> graphop = compose(name="graphop")(
+   ...    operation(name="mul1", needs=["a", "b"], provides=["ab"])(mul),
+   ...    operation(name="sub1", needs=["a", "ab"], provides=["a_minus_ab"])(sub),
+   ...    operation(name="abspow1", needs=["a_minus_ab"], provides=["abs_a_minus_ab_cubed"], params={"p": 3})(abspow)
+   ... )
 
-   # Run the graph-operation and request all of the outputs.
-   out = graphop({'a': 2, 'b': 5})
+   >>> # Run the graph-operation and request all of the outputs.
+   >>> graphop({'a': 2, 'b': 5})
+   {'a': 2, 'b': 5, 'ab': 10, 'a_minus_ab': -8, 'abs_a_minus_ab_cubed': 512}
 
-   # Prints "{'a': 2, 'a_minus_ab': -8, 'b': 5, 'ab': 10, 'abs_a_minus_ab_cubed': 512}".
-   print(out)
+   >>> # Run the graph-operation and request a subset of the outputs.
+   >>> graphop({'a': 2, 'b': 5}, outputs=["a_minus_ab"])
+   {'a_minus_ab': -8}
 
-   # Run the graph-operation and request a subset of the outputs.
-   out = graphop({'a': 2, 'b': 5}, outputs=["a_minus_ab"])
-
-   # Prints "{'a_minus_ab': -8}".
-   print(out)
-
-As you can see, any function can be used as an operation in GraphKit, 
+As you can see, any function can be used as an operation in GraphKit,
 even ones imported from system modules!
 
 
