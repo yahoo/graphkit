@@ -82,7 +82,7 @@ using these methods:
 
 ```python
 graphop.plot(show=True)                # open a matplotlib window
-graphop.plot("graphop.svg")              # other supported formats: png, jpg, pdf, ...
+graphop.plot("graphop.svg")            # other supported formats: png, jpg, pdf, ...
 graphop.plot()                         # without arguments return a pydot.DOT object
 graphop.plot(solution=out)             # annotate graph with solution values
 ```
