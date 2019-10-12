@@ -216,12 +216,15 @@ def build_pydot(
         for cluster in new_clusters.values():
             dot.add_subgraph(cluster)
 
+    def quote_dot_kws(word):
+        return "'%s'" % word if word in pydot.dot_keywords else word
+
     def get_node_name(a):
         if isinstance(a, Operation):
-            return a.name
-        return a
+            a = a.name
+        return quote_dot_kws(a)
 
-    dot = pydot.Dot(graph_type="digraph", label=title, fontname="italic")
+    dot = pydot.Dot(graph_type="digraph", label=quote_dot_kws(title), fontname="italic")
 
     # draw nodes
     for nx_node in graph.nodes:
@@ -250,7 +253,7 @@ def build_pydot(
                 kw["style"] = "filled"
                 kw["fillcolor"] = fill_color
                 # kw["tooltip"] = str(solution.get(nx_node))  # not working :-()
-            node = pydot.Node(name=nx_node, shape=shape, **kw)
+            node = pydot.Node(name=quote_dot_kws(nx_node), shape=shape, **kw)
         else:  # Operation
             kw = {"fontname": "italic"}
 
@@ -260,7 +263,7 @@ def build_pydot(
             if executed and nx_node in executed:
                 kw["style"] = "filled"
                 kw["fillcolor"] = fill_color
-            node = pydot.Node(name=nx_node.name, shape=shape, **kw)
+            node = pydot.Node(name=quote_dot_kws(nx_node.name), shape=shape, **kw)
 
         _apply_user_props(node, node_props, key=node.get_name())
 
