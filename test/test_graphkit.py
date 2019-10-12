@@ -321,7 +321,7 @@ def test_pruning_not_overrides_given_intermediate():
 def test_pruning_multiouts_not_override_intermediates1():
     # Test #25: v.1.2.4 overwrites intermediate data when a previous operation
     # must run for its other outputs (outputs asked or not)
-    pipeline = compose(name="pipeline")(
+    pipeline = compose(name="graph")(
         operation(name="must run", needs=["a"], provides=["overriden", "calced"])(
             lambda x: (x, 2 * x)
         ),
@@ -340,6 +340,12 @@ def test_pruning_multiouts_not_override_intermediates1():
     # - on #18(unsatisfied) + #23(ordered-sets) with empty result.
     # FIXED on #26
     assert pipeline(inputs, ["asked"]) == filtdict(exp, "asked")
+    # Plan must contain "overriden" step twice, for pin & evict.
+    # Plot it to see, or check https://github.com/huyng/graphkit/pull/1#discussion_r334226396.
+    datasteps = [s for s in pipeline.net.last_plan.steps if s == "overriden"]
+    assert len(datasteps) == 2
+    assert isinstance(datasteps[0], network._PinInstruction)
+    assert isinstance(datasteps[1], network._EvictInstruction)
 
     ## Test OVERWITES
     #
