@@ -9,9 +9,8 @@ from pprint import pprint
 
 import pytest
 
-import graphkit.modifiers as modifiers
 import graphkit.network as network
-from graphkit import Operation, compose, operation
+from graphkit import Operation, compose, operation, optional, sideffect
 from graphkit.network import _EvictInstruction
 
 
@@ -532,9 +531,9 @@ def test_optional():
     def addplusplus(a, b, c=0):
         return a + b + c
 
-    sum_op = operation(
-        name="sum_op1", needs=["a", "b", modifiers.optional("c")], provides="sum"
-    )(addplusplus)
+    sum_op = operation(name="sum_op1", needs=["a", "b", optional("c")], provides="sum")(
+        addplusplus
+    )
 
     net = compose(name="test_net")(sum_op)
 
@@ -564,13 +563,13 @@ def test_sideffects():
     graph = compose("mygraph")(
         operation(
             name="extend",
-            needs=["box", modifiers.sideffect("a")],
-            provides=[modifiers.sideffect("b")],
+            needs=["box", sideffect("a")],
+            provides=[sideffect("b")],
         )(extend),
         operation(
             name="increment",
-            needs=["box", modifiers.sideffect("b")],
-            provides=modifiers.sideffect("c"),
+            needs=["box", sideffect("b")],
+            provides=sideffect("c"),
         )(increment),
     )
 
@@ -580,13 +579,13 @@ def test_sideffects():
     graph = compose("mygraph")(
         operation(
             name="increment",
-            needs=["box", modifiers.sideffect("a")],
-            provides=modifiers.sideffect("b"),
+            needs=["box", sideffect("a")],
+            provides=sideffect("b"),
         )(increment),
         operation(
             name="extend",
-            needs=["box", modifiers.sideffect("b")],
-            provides=[modifiers.sideffect("c")],
+            needs=["box", sideffect("b")],
+            provides=[sideffect("c")],
         )(extend),
     )
 
@@ -606,7 +605,7 @@ def test_optional_per_function_with_same_output():
 
     add_op = operation(name="add", needs=["a", "b"], provides="a+-b")(add)
     sub_op_optional = operation(
-        name="sub_opt", needs=["a", modifiers.optional("b")], provides="a+-b"
+        name="sub_opt", needs=["a", optional("b")], provides="a+-b"
     )(lambda a, b=10: a - b)
 
     # Normal order
@@ -670,7 +669,7 @@ def test_evicted_optional():
 
     # Here, a _EvictInstruction will be inserted for the optional need 'c'.
     sum_op1 = operation(
-        name="sum_op1", needs=["a", "b", modifiers.optional("c")], provides="sum1"
+        name="sum_op1", needs=["a", "b", optional("c")], provides="sum1"
     )(addplusplus)
     sum_op2 = operation(name="sum_op2", needs=["sum1", "sum1"], provides="sum2")(add)
     net = compose(name="test_net")(sum_op1, sum_op2)
@@ -688,11 +687,9 @@ def test_evict_instructions_vary_with_inputs():
     pipeline = compose(name="pipeline")(
         operation(name="a free without b", needs=["a"], provides=["aa"])(identity),
         operation(name="satisfiable", needs=["a", "b"], provides=["ab"])(add),
-        operation(
-            name="optional ab",
-            needs=["aa", modifiers.optional("ab")],
-            provides=["asked"],
-        )(lambda a, ab=10: a + ab),
+        operation(name="optional ab", needs=["aa", optional("ab")], provides=["asked"])(
+            lambda a, ab=10: a + ab
+        ),
     )
 
     inp = {"a": 2, "b": 3}
@@ -759,7 +756,7 @@ def test_parallel_execution():
         operation(name="b", needs="x", provides="bo")(fn),
         # this should execute after a and b have finished
         operation(name="c", needs=["ao", "bo"], provides="co")(fn2),
-        operation(name="d", needs=["ao", modifiers.optional("k")], provides="do")(fn3),
+        operation(name="d", needs=["ao", optional("k")], provides="do")(fn3),
         operation(name="e", needs=["ao", "bo"], provides="eo")(fn2),
         operation(name="f", needs="eo", provides="fo")(fn),
         operation(name="g", needs="fo", provides="go")(fn),
