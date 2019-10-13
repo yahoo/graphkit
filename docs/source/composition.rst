@@ -60,14 +60,18 @@ For example, if ``graph`` is as defined above, we can run it like this::
 Producing a subset of outputs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-By default, calling a graph-operation on a set of inputs will yield all of that graph's outputs.  You can use the ``outputs`` parameter to request only a subset.  For example, if ``graphop`` is as above::
+By default, calling a graph-operation on a set of inputs will yield all of that graph's outputs.
+You can use the ``outputs`` parameter to request only a subset.
+For example, if ``graphop`` is as above::
 
    # Run the graph-operation and request a subset of the outputs.
-   >>> out = graphop({'a': 2, 'b': 5}, outputs=["a_minus_ab"])
+   >>> out = graphop({'a': 2, 'b': 5}, outputs="a_minus_ab")
    >>> out
    {'a_minus_ab': -8}
 
-When using ``outputs`` to request only a subset of a graph's outputs, GraphKit executes only the ``operation`` nodes in the graph that are on a path from the inputs to the requested outputs.  For example, the ``abspow1`` operation will not be executed here.
+When using ``outputs`` to request only a subset of a graph's outputs, GraphKit executes
+only the ``operation`` nodes in the graph that are on a path from the inputs to the requested outputs.
+For example, the ``abspow1`` operation will not be executed here.
 
 Short-circuiting a graph computation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -692,8 +692,8 @@ class Network(plot.Plotter):
             you want to populate, and the values are the concrete values you
             want to set for the data node.
 
-        :param list output:
-            once all necessary computations are complete.
+        :param outputs:
+            a string or a list of strings with all data asked to compute.
             If you set this variable to ``None``, all data nodes will be kept
             and returned at runtime.
 
@@ -710,9 +710,12 @@ class Network(plot.Plotter):
         """
         with jetsam(locals(), network="self", plan="plan", solution="solution"):
             try:
-                assert (
-                    isinstance(outputs, (list, tuple)) or outputs is None
-                ), "The outputs argument must be a list"
+                if isinstance(outputs, str):
+                    outputs = [outputs]
+                elif not isinstance(outputs, (list, tuple)) and outputs is not None:
+                    raise ValueError(
+                        "The outputs argument must be a list, was: %s", outputs
+                    )
 
                 # Build the execution plan.
                 self.last_plan = plan = self.compile(named_inputs.keys(), outputs)
