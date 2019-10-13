@@ -445,11 +445,11 @@ class Network(plot.Plotter):
             self.graph.add_edge(_DataNode(n), operation, **kw)
 
         # add nodes and edges to graph describing what this layer provides
-        for p in operation.provides:
+        for n in operation.provides:
             kw = {}
             if isinstance(n, sideffect):
                 kw["sideffect"] = True
-            self.graph.add_edge(operation, _DataNode(p), **kw)
+            self.graph.add_edge(operation, _DataNode(n), **kw)
 
     def _collect_unsatisfied_operations(self, dag, inputs):
         """
