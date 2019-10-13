@@ -26,7 +26,6 @@ def test_README_as_PyPi_landing_page(monkeypatch):
     )
 
 
-# @pytest.mark.slow
 def test_site():
     # Fail on warnings, but don't rebuild all files (no `-a`),
-    subprocess.check_call("python setup.py build_sphinx -W".split(), cwd=proj_path)
+    subprocess.check_output("python setup.py build_sphinx -W".split(), cwd=proj_path)

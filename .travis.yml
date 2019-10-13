@@ -29,7 +29,9 @@ script:
     if [[ "$TRAVIS_PYTHON_VERSION" = '3.7' ]]; then
       pytest --cov=graphkit -m 'slow or not slow'
     else
-      pytest --cov=graphkit test/
+      # Undo configs in setup.cfg
+      echo -e '[pytest]\nmarkers: slow' > pytest.ini
+      pytest
     fi
 
 deploy:
