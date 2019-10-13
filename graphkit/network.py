@@ -409,6 +409,10 @@ class Network(plot.Plotter):
         #: (not ``compile()``!), for debugging purposes.
         self.last_plan = None
 
+    def __repr__(self):
+        steps = ["\n  +--%s" % s for s in self.graph.nodes]
+        return "Network(%s)" % "".join(steps)
+
     def _build_pydot(self, **kws):
         from .plot import build_pydot
 
