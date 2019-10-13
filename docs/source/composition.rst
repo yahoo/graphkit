@@ -86,7 +86,9 @@ This can be useful if you have a graph-operation that accepts alternative forms 
 Adding on to an existing computation graph
 ------------------------------------------
 
-Sometimes you will have an existing computation graph to which you want to add operations.  This is simple, since ``compose`` can compose whole graphs along with individual ``operation`` instances.  For example, if we have ``graph`` as above, we can add another operation to it to create a new graph::
+Sometimes you will have an existing computation graph to which you want to add operations.
+This is simple, since ``compose`` can compose whole graphs along with individual ``operation`` instances.
+For example, if we have ``graph`` as above, we can add another operation to it to create a new graph::
 
    >>> # Add another subtraction operation to the graph.
    >>> bigger_graph = compose(name="bigger_graph")(
@@ -99,7 +101,9 @@ Sometimes you will have an existing computation graph to which you want to add o
    >>> sol
    {'a_minus_ab_minus_c': -13}
 
-This yields a graph which looks like this (see :ref:`plotting`):
+This yields a graph which looks like this (see :ref:`plotting`)::
+
+   >>> bigger_graph.plot('bigger_example_graph.svg', solution=sol)  # doctest: +SKIP
 
 .. image:: images/bigger_example_graph.svg
 
