@@ -5,10 +5,12 @@ import subprocess
 import sys
 
 
+proj_path = osp.join(osp.dirname(__file__), "..")
+
+
 def test_README_as_PyPi_landing_page(monkeypatch):
     from docutils import core as dcore
 
-    proj_path = osp.join(osp.dirname(__file__), "..")
     long_desc = subprocess.check_output(
         "python setup.py --long-description".split(), cwd=proj_path
     )
@@ -22,3 +24,9 @@ def test_README_as_PyPi_landing_page(monkeypatch):
             "halt_level": 2  # 2=WARN, 1=INFO
         },
     )
+
+
+# @pytest.mark.slow
+def test_site():
+    # Fail on warnings, but don't rebuild all files (no `-a`),
+    subprocess.check_call("python setup.py build_sphinx -W".split(), cwd=proj_path)
