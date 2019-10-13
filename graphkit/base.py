@@ -16,28 +16,31 @@ log = logging.getLogger(__name__)
 
 
 @contextlib.contextmanager
-def jetsam(locs, annotation="graphkit_jetsam", **keys_to_salvage):
+def jetsam(locs, *salvage_vars, annotation="graphkit_jetsam", **salvage_mappings):
     """
     Debug-aid to annotate exceptions with salvaged values from wrapped functions.
-    
+
     :param locs:
         ``locals()`` from the context-manager's block containing vars
         to be salvaged in case of exception
-        
+
         ATTENTION: wrapped function must finally call ``locals()``, because
         *locals* dictionary only reflects local-var changes after call.
-    :param keys_to_salvage:
+    :param salvage_vars:
+        local variable names to save as is in the salvaged annotations dictionary.
+    :param salvage_mappings:
         a mapping of destination-annotation-keys --> source-locals-keys;
         if a `source` is callable, the value to salvage is retrieved
         by calling ``value(locs)``.
-    
+        They take precendance over`salvae_vars`.
+
     :raise:
         any exception raised by the wrapped function, annotated with values
         assigned as atrributes on this context-manager
 
     - Any attrributes attached on this manager are attached as a new dict on
       the raised exception as new  ``graphkit_jetsam`` attrribute with a dict as value.
-    - If the exception is already annotated, any new items are inserted, 
+    - If the exception is already annotated, any new items are inserted,
       but existing ones are preserved.
 
     **Example:**
@@ -46,9 +49,10 @@ def jetsam(locs, annotation="graphkit_jetsam", **keys_to_salvage):
     in case of errors::
 
 
-        with jetsam(locals(), a="salvaged_a", foo="missing"):
+        with jetsam(locals(), "a", b="salvaged_b", c_var="c"):
             try:
                 a = 1
+                b = 2
                 raise Exception()
             finally:
                 locals()  # to update locals-dict handed to jetsam().
@@ -57,13 +61,13 @@ def jetsam(locs, annotation="graphkit_jetsam", **keys_to_salvage):
 
         import sys
         sys.last_value.graphkit_jetsam
-        {'salvaged_a': 1, "undefined": None}
+        {'a': 1, 'salvaged_b': 2, "c_var": None}
 
 
     ** Reason:**
-    
+
     Graphs may become arbitrary deep.  Debugging such graphs is notoriously hard.
-    
+
     The purpose is not to require a debugger-session to inspect the root-causes
     (without precluding one).
 
@@ -73,12 +77,21 @@ def jetsam(locs, annotation="graphkit_jetsam", **keys_to_salvage):
     """
     ## Fail EARLY before yielding on bad use.
     #
-    assert isinstance(locs, dict), ("Bad `locs` given to jetsam`, not a dict:", locs)
-    assert keys_to_salvage, "No `keys_to_salvage` given to jetsam`!"
-    assert all(isinstance(v, str) or callable(v) for v in keys_to_salvage.values()), (
-        "Bad `keys_to_salvage` given to jetsam`:",
-        keys_to_salvage,
+    assert isinstance(locs, dict), ("Bad `locs`, not a dict:", locs)
+    assert all(isinstance(i, str) for i in salvage_vars), (
+        "Bad `salvage_vars`!",
+        salvage_vars,
     )
+    assert salvage_mappings, "No `salvage_mappings` given!"
+    assert all(isinstance(v, str) or callable(v) for v in salvage_mappings.values()), (
+        "Bad `salvage_mappings`:",
+        salvage_mappings,
+    )
+
+    ## Merge vars-mapping to save.
+    for var in salvage_vars:
+        if var not in salvage_mappings:
+            salvage_mappings[var] = var
 
     try:
         yield jetsam
@@ -89,8 +102,8 @@ def jetsam(locs, annotation="graphkit_jetsam", **keys_to_salvage):
                 annotations = {}
                 setattr(ex_to_annotate, annotation, annotations)
 
-            ## Salvage any asked
-            for dst_key, src in keys_to_salvage.items():
+            ## Salvage those asked
+            for dst_key, src in salvage_mappings.items():
                 try:
                     salvaged_value = src(locs) if callable(src) else locs.get(src)
                     annotations.setdefault(dst_key, salvaged_value)
@@ -199,12 +212,7 @@ class Operation(object):
 
     def _compute(self, named_inputs, outputs=None):
         with jetsam(
-            locals(),
-            operation="self",
-            outs="outputs",
-            fnouts="provides",
-            args="args",
-            results="results",
+            locals(), "outputs", "provides", "args", "results", operation="self"
         ):
             try:
                 provides = self.provides

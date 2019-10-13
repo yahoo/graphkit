@@ -10,7 +10,7 @@ from graphkit import base
 
 def test_jetsam_without_failure(caplog):
     caplog.set_level(logging.INFO)
-    with pytest.raises(AssertionError, match="No `keys_to_salvage`"):
+    with pytest.raises(AssertionError, match="No `salvage_mappings`"):
         with base.jetsam({}):
             pytest.xfail("Jetsam did not detect bad inputs!")
 
@@ -32,7 +32,7 @@ def test_jetsam_bad_locals(locs, caplog):
 @pytest.mark.parametrize("keys", [{"k": None}, {"k": ()}, {"k": []}, {"k": [0]}])
 def test_jetsam_bad_keys(keys, caplog):
     caplog.set_level(logging.INFO)
-    with pytest.raises(AssertionError, match="Bad `keys_to_salvage`") as excinfo:
+    with pytest.raises(AssertionError, match="Bad `salvage_mappings`") as excinfo:
         with base.jetsam({}, **keys):
             raise Exception("ABC")
 
@@ -43,7 +43,7 @@ def test_jetsam_bad_keys(keys, caplog):
 @pytest.mark.parametrize("locs", [None, (), [], [0], "bad"])
 def test_jetsam_bad_locals_given(locs, caplog):
     caplog.set_level(logging.INFO)
-    with pytest.raises(AssertionError, match="`locs` given to jetsam") as excinfo:
+    with pytest.raises(AssertionError, match="Bad `locs`") as excinfo:
         with base.jetsam(locs, a="a"):
             raise Exception("ABC")
 

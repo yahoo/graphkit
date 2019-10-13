@@ -580,7 +580,7 @@ class Network(plot.Plotter):
             outp-names to decide whether to add (and which) evict-instructions
 
         Instances of :class:`_EvictInstructions` are inserted in `steps` between
-        operation nodes to reduce the memory footprint of solutions while 
+        operation nodes to reduce the memory footprint of solutions while
         the computation is running.
         An evict-instruction is inserted whenever a *need* is not used
         by any other *operation* further down the DAG.
@@ -708,7 +708,7 @@ class Network(plot.Plotter):
 
         :returns: a dictionary of output data objects, keyed by name.
         """
-        with jetsam(locals(), network="self", plan="plan", solution="solution"):
+        with jetsam(locals(), "plan", "solution", "outputs", network="self"):
             try:
                 if isinstance(outputs, str):
                     outputs = [outputs]

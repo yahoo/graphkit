@@ -16,11 +16,11 @@ class FunctionalOperation(Operation):
     def _compute(self, named_inputs, outputs=None):
         with jetsam(
             locals(),
+            "outputs",
+            "provides",
+            "results",
             operation="self",
-            outs="outputs",
-            fnouts="provides",
             args=lambda locs: {"args": locs.get("args"), "kwargs": locs.get("kwargs")},
-            results="results",
         ):
             try:
                 args = [

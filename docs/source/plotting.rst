@@ -79,13 +79,13 @@ with the folllowing properties, as a debug aid:
 ... except ValueError as ex:
 ...     pprint(ex.graphkit_jetsam)
 {'args': {'args': [None], 'kwargs': {}},
- 'fnouts': ['foo'],
  'network':
   ...
  'operation': FunctionalOperation(name='screamer', needs=['a'], provides=['foo']),
- 'outs': None,
+ 'outputs': None,
  'plan': ExecutionPlan(inputs=('a',), outputs=(), steps:
   +--FunctionalOperation(name='screamer', needs=['a'], provides=['foo'])),
+ 'provides': ['foo'],
  'results': None,
  'solution': {'a': None}}
 
@@ -108,17 +108,18 @@ The following annotated attributes *might* have meaningfull value on an exceptio
 ``operation``
    the innermost operation that failed
 
-``operation_args``
-    either a 2-tuple ``(args, kwargs)`` or just the ``args`` fed to the operation
+``args``
+    either the input arguments list fed into the function, or a dict with
+    both ``args`` & ``kwargs`` keys in it.
 
-``operation_fnouts``
+``outputs``
     the names of the outputs the function was expected to return
 
-``operation_outs``
-    the names eventually the graph needed from the operation
-    (a subset of the above)
+``provides``
+    the names eventually the graph needed from the operation;
+    a subset of the above, and not always what has been declared in the operation.
 
-``operation_results``
+``results``
     the values dict, if any; it maybe a *zip* of the provides
     with the actual returned values of the function, ot the raw results.
 
