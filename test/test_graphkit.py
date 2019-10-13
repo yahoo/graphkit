@@ -107,8 +107,10 @@ def test_network_smoke():
     exp = {"sum_ab_times_b": 2}
     assert net({"sum_ab": 1, "b": 2}, outputs=["sum_ab_times_b"]) == exp
 
-    # visualize network graph
-    # net.plot(show=True)
+    with pytest.raises(ValueError, match="Unknown output node"):
+        net({"sum_ab": 1, "b": 2}, outputs="bad_node")
+    with pytest.raises(ValueError, match="Unknown output node"):
+        net({"sum_ab": 1, "b": 2}, outputs=["b", "bad_node"])
 
 
 def test_network_simple_merge():
