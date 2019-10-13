@@ -77,7 +77,7 @@ from boltons.setutils import IndexedSet as iset
 from networkx import DiGraph
 
 from . import plot
-from .base import Operation
+from .base import jetsam, Operation
 from .modifiers import optional, sideffect
 
 log = logging.getLogger(__name__)
@@ -257,15 +257,13 @@ class ExecutionPlan(
         solution[value_name] = inputs[value_name]
 
     def _call_operation(self, op, solution):
-        try:
-            return op._compute(solution)
-        except Exception as ex:
-            ## Annotate exception with debugging aid on errors.
-            #
-            err_aid = getattr(ex, "graphkit_aid", {})
-            err_aid.setdefault("plan", self)
-            setattr(ex, "graphkit_aid", err_aid)
-            raise
+        # Although `plan` have added to jetsam in `compute()``,
+        # add it again, in case compile()/execute is called separately.
+        with jetsam(locals(), plan="self"):
+            try:
+                return op._compute(solution)
+            finally:
+                locals()  # to update locals-dict handed to jetsam()
 
     def _execute_thread_pool_barrier_method(
         self, inputs, solution, overwrites, thread_pool_size=10
@@ -710,34 +708,27 @@ class Network(plot.Plotter):
 
         :returns: a dictionary of output data objects, keyed by name.
         """
-        try:
-            assert (
-                isinstance(outputs, (list, tuple)) or outputs is None
-            ), "The outputs argument must be a list"
+        with jetsam(locals(), network="self", plan="plan", solution="solution"):
+            try:
+                assert (
+                    isinstance(outputs, (list, tuple)) or outputs is None
+                ), "The outputs argument must be a list"
 
-            # Build the execution plan.
-            self.last_plan = plan = self.compile(named_inputs.keys(), outputs)
+                # Build the execution plan.
+                self.last_plan = plan = self.compile(named_inputs.keys(), outputs)
 
-            # start with fresh data solution.
-            solution = dict(named_inputs)
+                # start with fresh data solution.
+                solution = dict(named_inputs)
 
-            plan.execute(solution, overwrites_collector, method)
+                plan.execute(solution, overwrites_collector, method)
 
-            if outputs:
-                # Filter outputs to just return what's requested.
-                # Otherwise, return the whole solution as output,
-                # including input and intermediate data nodes.
-                # TODO: assert no other outputs exists due to evict-instructions.
-                solution = dict(i for i in solution.items() if i[0] in outputs)
+                if outputs:
+                    # Filter outputs to just return what's requested.
+                    # Otherwise, return the whole solution as output,
+                    # including input and intermediate data nodes.
+                    # Still needed with eviction to clean isolated given inputs.
+                    solution = dict(i for i in solution.items() if i[0] in outputs)
 
-            return solution
-        except Exception as ex:
-            ## Annotate exception with debugging aid on errorrs.
-            #
-            locs = locals()
-            err_aid = getattr(ex, "graphkit_aid", {})
-            err_aid.setdefault("network", locs.get("self"))
-            err_aid.setdefault("plan", locs.get("plan"))
-            err_aid.setdefault("solution", locs.get("solution"))
-            setattr(ex, "graphkit_aid", err_aid)
-            raise
+                return solution
+            finally:
+                locals()  # to update locals-dict handed to jetsam()
