@@ -552,46 +552,93 @@ def test_optional():
     assert results["sum"] == sum(named_inputs.values())
 
 
-def test_sideffects():
-    # Function without return value.
-    def extend(box):
-        box.extend([1, 2])
+# Function without return value.
+def _box_extend(box, *args):
+    box.extend([1, 2])
 
-    def increment(box):
-        for i in range(len(box)):
-            box[i] += 1
 
+def _box_increment(box):
+    for i in range(len(box)):
+        box[i] += 1
+
+
+@pytest.mark.parametrize("bools", range(4))
+def test_sideffect_no_real_data(bools):
+    reverse = bools >> 0 & 1
+    parallel = bools >> 1 & 1
+
+    ops = [
+        operation(
+            name="extend", needs=["box", sideffect("a")], provides=[sideffect("b")]
+        )(_box_extend),
+        operation(
+            name="increment", needs=["box", sideffect("b")], provides=sideffect("c")
+        )(_box_increment),
+    ]
+    if reverse:
+        ops = reversed(ops)
     # Designate `a`, `b` as sideffect inp/out arguments.
-    graph = compose("mygraph")(
-        operation(
-            name="extend",
-            needs=["box", sideffect("a")],
-            provides=[sideffect("b")],
-        )(extend),
-        operation(
-            name="increment",
-            needs=["box", sideffect("b")],
-            provides=sideffect("c"),
-        )(increment),
-    )
+    graph = compose("mygraph")(*ops)
+    if parallel:
+        graph.set_execution_method("parallel")
 
-    assert graph({"box": [0], "a": True})["box"] == [1, 2, 3]
+    # Normal data must not match sideffects
+    with pytest.raises(ValueError, match="Unknown output node"):
+        graph({"box": [0], "a": True}, outputs=["a"])
+    with pytest.raises(ValueError, match="Unknown output node"):
+        graph({"box": [0], "a": True}, outputs=["b"])
 
-    # Reverse order of functions.
-    graph = compose("mygraph")(
-        operation(
-            name="increment",
-            needs=["box", sideffect("a")],
-            provides=sideffect("b"),
-        )(increment),
-        operation(
-            name="extend",
-            needs=["box", sideffect("b")],
-            provides=[sideffect("c")],
-        )(extend),
-    )
+    sol = graph({"box": [0], "a": True})
+    # Nothing run if no sideffect inputs given.
+    assert not graph.net.last_plan.executed
+    assert sol == {"box": [0], "a": True}
 
-    assert graph({"box": [0], "a": None})["box"] == [1, 1, 2]
+    # Nothing run if no sideffect inputs given.
+    sol = graph({"box": [0], "a": True}, outputs=["box", sideffect("b")])
+    assert not graph.net.last_plan.executed
+    assert sol == {"box": [0]}
+
+    ## OK INPUT SIDEFFECTS
+    #
+    # ok, no asked out
+    sol = graph({"box": [0], sideffect("a"): True})
+    assert sol == {"box": [1, 2, 3], sideffect("a"): True}
+    #
+    # bad, not asked the out-sideffect
+    sol = graph({"box": [0], sideffect("a"): True}, "box")
+    assert sol == {"box": [0]}
+    #
+    # ok, asked the 1st out-sideffect
+    sol = graph({"box": [0], sideffect("a"): True}, ["box", sideffect("b")])
+    assert sol == {"box": [0, 1, 2]}
+    #
+    # ok, asked the 2nd out-sideffect
+    sol = graph({"box": [0], sideffect("a"): True}, ["box", sideffect("c")])
+    assert sol == {"box": [1, 2, 3]}
+
+
+@pytest.mark.parametrize("bools", range(4))
+def test_sideffect_real_input(bools):
+    reverse = bools >> 0 & 1
+    parallel = bools >> 1 & 1
+
+    ops = [
+        operation(name="extend", needs=["box", "a"], provides=[sideffect("b")])(
+            _box_extend
+        ),
+        operation(name="increment", needs=["box", sideffect("b")], provides="c")(
+            _box_increment
+        ),
+    ]
+    if reverse:
+        ops = reversed(ops)
+    # Designate `a`, `b` as sideffect inp/out arguments.
+    graph = compose("mygraph")(*ops)
+    if parallel:
+        graph.set_execution_method("parallel")
+
+    assert graph({"box": [0], "a": True}) == {"a": True, "box": [1, 2, 3], "c": None}
+    assert graph({"box": [0], "a": True}, ["box", "c"]) == {"box": [1, 2, 3], "c": None}
 
 
 @pytest.mark.xfail(
