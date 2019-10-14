@@ -1,11 +1,12 @@
 # Copyright 2016, Yahoo Inc.
 # Licensed under the terms of the Apache License, Version 2.0. See the LICENSE file associated with the project for terms.
+import functools as fnt
+import itertools as itt
 import logging
 
 import pytest
-import itertools as itt
 
-from graphkit import base
+from graphkit import base, network, operation
 
 
 def test_jetsam_without_failure(caplog):
@@ -75,13 +76,17 @@ def test_jetsam_dummy_locals(caplog):
     assert "Supressed error" not in caplog.text
 
 
-def _jetsamed_fn():
+def _scream(*args, **kwargs):
+    raise Exception("ABC")
+
+
+def _jetsamed_fn(*args, **kwargs):
     b = 1
     with base.jetsam(locals(), a="a", b="b"):
         try:
             a = 1
             b = 2
-            raise Exception("ABC", a, b)
+            _scream()
         finally:
             locals()
 
@@ -97,9 +102,9 @@ def test_jetsam_nested():
     def inner():
         with base.jetsam(locals(), fn="fn"):
             try:
-
+                a = 0
                 fn = "inner"
-                raise Exception("ABC")
+                _jetsamed_fn()
             finally:
                 locals()
 
@@ -108,6 +113,7 @@ def test_jetsam_nested():
             try:
 
                 fn = "outer"
+                b = 0
                 inner()
             finally:
                 locals()
@@ -115,4 +121,78 @@ def test_jetsam_nested():
     with pytest.raises(Exception, match="ABC") as excinfo:
         outer()
 
-    assert excinfo.value.graphkit_jetsam == {"fn": "inner"}
+    assert excinfo.value.graphkit_jetsam == {"fn": "inner", "a": 1, "b": 2}
+
+
+def screaming_dumy_op():
+    # No jetsam, in particular, to check sites.
+    class Op:
+        _compute = _scream
+
+    return Op()
+
+
+@pytest.mark.parametrize(
+    "acallable, expected_jetsam",
+    [
+        # NO old-stuff Operation(fn=_jetsamed_fn, name="test", needs="['a']", provides=[]),
+        (
+            fnt.partial(
+                operation(name="test", needs=["a"], provides=["b"])(_scream)._compute,
+                named_inputs={"a": 1},
+            ),
+            "outputs provides results operation args".split(),
+        ),
+        (
+            fnt.partial(
+                network.ExecutionPlan(*([None] * 7))._call_operation,
+                op=screaming_dumy_op(),
+                solution={},
+            ),
+            ["plan"],
+        ),
+        # Not easy to test Network calling a screaming func (see next TC).
+    ],
+)
+def test_jetsam_sites_screaming_func(acallable, expected_jetsam):
+    # Check jetsams when the underlying function fails.
+    with pytest.raises(Exception, match="ABC") as excinfo:
+        acallable()
+
+    ex = excinfo.value
+    assert set(ex.graphkit_jetsam.keys()) == set(expected_jetsam)
+
+@pytest.mark.parametrize(
+    "acallable, expected_jetsam",
+    [
+        # NO old-stuff Operation(fn=_jetsamed_fn, name="test", needs="['a']", provides=[]),
+        (
+            fnt.partial(
+                operation(name="test", needs=["a"], provides=["b"])(_scream)._compute,
+                named_inputs=None,
+            ),
+            "outputs provides results operation args".split(),
+        ),
+        (
+            fnt.partial(
+                network.ExecutionPlan(*([None] * 7))._call_operation,
+                op=None,
+                solution={},
+            ),
+            ["plan"],
+        ),
+        (
+            fnt.partial(
+                network.Network().compute, named_inputs=None, outputs=None
+            ),
+            "network plan solution outputs".split(),
+        ),
+    ],
+)
+def test_jetsam_sites_scream(acallable, expected_jetsam):
+    # Check jetsams when the site fails.
+    with pytest.raises(Exception) as excinfo:
+        acallable()
+
+    ex = excinfo.value
+    assert set(ex.graphkit_jetsam.keys()) == set(expected_jetsam)
