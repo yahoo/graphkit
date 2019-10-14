@@ -537,7 +537,7 @@ class Network(plot.Plotter):
         unknown_outputs = iset(outputs) - dag.nodes
         if unknown_outputs:
             raise ValueError(
-                "Unknown output node(s) requested: %s" % ", ".join(unknown_outputs)
+                "Unknown output node(s) asked: %s" % ", ".join(unknown_outputs)
             )
 
         broken_dag = dag.copy()  # preserve net's graph
@@ -560,14 +560,19 @@ class Network(plot.Plotter):
             # If caller requested specific outputs, we can prune any
             # unrelated nodes further up the dag.
             ending_in_outputs = set()
-            for input_name in outputs:
-                ending_in_outputs.update(nx.ancestors(dag, input_name))
-            broken_dag = broken_dag.subgraph(ending_in_outputs | set(outputs))
+            for output_name in outputs:
+                ending_in_outputs.add(_DataNode(output_name))
+                ending_in_outputs.update(nx.ancestors(dag, output_name))
+            broken_dag = broken_dag.subgraph(ending_in_outputs)
 
         # Prune unsatisfied operations (those with partial inputs or no outputs).
         unsatisfied = self._collect_unsatisfied_operations(broken_dag, inputs)
         # Clone it so that it is picklable.
         pruned_dag = dag.subgraph(broken_dag.nodes - unsatisfied).copy()
+
+        assert all(
+            isinstance(n, (Operation, _DataNode)) for n in pruned_dag
+        ), pruned_dag
 
         return pruned_dag, broken_edges
 
