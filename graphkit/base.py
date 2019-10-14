@@ -1,6 +1,5 @@
 # Copyright 2016, Yahoo Inc.
 # Licensed under the terms of the Apache License, Version 2.0. See the LICENSE file associated with the project for terms.
-import contextlib
 import logging
 from collections import namedtuple
 
@@ -15,18 +14,22 @@ from . import plot
 log = logging.getLogger(__name__)
 
 
-@contextlib.contextmanager
-## def jetsam(locs, *salvage_vars, annotation="graphkit_jetsam", **salvage_mappings):  # bad PY2 syntax
-def jetsam(locs, *salvage_vars, **salvage_mappings):
+## def jetsam(ex, locs, *salvage_vars, annotation="graphkit_jetsam", **salvage_mappings):  # bad PY2 syntax
+def jetsam(ex, locs, *salvage_vars, **salvage_mappings):
     """
-    Debug-aid to annotate exceptions with salvaged values from wrapped functions.
+    Annotate exception with salvaged values from locals().
 
+    :param ex:
+        the exception to annotate
     :param locs:
         ``locals()`` from the context-manager's block containing vars
         to be salvaged in case of exception
 
         ATTENTION: wrapped function must finally call ``locals()``, because
         *locals* dictionary only reflects local-var changes after call.
+    :param str annotation:
+        (a kwarg not seen in the signature due to PY2 compatibility)
+        the name of the attribute to attach on the exception
     :param salvage_vars:
         local variable names to save as is in the salvaged annotations dictionary.
     :param salvage_mappings:
@@ -50,20 +53,18 @@ def jetsam(locs, *salvage_vars, **salvage_mappings):
     in case of errors::
 
 
-        with jetsam(locals(), "a", b="salvaged_b", c_var="c"):
-            try:
-                a = 1
-                b = 2
-                raise Exception()
-            finally:
-                locals()  # to update locals-dict handed to jetsam().
+        try:
+            a = 1
+            b = 2
+            raise Exception()
+        exception Exception as ex:
+            jetsam(ex, locals(), "a", b="salvaged_b", c_var="c")
 
     And then from a REPL::
 
         import sys
         sys.last_value.graphkit_jetsam
         {'a': 1, 'salvaged_b': 2, "c_var": None}
-
 
     ** Reason:**
 
@@ -80,6 +81,7 @@ def jetsam(locs, *salvage_vars, **salvage_mappings):
     #
     annotation = salvage_mappings.pop("annotation", "graphkit_jetsam")
 
+    assert isinstance(ex, Exception), ("Bad `ex`, not an exception dict:", ex)
     assert isinstance(locs, dict), ("Bad `locs`, not a dict:", locs)
     assert all(isinstance(i, str) for i in salvage_vars), (
         "Bad `salvage_vars`!",
@@ -97,30 +99,26 @@ def jetsam(locs, *salvage_vars, **salvage_mappings):
             salvage_mappings[var] = var
 
     try:
-        yield jetsam
-    except Exception as ex_to_annotate:
-        try:
-            annotations = getattr(ex_to_annotate, annotation, None)
-            if not isinstance(annotations, dict):
-                annotations = {}
-                setattr(ex_to_annotate, annotation, annotations)
+        annotations = getattr(ex, annotation, None)
+        if not isinstance(annotations, dict):
+            annotations = {}
+            setattr(ex, annotation, annotations)
 
-            ## Salvage those asked
-            for dst_key, src in salvage_mappings.items():
-                try:
-                    salvaged_value = src(locs) if callable(src) else locs.get(src)
-                    annotations.setdefault(dst_key, salvaged_value)
-                except Exception as ex:
-                    log.warning(
-                        "Supressed error while salvaging jetsam item (%r, %r): %r"
-                        % (dst_key, src, ex)
-                    )
-        except Exception as ex:
-            log.warning(
-                "Supressed error while annotating exception: %r", ex, exc_info=1
-            )
+        ## Salvage those asked
+        for dst_key, src in salvage_mappings.items():
+            try:
+                salvaged_value = src(locs) if callable(src) else locs.get(src)
+                annotations.setdefault(dst_key, salvaged_value)
+            except Exception as ex:
+                log.warning(
+                    "Supressed error while salvaging jetsam item (%r, %r): %r"
+                    % (dst_key, src, ex)
+                )
+    except Exception as ex2:
+        log.warning("Supressed error while annotating exception: %r", ex2, exc_info=1)
+        raise ex2
 
-        raise  # re-raise without ex-arg, not to insert my frame
+    raise  # noqa #re-raise without ex-arg, not to insert my frame
 
 
 class Data(object):
@@ -214,23 +212,22 @@ class Operation(object):
         raise NotImplementedError("Define callable of %r!" % self)
 
     def _compute(self, named_inputs, outputs=None):
-        with jetsam(
-            locals(), "outputs", "provides", "args", "results", operation="self"
-        ):
-            try:
-                provides = self.provides
-                args = [named_inputs[d] for d in self.needs]
-                results = self.compute(args)
+        try:
+            provides = self.provides
+            args = [named_inputs[d] for d in self.needs]
+            results = self.compute(args)
 
-                results = zip(provides, results)
+            results = zip(provides, results)
 
-                if outputs:
-                    outs = set(outputs)
-                    results = filter(lambda x: x[0] in outs, results)
+            if outputs:
+                outs = set(outputs)
+                results = filter(lambda x: x[0] in outs, results)
 
-                return dict(results)
-            finally:
-                locals()  # to update locals-dict handed to jetsam()
+            return dict(results)
+        except Exception as ex:
+            jetsam(
+                ex, locals(), "outputs", "provides", "args", "results", operation="self"
+            )
 
     def _after_init(self):
         """

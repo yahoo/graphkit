@@ -259,11 +259,10 @@ class ExecutionPlan(
     def _call_operation(self, op, solution):
         # Although `plan` have added to jetsam in `compute()``,
         # add it again, in case compile()/execute is called separately.
-        with jetsam(locals(), plan="self"):
-            try:
-                return op._compute(solution)
-            finally:
-                locals()  # to update locals-dict handed to jetsam()
+        try:
+            return op._compute(solution)
+        except Exception as ex:
+            jetsam(ex, locals(), plan="self")
 
     def _execute_thread_pool_barrier_method(
         self, inputs, solution, overwrites, thread_pool_size=10
@@ -717,30 +716,29 @@ class Network(plot.Plotter):
 
         :returns: a dictionary of output data objects, keyed by name.
         """
-        with jetsam(locals(), "plan", "solution", "outputs", network="self"):
-            try:
-                if isinstance(outputs, str):
-                    outputs = [outputs]
-                elif not isinstance(outputs, (list, tuple)) and outputs is not None:
-                    raise ValueError(
-                        "The outputs argument must be a list, was: %s", outputs
-                    )
+        try:
+            if isinstance(outputs, str):
+                outputs = [outputs]
+            elif not isinstance(outputs, (list, tuple)) and outputs is not None:
+                raise ValueError(
+                    "The outputs argument must be a list, was: %s", outputs
+                )
 
-                # Build the execution plan.
-                self.last_plan = plan = self.compile(named_inputs.keys(), outputs)
+            # Build the execution plan.
+            self.last_plan = plan = self.compile(named_inputs.keys(), outputs)
 
-                # start with fresh data solution.
-                solution = dict(named_inputs)
+            # start with fresh data solution.
+            solution = dict(named_inputs)
 
-                plan.execute(solution, overwrites_collector, method)
+            plan.execute(solution, overwrites_collector, method)
 
-                if outputs:
-                    # Filter outputs to just return what's requested.
-                    # Otherwise, return the whole solution as output,
-                    # including input and intermediate data nodes.
-                    # Still needed with eviction to clean isolated given inputs.
-                    solution = dict(i for i in solution.items() if i[0] in outputs)
+            if outputs:
+                # Filter outputs to just return what's requested.
+                # Otherwise, return the whole solution as output,
+                # including input and intermediate data nodes.
+                # Still needed with eviction to clean isolated given inputs.
+                solution = dict(i for i in solution.items() if i[0] in outputs)
 
-                return solution
-            finally:
-                locals()  # to update locals-dict handed to jetsam()
+            return solution
+        except Exception as ex:
+            jetsam(ex, locals(), "plan", "solution", "outputs", network="self")

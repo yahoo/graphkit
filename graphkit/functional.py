@@ -14,52 +14,55 @@ class FunctionalOperation(Operation):
         Operation.__init__(self, **kwargs)
 
     def _compute(self, named_inputs, outputs=None):
-        with jetsam(
-            locals(),
-            "outputs",
-            "provides",
-            "results",
-            operation="self",
-            args=lambda locs: {"args": locs.get("args"), "kwargs": locs.get("kwargs")},
-        ):
-            try:
-                args = [
-                    named_inputs[n]
-                    for n in self.needs
-                    if not isinstance(n, optional) and not isinstance(n, sideffect)
-                ]
+        try:
+            args = [
+                named_inputs[n]
+                for n in self.needs
+                if not isinstance(n, optional) and not isinstance(n, sideffect)
+            ]
 
-                # Find any optional inputs in named_inputs.  Get only the ones that
-                # are present there, no extra `None`s.
-                optionals = {
-                    n: named_inputs[n]
-                    for n in self.needs
-                    if isinstance(n, optional) and n in named_inputs
-                }
+            # Find any optional inputs in named_inputs.  Get only the ones that
+            # are present there, no extra `None`s.
+            optionals = {
+                n: named_inputs[n]
+                for n in self.needs
+                if isinstance(n, optional) and n in named_inputs
+            }
 
-                # Combine params and optionals into one big glob of keyword arguments.
-                kwargs = {k: v for d in (self.params, optionals) for k, v in d.items()}
+            # Combine params and optionals into one big glob of keyword arguments.
+            kwargs = {k: v for d in (self.params, optionals) for k, v in d.items()}
 
-                # Don't expect sideffect outputs.
-                provides = [n for n in self.provides if not isinstance(n, sideffect)]
+            # Don't expect sideffect outputs.
+            provides = [n for n in self.provides if not isinstance(n, sideffect)]
 
-                results = self.fn(*args, **kwargs)
+            results = self.fn(*args, **kwargs)
 
-                if not provides:
-                    # All outputs were sideffects.
-                    return {}
+            if not provides:
+                # All outputs were sideffects.
+                return {}
 
-                if len(provides) == 1:
-                    results = [results]
+            if len(provides) == 1:
+                results = [results]
 
-                results = zip(provides, results)
-                if outputs:
-                    outputs = set(n for n in outputs if not isinstance(n, sideffect))
-                    results = filter(lambda x: x[0] in outputs, results)
+            results = zip(provides, results)
+            if outputs:
+                outputs = set(n for n in outputs if not isinstance(n, sideffect))
+                results = filter(lambda x: x[0] in outputs, results)
 
-                return dict(results)
-            finally:
-                locals()  # to update locals-dict handed to jetsam()
+            return dict(results)
+        except Exception as ex:
+            jetsam(
+                ex,
+                locals(),
+                "outputs",
+                "provides",
+                "results",
+                operation="self",
+                args=lambda locs: {
+                    "args": locs.get("args"),
+                    "kwargs": locs.get("kwargs"),
+                },
+            )
 
     def __call__(self, *args, **kwargs):
         return self.fn(*args, **kwargs)

@@ -9,22 +9,14 @@ import pytest
 from graphkit import base, network, operation
 
 
-def test_jetsam_without_failure(caplog):
-    caplog.set_level(logging.INFO)
-    with pytest.raises(AssertionError, match="No `salvage_mappings`"):
-        with base.jetsam({}):
-            pytest.xfail("Jetsam did not detect bad inputs!")
-
-    assert "No-op jetsam!  Call" not in caplog.text
-    assert "Supressed error" not in caplog.text
-
-
 @pytest.mark.parametrize("locs", [None, (), [], [0], "bad"])
 def test_jetsam_bad_locals(locs, caplog):
     caplog.set_level(logging.INFO)
     with pytest.raises(AssertionError, match="Bad `locs`") as excinfo:
-        with base.jetsam(locs, a="a"):
+        try:
             raise Exception()
+        except Exception as ex:
+            base.jetsam(ex, locs, a="a")
 
     assert not hasattr(excinfo.value, "graphkit_jetsam")
     assert "Supressed error while annotating exception" not in caplog.text
@@ -34,8 +26,10 @@ def test_jetsam_bad_locals(locs, caplog):
 def test_jetsam_bad_keys(keys, caplog):
     caplog.set_level(logging.INFO)
     with pytest.raises(AssertionError, match="Bad `salvage_mappings`") as excinfo:
-        with base.jetsam({}, **keys):
+        try:
             raise Exception("ABC")
+        except Exception as ex:
+            base.jetsam(ex, {}, **keys)
 
     assert not hasattr(excinfo.value, "graphkit_jetsam")
     assert "Supressed error while annotating exception" not in caplog.text
@@ -45,8 +39,10 @@ def test_jetsam_bad_keys(keys, caplog):
 def test_jetsam_bad_locals_given(locs, caplog):
     caplog.set_level(logging.INFO)
     with pytest.raises(AssertionError, match="Bad `locs`") as excinfo:
-        with base.jetsam(locs, a="a"):
+        try:
             raise Exception("ABC")
+        except Exception as ex:
+            base.jetsam(ex, locs, a="a")
 
     assert not hasattr(excinfo.value, "graphkit_jetsam")
     assert "Supressed error while annotating exception" not in caplog.text
@@ -56,10 +52,12 @@ def test_jetsam_bad_locals_given(locs, caplog):
 def test_jetsam_bad_existing_annotation(annotation, caplog):
     caplog.set_level(logging.INFO)
     with pytest.raises(Exception, match="ABC") as excinfo:
-        with base.jetsam({}, a="a"):
+        try:
             ex = Exception("ABC")
             ex.graphkit_jetsam = annotation
             raise ex
+        except Exception as ex:
+            base.jetsam(ex, {}, a="a")
 
     assert excinfo.value.graphkit_jetsam == {"a": None}
     assert "Supressed error while annotating exception" not in caplog.text
@@ -67,9 +65,10 @@ def test_jetsam_bad_existing_annotation(annotation, caplog):
 
 def test_jetsam_dummy_locals(caplog):
     with pytest.raises(Exception, match="ABC") as excinfo:
-        with base.jetsam({"a": 1}, a="a", bad="bad"):
-
+        try:
             raise Exception("ABC")
+        except Exception as ex:
+            base.jetsam(ex, {"a": 1}, a="a", bad="bad")
 
     assert isinstance(excinfo.value.graphkit_jetsam, dict)
     assert excinfo.value.graphkit_jetsam == {"a": 1, "bad": None}
@@ -82,13 +81,12 @@ def _scream(*args, **kwargs):
 
 def _jetsamed_fn(*args, **kwargs):
     b = 1
-    with base.jetsam(locals(), a="a", b="b"):
-        try:
-            a = 1
-            b = 2
-            _scream()
-        finally:
-            locals()
+    try:
+        a = 1
+        b = 2
+        _scream()
+    except Exception as ex:
+        base.jetsam(ex, locals(), a="a", b="b")
 
 
 def test_jetsam_locals_simple(caplog):
@@ -100,23 +98,21 @@ def test_jetsam_locals_simple(caplog):
 
 def test_jetsam_nested():
     def inner():
-        with base.jetsam(locals(), fn="fn"):
-            try:
-                a = 0
-                fn = "inner"
-                _jetsamed_fn()
-            finally:
-                locals()
+        try:
+            a = 0
+            fn = "inner"
+            _jetsamed_fn()
+        except Exception as ex:
+            base.jetsam(ex, locals(), fn="fn")
 
     def outer():
-        with base.jetsam(locals(), fn="fn"):
-            try:
+        try:
 
-                fn = "outer"
-                b = 0
-                inner()
-            finally:
-                locals()
+            fn = "outer"
+            b = 0
+            inner()
+        except Exception as ex:
+            base.jetsam(ex, locals(), fn="fn")
 
     with pytest.raises(Exception, match="ABC") as excinfo:
         outer()
@@ -162,6 +158,7 @@ def test_jetsam_sites_screaming_func(acallable, expected_jetsam):
     ex = excinfo.value
     assert set(ex.graphkit_jetsam.keys()) == set(expected_jetsam)
 
+
 @pytest.mark.parametrize(
     "acallable, expected_jetsam",
     [
@@ -182,9 +179,7 @@ def test_jetsam_sites_screaming_func(acallable, expected_jetsam):
             ["plan"],
         ),
         (
-            fnt.partial(
-                network.Network().compute, named_inputs=None, outputs=None
-            ),
+            fnt.partial(network.Network().compute, named_inputs=None, outputs=None),
             "network plan solution outputs".split(),
         ),
     ],
