@@ -365,9 +365,10 @@ class Network(object):
             # If caller requested specific outputs, we can prune any
             # unrelated nodes further up the dag.
             ending_in_outputs = set()
-            for input_name in outputs:
-                ending_in_outputs.update(nx.ancestors(dag, input_name))
-            broken_dag = broken_dag.subgraph(ending_in_outputs | set(outputs))
+            for output_name in outputs:
+                ending_in_outputs.add(DataPlaceholderNode(output_name))
+                ending_in_outputs.update(nx.ancestors(dag, output_name))
+            broken_dag = broken_dag.subgraph(ending_in_outputs)
 
 
         # Prune unsatisfied operations (those with partial inputs or no outputs).
@@ -377,6 +378,11 @@ class Network(object):
 
         return pruned_dag.copy()  # clone so that it is picklable
 
+        assert all(
+            isinstance(n, (Operation, DataPlaceholderNode)) for n in pruned_dag
+        ), pruned_dag
+
+        return pruned_dag.copy()
 
     def compile(self, outputs=(), inputs=()):
         """
