@@ -16,7 +16,8 @@ log = logging.getLogger(__name__)
 
 
 @contextlib.contextmanager
-def jetsam(locs, *salvage_vars, annotation="graphkit_jetsam", **salvage_mappings):
+## def jetsam(locs, *salvage_vars, annotation="graphkit_jetsam", **salvage_mappings):  # bad PY2 syntax
+def jetsam(locs, *salvage_vars, **salvage_mappings):
     """
     Debug-aid to annotate exceptions with salvaged values from wrapped functions.
 
@@ -77,6 +78,8 @@ def jetsam(locs, *salvage_vars, annotation="graphkit_jetsam", **salvage_mappings
     """
     ## Fail EARLY before yielding on bad use.
     #
+    annotation = salvage_mappings.pop("annotation", "graphkit_jetsam")
+
     assert isinstance(locs, dict), ("Bad `locs`, not a dict:", locs)
     assert all(isinstance(i, str) for i in salvage_vars), (
         "Bad `salvage_vars`!",
