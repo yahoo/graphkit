@@ -591,12 +591,10 @@ def test_sideffect_no_real_data(bools):
 
     sol = graph({"box": [0], "a": True})
     # Nothing run if no sideffect inputs given.
-    assert not graph.net.last_plan.executed
     assert sol == {"box": [0], "a": True}
 
     # Nothing run if no sideffect inputs given.
     sol = graph({"box": [0], "a": True}, outputs=["box", sideffect("b")])
-    assert not graph.net.last_plan.executed
     assert sol == {"box": [0]}
 
     ## OK INPUT SIDEFFECTS

@@ -142,8 +142,7 @@ class _PinInstruction(str):
 
 
 class ExecutionPlan(
-    namedtuple("_ExePlan", "net inputs outputs dag broken_edges steps executed"),
-    plot.Plotter,
+    namedtuple("_ExePlan", "net inputs outputs dag broken_edges steps"), plot.Plotter
 ):
     """
     The result of the network's compilation phase.
@@ -170,8 +169,6 @@ class ExecutionPlan(
         The tuple of operation-nodes & *instructions* needed to evaluate
         the given inputs & asked outputs, free memory and avoid overwritting
         any given intermediate inputs.
-    :ivar executed:
-        An empty set to collect all operations that have been executed so far.
     """
 
     @property
@@ -189,7 +186,6 @@ class ExecutionPlan(
             "steps": self.steps,
             "inputs": self.inputs,
             "outputs": self.outputs,
-            "executed": self.executed,
             "edge_props": {
                 e: {"color": "wheat", "penwidth": 2} for e in self.broken_edges
             },
@@ -215,7 +211,7 @@ class ExecutionPlan(
         if isinstance(node, _DataNode):
             return node
 
-    def _can_schedule_operation(self, op):
+    def _can_schedule_operation(self, op, executed):
         """
         Determines if a Operation is ready to be scheduled for execution
 
@@ -223,6 +219,8 @@ class ExecutionPlan(
 
         :param op:
             The Operation object to check
+        :param set executed:
+            An empty set to collect all operations that have been executed so far.
         :return:
             A boolean indicating whether the operation may be scheduled for
             execution based on what has already been executed.
@@ -232,9 +230,9 @@ class ExecutionPlan(
         dependencies = set(
             n for n in nx.ancestors(self.broken_dag, op) if isinstance(n, Operation)
         )
-        return dependencies.issubset(self.executed)
+        return dependencies.issubset(executed)
 
-    def _can_evict_value(self, name):
+    def _can_evict_value(self, name, executed):
         """
         Determines if a _DataNode is ready to be evicted from solution.
 
@@ -247,7 +245,7 @@ class ExecutionPlan(
         # Use `broken_dag` not to block a successor waiting for this data,
         # since in any case will use a given input, not some pipe of this data.
         return data_node and set(self.broken_dag.successors(data_node)).issubset(
-            self.executed
+            executed
         )
 
     def _pin_data_in_solution(self, value_name, solution, inputs, overwrites):
@@ -265,7 +263,7 @@ class ExecutionPlan(
             jetsam(ex, locals(), plan="self")
 
     def _execute_thread_pool_barrier_method(
-        self, inputs, solution, overwrites, thread_pool_size=10
+        self, inputs, solution, overwrites, executed, thread_pool_size=10
     ):
         """
         This method runs the graph using a parallel pool of thread executors.
@@ -290,15 +288,15 @@ class ExecutionPlan(
             for node in self.steps:
                 if (
                     isinstance(node, Operation)
-                    and self._can_schedule_operation(node)
-                    and node not in self.executed
+                    and node not in executed
+                    and self._can_schedule_operation(node, executed)
                 ):
                     upnext.append(node)
                 elif isinstance(node, _EvictInstruction):
                     # Only evict if all successors for the data node
                     # have been executed.
                     # An optional need may not have a value in the solution.
-                    if node in solution and self._can_evict_value(node):
+                    if node in solution and self._can_evict_value(node, executed):
                         log.debug("removing data '%s' from solution.", node)
                         del solution[node]
                 elif isinstance(node, _PinInstruction):
@@ -319,9 +317,9 @@ class ExecutionPlan(
 
             for op, result in done_iterator:
                 solution.update(result)
-                self.executed.add(op)
+                executed.add(op)
 
-    def _execute_sequential_method(self, inputs, solution, overwrites):
+    def _execute_sequential_method(self, inputs, solution, overwrites, executed):
         """
         This method runs the graph one operation at a time in a single thread
         """
@@ -340,7 +338,7 @@ class ExecutionPlan(
 
                 # add outputs to solution
                 solution.update(layer_outputs)
-                self.executed.add(step)
+                executed.add(step)
 
                 # record execution time
                 t_complete = round(time.time() - t0, 5)
@@ -370,9 +368,6 @@ class ExecutionPlan(
             because they were "pinned" by input vaules.
             If missing, the overwrites values are simply discarded.
         """
-        # Clean executed operation from any previous execution.
-        self.executed.clear()
-
         # choose a method of execution
         executor = (
             self._execute_thread_pool_barrier_method
@@ -380,8 +375,10 @@ class ExecutionPlan(
             else self._execute_sequential_method
         )
 
+        executed = set()
+
         # clone and keep orignal inputs in solution intact
-        executor(dict(solution), solution, overwrites)
+        executor(dict(solution), solution, overwrites, executed)
 
         # return it, but caller can also see the results in `solution` dict.
         return solution
@@ -682,7 +679,6 @@ class Network(plot.Plotter):
                 pruned_dag,
                 tuple(broken_edges),
                 tuple(steps),
-                executed=iset(),
             )
 
             # Cache compilation results to speed up future runs

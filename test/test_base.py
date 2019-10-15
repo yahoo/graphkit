@@ -141,7 +141,7 @@ def screaming_dumy_op():
         ),
         (
             fnt.partial(
-                network.ExecutionPlan(*([None] * 7))._call_operation,
+                network.ExecutionPlan(*([None] * 6))._call_operation,
                 op=screaming_dumy_op(),
                 solution={},
             ),
@@ -172,7 +172,7 @@ def test_jetsam_sites_screaming_func(acallable, expected_jetsam):
         ),
         (
             fnt.partial(
-                network.ExecutionPlan(*([None] * 7))._call_operation,
+                network.ExecutionPlan(*([None] * 6))._call_operation,
                 op=None,
                 solution={},
             ),
