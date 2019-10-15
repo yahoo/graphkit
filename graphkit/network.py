@@ -77,7 +77,7 @@ from boltons.setutils import IndexedSet as iset
 from networkx import DiGraph
 
 from . import plot
-from .base import jetsam, Operation
+from .base import Operation, jetsam
 from .modifiers import optional, sideffect
 
 log = logging.getLogger(__name__)
@@ -553,7 +553,7 @@ class Network(plot.Plotter):
         broken_dag.remove_edges_from(broken_edges)
 
         # Drop stray input values and operations (if any).
-        broken_dag.remove_nodes_from(nx.isolates(broken_dag))
+        broken_dag.remove_nodes_from(list(nx.isolates(broken_dag)))
 
         if outputs:
             # If caller requested specific outputs, we can prune any
