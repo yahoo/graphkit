@@ -1,0 +1,31 @@
+# Render it manually with this command, and remember to update result in git:
+#
+#   dot docs/GraphkitFlowchart.dot -Tsvg -odocs/source/images/GraphkitFlowchart-vX.Y.Z.svg 
+#
+digraph {
+    label="graphkit-v1.3.0 flowchart";
+    labelloc=t;
+
+    operations  [shape=parallelogram fontname="italic"];
+    compose     [fontname="italic"];
+    network     [shape=parallelogram fontname="italic"];
+    inputs      [shape=rect label="input names"];
+    outputs     [shape=rect label="output names"];
+    subgraph cluster_compute {
+        label=compute
+        fontname=bold
+        style=dashed;
+        labelloc=b;
+
+        compile     [fontname="italic"];
+        plan        [shape=parallelogram label="execution plan" fontname="italic"];
+        execute     [fontname=italic fontname="italic"];
+    }
+    values      [shape=rect label="input values"];
+    solution    [shape=rect];
+    overwrites  [shape=rect];
+    
+    operations -> compose -> network    [arrowhead=vee];
+    {network inputs outputs} -> compile -> plan  [arrowhead=vee];
+    {plan values} -> execute -> {solution overwrites} [arrowhead=vee];
+}
