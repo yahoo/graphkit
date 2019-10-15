@@ -496,6 +496,36 @@ def test_deleteinstructs_vary_with_inputs():
     assert count_deletions(steps12) != count_deletions(steps22)
 
 
+def test_multithreading_plan_execution():
+    # From Huygn's test-code given in yahoo/graphkit#31
+    from multiprocessing.dummy import Pool
+    from graphkit import compose, operation
+
+    # Computes |a|^p.
+    def abspow(a, p):
+        c = abs(a) ** p
+        return c
+
+    # Compose the mul, sub, and abspow operations into a computation graph.
+    graph = compose(name="graph")(
+        operation(name="mul1", needs=["a", "b"], provides=["ab"])(mul),
+        operation(name="sub1", needs=["a", "ab"], provides=["a_minus_ab"])(sub),
+        operation(
+            name="abspow1",
+            needs=["a_minus_ab"],
+            provides=["abs_a_minus_ab_cubed"],
+            params={"p": 3},
+        )(abspow),
+    )
+
+    pool = Pool(10)
+    graph.set_execution_method("parallel")
+    pool.map(
+        lambda i: graph({"a": 2, "b": 5}, ["a_minus_ab", "abs_a_minus_ab_cubed"]),
+        range(100),
+    )
+
+
 def test_parallel_execution():
     import time
 
@@ -550,6 +580,7 @@ def test_parallel_execution():
 
     # make sure results are the same using either method
     assert result_sequential == result_threaded
+
 
 def test_multi_threading():
     import time
