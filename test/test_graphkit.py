@@ -34,6 +34,11 @@ def filtdict(d, *keys):
     return type(d)(i for i in d.items() if i[0] in keys)
 
 
+def abspow(a, p):
+    c = abs(a) ** p
+    return c
+
+
 def test_network_smoke():
 
     # Sum operation, late-bind compute function
@@ -170,10 +175,6 @@ def test_network_deep_merge():
 
 
 def test_network_merge_in_doctests():
-    def abspow(a, p):
-        c = abs(a) ** p
-        return c
-
     graphop = compose(name="graphop")(
         operation(name="mul1", needs=["a", "b"], provides=["ab"])(mul),
         operation(name="sub1", needs=["a", "ab"], provides=["a_minus_ab"])(sub),
@@ -310,7 +311,7 @@ def test_pruning_not_overrides_given_intermediate():
     pipeline.set_execution_method("parallel")
     overwrites = {}
     pipeline.set_overwrites_collector(overwrites)
-    # assert pipeline(inputs, ["asked"]) == filtdict(exp, "asked")
+    assert pipeline(inputs, ["asked"]) == filtdict(exp, "asked")
     assert overwrites == {}  # unjust must have been pruned
 
     overwrites = {}
@@ -776,6 +777,31 @@ def test_evict_instructions_vary_with_inputs():
     #
     # FAILs in v1.2.4 + #18, PASS in #26
     assert count_evictions(steps12) != count_evictions(steps22)
+
+
+def test_multithreading_plan_execution():
+    # From Huygn's test-code given in yahoo/graphkit#31
+    from multiprocessing.dummy import Pool
+    from graphkit import compose, operation
+
+    # Compose the mul, sub, and abspow operations into a computation graph.
+    graph = compose(name="graph")(
+        operation(name="mul1", needs=["a", "b"], provides=["ab"])(mul),
+        operation(name="sub1", needs=["a", "ab"], provides=["a_minus_ab"])(sub),
+        operation(
+            name="abspow1",
+            needs=["a_minus_ab"],
+            provides=["abs_a_minus_ab_cubed"],
+            params={"p": 3},
+        )(abspow),
+    )
+
+    pool = Pool(10)
+    graph.set_execution_method("parallel")
+    pool.map(
+        lambda i: graph({"a": 2, "b": 5}, ["a_minus_ab", "abs_a_minus_ab_cubed"]),
+        range(100),
+    )
 
 
 @pytest.mark.slow
