@@ -25,7 +25,8 @@ It might be of use in computer vision, machine learning and other data science d
 or become the core of a custom ETL pipelne.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
+   :numbered:
 
    operations
    composition

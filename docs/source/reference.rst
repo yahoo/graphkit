@@ -2,6 +2,11 @@
 API Reference
 =============
 
+Package: `graphkit`
+===================
+
+.. automodule:: graphkit
+
 Module: `base`
 ==============
 
