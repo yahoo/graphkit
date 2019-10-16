@@ -703,6 +703,6 @@ class Network(object):
         """
         Retuen the data node from a graph using its name, or None.
         """
-        node = self.graph.nodes[name]
-        if isinstance(node, DataPlaceholderNode):
-            return node
+        for node in self.graph.nodes:
+            if node == name and isinstance(node, DataPlaceholderNode):
+                return node
