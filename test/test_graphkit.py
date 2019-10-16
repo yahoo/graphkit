@@ -5,12 +5,33 @@ import math
 import pickle
 
 from pprint import pprint
-from operator import add
+from operator import add, sub, floordiv, mul
 from numpy.testing import assert_raises
 
 import graphkit.network as network
 import graphkit.modifiers as modifiers
 from graphkit import operation, compose, Operation
+from graphkit.network import DeleteInstruction
+
+
+def scream(*args, **kwargs):
+    raise AssertionError(
+        "Must not have run!\n    args: %s\n  kwargs: %s", (args, kwargs))
+
+
+def identity(x):
+    return x
+
+
+def filtdict(d, *keys):
+    """
+    Keep dict items with the given keys
+
+    >>> filtdict({"a": 1, "b": 2}, "b")
+    {"b": 2}
+    """
+    return type(d)(i for i in d.items() if i[0] in keys)
+
 
 def test_network():
 
@@ -184,6 +205,222 @@ def test_pruning_raises_for_bad_output():
         outputs=['sum1', 'sum3', 'sum4'])
 
 
+def test_pruning_not_overrides_given_intermediate():
+    # Test #25: v1.2.4 overwrites intermediate data when no output asked
+    pipeline = compose(name="pipeline")(
+        operation(name="unjustly run", needs=["a"], provides=["overriden"])(scream),
+        operation(name="op", needs=["overriden", "c"], provides=["asked"])(add),
+    )
+
+    exp = {"a": 5, "overriden": 1, "c": 2, "asked": 3}
+    # v1.2.4.ok
+    assert pipeline({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+    # FAILs
+    # - on v1.2.4 with (overriden, asked): = (5, 7) instead of (1, 3)
+    # - on #18(unsatisfied) + #23(ordered-sets) with (overriden, asked) = (5, 7) instead of (1, 3)
+    # FIXED on #26
+    assert pipeline({"a": 5, "overriden": 1, "c": 2}) == exp
+
+    ## Test OVERWITES
+    #
+    overwrites = {}
+    pipeline.set_overwrites_collector(overwrites)
+    assert pipeline({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+    assert overwrites == {}  # unjust must have been pruned
+
+    overwrites = {}
+    pipeline.set_overwrites_collector(overwrites)
+    assert pipeline({"a": 5, "overriden": 1, "c": 2}) == exp
+    assert overwrites == {}  # unjust must have been pruned
+
+    ## Test Parallel
+    #
+    pipeline.set_execution_method("parallel")
+    overwrites = {}
+    pipeline.set_overwrites_collector(overwrites)
+    #assert pipeline({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+    assert overwrites == {}  # unjust must have been pruned
+
+    overwrites = {}
+    pipeline.set_overwrites_collector(overwrites)
+    assert pipeline({"a": 5, "overriden": 1, "c": 2}) == exp
+    assert overwrites == {}  # unjust must have been pruned
+
+
+def test_pruning_multiouts_not_override_intermediates1():
+    # Test #25: v.1.2.4 overwrites intermediate data when a previous operation
+    # must run for its other outputs (outputs asked or not)
+    pipeline = compose(name="pipeline")(
+        operation(name="must run", needs=["a"], provides=["overriden", "calced"])
+        (lambda x: (x, 2 * x)),
+        operation(name="add", needs=["overriden", "calced"], provides=["asked"])(add),
+    )
+
+    exp = {"a": 5, "overriden": 1, "calced": 10, "asked": 11}
+    # FAILs
+    # - on v1.2.4 with (overriden, asked) = (5, 15) instead of (1, 11)
+    # - on #18(unsatisfied) + #23(ordered-sets) like v1.2.4.
+    # FIXED on #26
+    assert pipeline({"a": 5, "overriden": 1}) == exp
+    # FAILs
+    # - on v1.2.4 with KeyError: 'e',
+    # - on #18(unsatisfied) + #23(ordered-sets) with empty result.
+    # FIXED on #26
+    assert pipeline({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+
+    ## Test OVERWITES
+    #
+    overwrites = {}
+    pipeline.set_overwrites_collector(overwrites)
+    assert pipeline({"a": 5, "overriden": 1}) == exp
+    assert overwrites == {'overriden': 5}
+
+    overwrites = {}
+    pipeline.set_overwrites_collector(overwrites)
+    assert pipeline({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+    assert overwrites == {'overriden': 5}
+
+    ## Test parallel
+    #
+    pipeline.set_execution_method("parallel")
+    assert pipeline({"a": 5, "overriden": 1}) == exp
+    assert pipeline({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+
+
+def test_pruning_multiouts_not_override_intermediates2():
+    # Test #25: v.1.2.4 overrides intermediate data when a previous operation
+    # must run for its other outputs (outputs asked or not)
+    pipeline = compose(name="pipeline")(
+        operation(name="must run", needs=["a"], provides=["overriden", "e"])
+        (lambda x: (x, 2 * x)),
+        operation(name="op1", needs=["overriden", "c"], provides=["d"])(add),
+        operation(name="op2", needs=["d", "e"], provides=["asked"])(mul),
+    )
+
+    exp = {"a": 5, "overriden": 1, "c": 2, "d": 3, "e": 10, "asked": 30}
+    # FAILs
+    # - on v1.2.4 with (overriden, asked) = (5, 70) instead of (1, 13)
+    # - on #18(unsatisfied) + #23(ordered-sets) like v1.2.4.
+    # FIXED on #26
+    assert pipeline({"a": 5, "overriden": 1, "c": 2}) == exp
+    # FAILs
+    # - on v1.2.4 with KeyError: 'e',
+    # - on #18(unsatisfied) + #23(ordered-sets) with empty result.
+    assert pipeline({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+    # FIXED on #26
+
+    ## Test OVERWITES
+    #
+    overwrites = {}
+    pipeline.set_overwrites_collector(overwrites)
+    assert pipeline({"a": 5, "overriden": 1, "c": 2}) == exp
+    assert overwrites == {'overriden': 5}
+
+    overwrites = {}
+    pipeline.set_overwrites_collector(overwrites)
+    assert pipeline({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+    assert overwrites == {'overriden': 5}
+
+    ## Test parallel
+    #
+    pipeline.set_execution_method("parallel")
+    assert pipeline({"a": 5, "overriden": 1, "c": 2}) == exp
+    assert pipeline({"a": 5, "overriden": 1, "c": 2}, ["asked"]) == filtdict(exp, "asked")
+
+
+def test_pruning_with_given_intermediate_and_asked_out():
+    # Test #24: v1.2.4 does not prune before given intermediate data when
+    # outputs not asked, but does so when output asked.
+    pipeline = compose(name="pipeline")(
+        operation(name="unjustly pruned", needs=["given-1"], provides=["a"])(identity),
+        operation(name="shortcuted", needs=["a", "b"], provides=["given-2"])(add),
+        operation(name="good_op", needs=["a", "given-2"], provides=["asked"])(add),
+    )
+
+    exp = {"given-1": 5, "b": 2, "given-2": 2, "a": 5, "asked": 7}
+    # v1.2.4 is ok
+    assert pipeline({"given-1": 5, "b": 2, "given-2": 2}) == exp
+    # FAILS
+    # - on v1.2.4 with KeyError: 'a',
+    # - on #18 (unsatisfied) with no result.
+    # FIXED on #18+#26 (new dag solver).
+    assert pipeline({"given-1": 5, "b": 2, "given-2": 2}, ["asked"]) == filtdict(exp, "asked")
+
+    ## Test OVERWITES
+    #
+    overwrites = {}
+    pipeline.set_overwrites_collector(overwrites)
+    assert pipeline({"given-1": 5, "b": 2, "given-2": 2}) == exp
+    assert overwrites == {}
+
+    overwrites = {}
+    pipeline.set_overwrites_collector(overwrites)
+    assert pipeline({"given-1": 5, "b": 2, "given-2": 2}, ["asked"]) == filtdict(exp, "asked")
+    assert overwrites == {}
+
+    ## Test parallel
+    #  FAIL! in #26!
+    #
+    pipeline.set_execution_method("parallel")
+    assert pipeline({"given-1": 5, "b": 2, "given-2": 2}) == exp
+    assert pipeline({"given-1": 5, "b": 2, "given-2": 2}, ["asked"]) == filtdict(exp, "asked")
+
+def test_unsatisfied_operations():
+    # Test that operations with partial inputs are culled and not failing.
+    pipeline = compose(name="pipeline")(
+        operation(name="add", needs=["a", "b1"], provides=["a+b1"])(add),
+        operation(name="sub", needs=["a", "b2"], provides=["a-b2"])(sub),
+    )
+
+    exp = {"a": 10, "b1": 2, "a+b1": 12}
+    assert pipeline({"a": 10, "b1": 2}) == exp
+    assert pipeline({"a": 10, "b1": 2}, outputs=["a+b1"]) == filtdict(exp, "a+b1")
+
+    exp = {"a": 10, "b2": 2, "a-b2": 8}
+    assert pipeline({"a": 10, "b2": 2}) == exp
+    assert pipeline({"a": 10, "b2": 2}, outputs=["a-b2"]) == filtdict(exp, "a-b2")
+
+    ## Test parallel
+    #
+    pipeline.set_execution_method("parallel")
+    exp = {"a": 10, "b1": 2, "a+b1": 12}
+    assert pipeline({"a": 10, "b1": 2}) == exp
+    assert pipeline({"a": 10, "b1": 2}, outputs=["a+b1"]) == filtdict(exp, "a+b1")
+
+    exp = {"a": 10, "b2": 2, "a-b2": 8}
+    assert pipeline({"a": 10, "b2": 2}) == exp
+    assert pipeline({"a": 10, "b2": 2}, outputs=["a-b2"]) == filtdict(exp, "a-b2")
+
+def test_unsatisfied_operations_same_out():
+    # Test unsatisfied pairs of operations providing the same output.
+    pipeline = compose(name="pipeline")(
+        operation(name="mul", needs=["a", "b1"], provides=["ab"])(mul),
+        operation(name="div", needs=["a", "b2"], provides=["ab"])(floordiv),
+        operation(name="add", needs=["ab", "c"], provides=["ab_plus_c"])(add),
+    )
+
+    exp = {"a": 10, "b1": 2, "c": 1, "ab": 20, "ab_plus_c": 21}
+    assert pipeline({"a": 10, "b1": 2, "c": 1}) == exp
+    assert pipeline({"a": 10, "b1": 2, "c": 1}, outputs=["ab_plus_c"]) == filtdict(exp, "ab_plus_c")
+
+    exp = {"a": 10, "b2": 2, "c": 1, "ab": 5, "ab_plus_c": 6}
+    assert pipeline({"a": 10, "b2": 2, "c": 1}) == exp
+    assert pipeline({"a": 10, "b2": 2, "c": 1}, outputs=["ab_plus_c"]) == filtdict(exp, "ab_plus_c")
+
+    ## Test parallel
+    #
+    #  FAIL! in #26
+    pipeline.set_execution_method("parallel")
+    exp = {"a": 10, "b1": 2, "c": 1, "ab": 20, "ab_plus_c": 21}
+    assert pipeline({"a": 10, "b1": 2, "c": 1}) == exp
+    assert pipeline({"a": 10, "b1": 2, "c": 1}, outputs=["ab_plus_c"]) == filtdict(exp, "ab_plus_c")
+    #
+    #  FAIL! in #26
+    exp = {"a": 10, "b2": 2, "c": 1, "ab": 5, "ab_plus_c": 6}
+    assert pipeline({"a": 10, "b2": 2, "c": 1}) == exp
+    assert pipeline({"a": 10, "b2": 2, "c": 1}, outputs=["ab_plus_c"]) == filtdict(exp, "ab_plus_c")
+
+
 def test_optional():
     # Test that optional() needs work as expected.
 
@@ -226,22 +463,100 @@ def test_deleted_optional():
     assert 'sum2' in results
 
 
+def test_deleteinstructs_vary_with_inputs():
+    # Check #21: DeleteInstructions positions vary when inputs change.
+    def count_deletions(steps):
+        return sum(isinstance(n, DeleteInstruction) for n in steps)
+
+    pipeline = compose(name="pipeline")(
+        operation(name="a free without b", needs=["a"], provides=["aa"])(identity),
+        operation(name="satisfiable", needs=["a", "b"], provides=["ab"])(add),
+        operation(name="optional ab", needs=["aa", modifiers.optional("ab")], provides=["asked"])
+        (lambda a, ab=10: a + ab),
+    )
+
+    inp = {"a": 2, "b": 3}
+    exp = inp.copy(); exp.update({"aa": 2, "ab": 5, "asked": 7})
+    res = pipeline(inp)
+    assert res == exp  # ok
+    steps11 = pipeline.net.execution_plan
+    res = pipeline(inp, outputs=["asked"])
+    assert res == filtdict(exp, "asked")  # ok
+    steps12 = pipeline.net.execution_plan
+
+    inp = {"a": 2}
+    exp = inp.copy(); exp.update({"aa": 2, "asked": 12})
+    res = pipeline(inp)
+    assert res == exp  # ok
+    steps21 = pipeline.net.execution_plan
+    res = pipeline(inp, outputs=["asked"])
+    assert res == filtdict(exp, "asked")  # ok
+    steps22 = pipeline.net.execution_plan
+
+    # When no outs, no del-instructs.
+    assert steps11 != steps12
+    assert count_deletions(steps11) == 0
+    assert steps21 != steps22
+    assert count_deletions(steps21) == 0
+
+    # Check steps vary with inputs
+    #
+    # FAILs in v1.2.4 + #18, PASS in #26
+    assert steps11 != steps21
+
+    # Check deletes vary with inputs
+    #
+    # FAILs in v1.2.4 + #18, PASS in #26
+    assert count_deletions(steps12) != count_deletions(steps22)
+
+
+def test_multithreading_plan_execution():
+    # From Huygn's test-code given in yahoo/graphkit#31
+    from multiprocessing.dummy import Pool
+    from graphkit import compose, operation
+
+    # Computes |a|^p.
+    def abspow(a, p):
+        c = abs(a) ** p
+        return c
+
+    # Compose the mul, sub, and abspow operations into a computation graph.
+    graph = compose(name="graph")(
+        operation(name="mul1", needs=["a", "b"], provides=["ab"])(mul),
+        operation(name="sub1", needs=["a", "ab"], provides=["a_minus_ab"])(sub),
+        operation(
+            name="abspow1",
+            needs=["a_minus_ab"],
+            provides=["abs_a_minus_ab_cubed"],
+            params={"p": 3},
+        )(abspow),
+    )
+
+    pool = Pool(10)
+    graph.set_execution_method("parallel")
+    pool.map(
+        lambda i: graph({"a": 2, "b": 5}, ["a_minus_ab", "abs_a_minus_ab_cubed"]),
+        range(100),
+    )
+
 
 def test_parallel_execution():
     import time
 
+    delay = 0.5
+
     def fn(x):
-        time.sleep(1)
+        time.sleep(delay)
         print("fn %s" % (time.time() - t0))
         return 1 + x
 
     def fn2(a,b):
-        time.sleep(1)
+        time.sleep(delay)
         print("fn2 %s" % (time.time() - t0))
         return a+b
 
     def fn3(z, k=1):
-        time.sleep(1)
+        time.sleep(delay)
         print("fn3 %s" % (time.time() - t0))
         return z + k
 
@@ -280,6 +595,7 @@ def test_parallel_execution():
     # make sure results are the same using either method
     assert result_sequential == result_threaded
 
+
 def test_multi_threading():
     import time
     import random
@@ -310,8 +626,8 @@ def test_multi_threading():
         assert tuple(sorted(results.keys())) == tuple(sorted(outputs)), (outputs, results)
         return results
 
-    N = 100
-    for i in range(20, 200):
+    N = 33
+    for i in range(13, 61):
         pool = Pool(i)
         pool.map(infer, range(N))
         pool.close()
@@ -352,6 +668,7 @@ class Pow(Operation):
             p = math.pow(a, y)
             outputs.append(p)
         return outputs
+
 
 def test_backwards_compatibility():
 
