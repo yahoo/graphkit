@@ -1,44 +1,77 @@
 # Copyright 2016, Yahoo Inc.
 # Licensed under the terms of the Apache License, Version 2.0. See the LICENSE file associated with the project for terms.
+import networkx as nx
+from boltons.setutils import IndexedSet as iset
 
-from itertools import chain
-
-from .base import Operation, NetworkOperation
+from .base import NetworkOperation, Operation
+from .modifiers import optional, sideffect
 from .network import Network
-from .modifiers import optional
 
 
 class FunctionalOperation(Operation):
     def __init__(self, **kwargs):
-        self.fn = kwargs.pop('fn')
+        self.fn = kwargs.pop("fn")
         Operation.__init__(self, **kwargs)
 
     def _compute(self, named_inputs, outputs=None):
-        inputs = [named_inputs[d] for d in self.needs if not isinstance(d, optional)]
+        try:
+            args = [
+                named_inputs[n]
+                for n in self.needs
+                if not isinstance(n, optional) and not isinstance(n, sideffect)
+            ]
 
-        # Find any optional inputs in named_inputs.  Get only the ones that
-        # are present there, no extra `None`s.
-        optionals = {n: named_inputs[n] for n in self.needs if isinstance(n, optional) and n in named_inputs}
+            # Find any optional inputs in named_inputs.  Get only the ones that
+            # are present there, no extra `None`s.
+            optionals = {
+                n: named_inputs[n]
+                for n in self.needs
+                if isinstance(n, optional) and n in named_inputs
+            }
 
-        # Combine params and optionals into one big glob of keyword arguments.
-        kwargs = {k: v for d in (self.params, optionals) for k, v in d.items()}
-        result = self.fn(*inputs, **kwargs)
-        if len(self.provides) == 1:
-            result = [result]
+            # Combine params and optionals into one big glob of keyword arguments.
+            kwargs = {k: v for d in (self.params, optionals) for k, v in d.items()}
 
-        result = zip(self.provides, result)
-        if outputs:
-            outputs = set(outputs)
-            result = filter(lambda x: x[0] in outputs, result)
+            # Don't expect sideffect outputs.
+            provides = [n for n in self.provides if not isinstance(n, sideffect)]
 
-        return dict(result)
+            result = self.fn(*args, **kwargs)
+
+            if not provides:
+                # All outputs were sideffects.
+                return {}
+
+            if len(provides) == 1:
+                result = [result]
+
+            result = zip(provides, result)
+            if outputs:
+                outputs = set(n for n in outputs if not isinstance(n, sideffect))
+                result = filter(lambda x: x[0] in outputs, result)
+
+            return dict(result)
+        except Exception as ex:
+            ## Annotate exception with debugging aid on errors.
+            #
+            locs = locals()
+            err_aid = getattr(ex, "graphkit_aid", {})
+            err_aid.setdefault("operation", self)
+            err_aid.setdefault(
+                "operation_args",
+                {"args": locs.get("args"), "kwargs": locs.get("kwargs")},
+            )
+            err_aid.setdefault("operation_fnouts", locs.get("outputs"))
+            err_aid.setdefault("operation_outs", locs.get("outputs"))
+            err_aid.setdefault("operation_results", locs.get("results"))
+            setattr(ex, "graphkit_aid", err_aid)
+            raise
 
     def __call__(self, *args, **kwargs):
         return self.fn(*args, **kwargs)
 
     def __getstate__(self):
         state = Operation.__getstate__(self)
-        state['fn'] = self.__dict__['fn']
+        state["fn"] = self.__dict__["fn"]
         return state
 
 
@@ -66,7 +99,7 @@ class operation(Operation):
     :param dict params:
         A dict of key/value pairs representing constant parameters
         associated with your operation.  These can correspond to either
-        ``args`` or ``kwargs`` of ``fn`.
+        ``args`` or ``kwargs`` of ``fn``.
     """
 
     def __init__(self, fn=None, **kwargs):
@@ -76,22 +109,26 @@ class operation(Operation):
     def _normalize_kwargs(self, kwargs):
 
         # Allow single value for needs parameter
-        if 'needs' in kwargs and type(kwargs['needs']) == str:
-            assert kwargs['needs'], "empty string provided for `needs` parameters"
-            kwargs['needs'] = [kwargs['needs']]
+        needs = kwargs["needs"]
+        if isinstance(needs, str) and not isinstance(needs, optional):
+            assert needs, "empty string provided for `needs` parameters"
+            kwargs["needs"] = [needs]
 
         # Allow single value for provides parameter
-        if 'provides' in kwargs and type(kwargs['provides']) == str:
-            assert kwargs['provides'], "empty string provided for `needs` parameters"
-            kwargs['provides'] = [kwargs['provides']]
+        provides = kwargs.get("provides")
+        if isinstance(provides, str):
+            assert provides, "empty string provided for `needs` parameters"
+            kwargs["provides"] = [provides]
 
-        assert kwargs['name'], "operation needs a name"
-        assert type(kwargs['needs']) == list, "no `needs` parameter provided"
-        assert type(kwargs['provides']) == list, "no `provides` parameter provided"
-        assert hasattr(kwargs['fn'], '__call__'), "operation was not provided with a callable"
+        assert kwargs["name"], "operation needs a name"
+        assert isinstance(kwargs["needs"], list), "no `needs` parameter provided"
+        assert isinstance(kwargs["provides"], list), "no `provides` parameter provided"
+        assert hasattr(
+            kwargs["fn"], "__call__"
+        ), "operation was not provided with a callable"
 
-        if type(kwargs['params']) is not dict:
-            kwargs['params'] = {}
+        if type(kwargs["params"]) is not dict:
+            kwargs["params"] = {}
 
         return kwargs
 
@@ -132,14 +169,21 @@ class operation(Operation):
         """
         Display more informative names for the Operation class
         """
-        return u"%s(name='%s', needs=%s, provides=%s, fn=%s)" % \
-            (self.__class__.__name__,
-             self.name,
-             self.needs,
-             self.provides,
-             self.fn.__name__)
 
+        def aslist(i):
+            if i and not isinstance(i, str):
+                return list(i)
+            return i
 
+        func_name = getattr(self, "fn")
+        func_name = func_name and getattr(func_name, "__name__", None)
+        return u"%s(name='%s', needs=%s, provides=%s, fn=%s)" % (
+            self.__class__.__name__,
+            getattr(self, "name", None),
+            aslist(getattr(self, "needs", None)),
+            aslist(getattr(self, "provides", None)),
+            func_name,
+        )
 
 
 class compose(object):
@@ -185,27 +229,25 @@ class compose(object):
 
         # If merge is desired, deduplicate operations before building network
         if self.merge:
-            merge_set = set()
+            merge_set = iset()  # Preseve given node order.
             for op in operations:
                 if isinstance(op, NetworkOperation):
-                    net_ops = filter(lambda x: isinstance(x, Operation), op.net.steps)
-                    merge_set.update(net_ops)
+                    netop_nodes = nx.topological_sort(op.net.graph)
+                    merge_set.update(s for s in netop_nodes if isinstance(s, Operation))
                 else:
                     merge_set.add(op)
-            operations = list(merge_set)
+            operations = merge_set
 
-        def order_preserving_uniquifier(seq, seen=None):
-            seen = seen if seen else set()
-            seen_add = seen.add
-            return [x for x in seq if not (x in seen or seen_add(x))]
+        provides = iset(p for op in operations for p in op.provides)
+        # Mark them all as optional, now that #18 calmly ignores
+        # non-fully satisfied operations.
+        needs = iset(optional(n) for op in operations for n in op.needs) - provides
 
-        provides = order_preserving_uniquifier(chain(*[op.provides for op in operations]))
-        needs = order_preserving_uniquifier(chain(*[op.needs for op in operations]), set(provides))
-
-        # compile network
+        # Build network
         net = Network()
         for op in operations:
             net.add_op(op)
-        net.compile()
 
-        return NetworkOperation(name=self.name, needs=needs, provides=provides, params={}, net=net)
+        return NetworkOperation(
+            name=self.name, needs=needs, provides=provides, params={}, net=net
+        )

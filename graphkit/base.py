@@ -1,5 +1,12 @@
 # Copyright 2016, Yahoo Inc.
 # Licensed under the terms of the Apache License, Version 2.0. See the LICENSE file associated with the project for terms.
+try:
+    from collections import abc
+except ImportError:
+    import collections as abc
+
+from . import plot
+
 
 class Data(object):
     """
@@ -10,6 +17,7 @@ class Data(object):
     This class an "abstract" class that should be extended by
     any class working with data in the HiC framework.
     """
+
     def __init__(self, **kwargs):
         pass
 
@@ -18,6 +26,7 @@ class Data(object):
 
     def set_data(self, data):
         raise NotImplementedError
+
 
 class Operation(object):
     """
@@ -33,24 +42,28 @@ class Operation(object):
         important when connecting layers and data in a Network object, as the
         names are used to construct the graph.
 
-        :param str name: The name the operation (e.g. conv1, conv2, etc..)
+        :param str name:
+            The name the operation (e.g. conv1, conv2, etc..)
 
-        :param list needs: Names of input data objects this layer requires.
+        :param list needs:
+            Names of input data objects this layer requires.
 
-        :param list provides: Names of output data objects this provides.
+        :param list provides:
+            Names of output data objects this provides.
 
-        :param dict params: A dict of key/value pairs representing parameters
-                            associated with your operation. These values will be
-                            accessible using the ``.params`` attribute of your object.
-                            NOTE: It's important that any values stored in this
-                            argument must be pickelable.
+        :param dict params:
+            A dict of key/value pairs representing parameters
+            associated with your operation. These values will be
+            accessible using the ``.params`` attribute of your object.
+            NOTE: It's important that any values stored in this
+            argument must be pickelable.
         """
 
         # (Optional) names for this layer, and the data it needs and provides
-        self.name = kwargs.get('name')
-        self.needs = kwargs.get('needs')
-        self.provides = kwargs.get('provides')
-        self.params = kwargs.get('params', {})
+        self.name = kwargs.get("name")
+        self.needs = kwargs.get("needs")
+        self.provides = kwargs.get("provides")
+        self.params = kwargs.get("params", {})
 
         # call _after_init as final step of initialization
         self._after_init()
@@ -60,8 +73,7 @@ class Operation(object):
         Operation equality is based on name of layer.
         (__eq__ and __hash__ must be overridden together)
         """
-        return bool(self.name is not None and
-                    self.name == getattr(other, 'name', None))
+        return bool(self.name is not None and self.name == getattr(other, "name", None))
 
     def __hash__(self):
         """
@@ -74,6 +86,7 @@ class Operation(object):
         """
         This method must be implemented to perform this layer's feed-forward
         computation on a given set of inputs.
+
         :param list inputs:
             A list of :class:`Data` objects on which to run the layer's
             feed-forward computation.
@@ -83,18 +96,32 @@ class Operation(object):
             ``inputs``.
         """
 
-        raise NotImplementedError
+        raise NotImplementedError("Define callable of %r!" % self)
 
     def _compute(self, named_inputs, outputs=None):
-        inputs = [named_inputs[d] for d in self.needs]
-        results = self.compute(inputs)
+        try:
+            args = [named_inputs[d] for d in self.needs]
+            results = self.compute(args)
 
-        results = zip(self.provides, results)
-        if outputs:
-            outputs = set(outputs)
-            results = filter(lambda x: x[0] in outputs, results)
+            results = zip(self.provides, results)
 
-        return dict(results)
+            if outputs:
+                outs = set(outputs)
+                results = filter(lambda x: x[0] in outs, results)
+
+            return dict(results)
+        except Exception as ex:
+            ## Annotate exception with debugging aid on errors.
+            #
+            locs = locals()
+            err_aid = getattr(ex, "graphkit_aid", {})
+            err_aid.setdefault("operation", self)
+            err_aid.setdefault("operation_args", locs.get("args"))
+            err_aid.setdefault("operation_fnouts", locs.get("outputs"))
+            err_aid.setdefault("operation_outs", locs.get("outputs"))
+            err_aid.setdefault("operation_results", locs.get("results"))
+            setattr(ex, "graphkit_aid", err_aid)
+            raise
 
     def _after_init(self):
         """
@@ -117,11 +144,11 @@ class Operation(object):
         result = {}
         # this check should get deprecated soon. its for downward compatibility
         # with earlier pickled operation objects
-        if hasattr(self, 'params'):
-            result["params"] = self.__dict__['params']
-        result["needs"] = self.__dict__['needs']
-        result["provides"] = self.__dict__['provides']
-        result["name"] = self.__dict__['name']
+        if hasattr(self, "params"):
+            result["params"] = self.__dict__["params"]
+        result["needs"] = self.__dict__["needs"]
+        result["provides"] = self.__dict__["provides"]
+        result["name"] = self.__dict__["name"]
 
         return result
 
@@ -137,44 +164,83 @@ class Operation(object):
         """
         Display more informative names for the Operation class
         """
-        return u"%s(name='%s', needs=%s, provides=%s)" % \
-            (self.__class__.__name__,
-             self.name,
-             self.needs,
-             self.provides)
+
+        def aslist(i):
+            if i and not isinstance(i, str):
+                return list(i)
+            return i
+
+        return u"%s(name='%s', needs=%s, provides=%s)" % (
+            self.__class__.__name__,
+            getattr(self, "name", None),
+            aslist(getattr(self, "needs", None)),
+            aslist(getattr(self, "provides", None)),
+        )
 
 
-class NetworkOperation(Operation):
+class NetworkOperation(Operation, plot.Plotter):
     def __init__(self, **kwargs):
-        self.net = kwargs.pop('net')
+        self.net = kwargs.pop("net")
         Operation.__init__(self, **kwargs)
 
         # set execution mode to single-threaded sequential by default
         self._execution_method = "sequential"
+        self._overwrites_collector = None
+
+    def _build_pydot(self, **kws):
+        """delegate to network"""
+        kws.setdefault("title", self.name)
+        plotter = self.net.last_plan or self.net
+        return plotter._build_pydot(**kws)
 
     def _compute(self, named_inputs, outputs=None):
-        return self.net.compute(outputs, named_inputs, method=self._execution_method)
+        return self.net.compute(
+            named_inputs,
+            outputs,
+            method=self._execution_method,
+            overwrites_collector=self._overwrites_collector,
+        )
 
     def __call__(self, *args, **kwargs):
         return self._compute(*args, **kwargs)
+
+    def compile(self, *args, **kwargs):
+        return self.net.compile(*args, **kwargs)
 
     def set_execution_method(self, method):
         """
         Determine how the network will be executed.
 
-        Args:
-            method: str
-                If "parallel", execute graph operations concurrently
-                using a threadpool.
+        :param str method:
+            If "parallel", execute graph operations concurrently
+            using a threadpool.
         """
-        options = ['parallel', 'sequential']
-        assert method in options
+        choices = ["parallel", "sequential"]
+        if method not in choices:
+            raise ValueError(
+                "Invalid computation method %r!  Must be one of %s" % (method, choices)
+            )
         self._execution_method = method
 
-    def plot(self, filename=None, show=False):
-        self.net.plot(filename=filename, show=show)
+    def set_overwrites_collector(self, collector):
+        """
+        Asks to put all *overwrites* into the `collector` after computing
+
+        An "overwrites" is intermediate value calculated but NOT stored
+        into the results, becaues it has been given also as an intemediate
+        input value, and the operation that would overwrite it MUST run for
+        its other results.
+
+        :param collector:
+            a mutable dict to be fillwed with named values
+        """
+        if collector is not None and not isinstance(collector, abc.MutableMapping):
+            raise ValueError(
+                "Overwrites collector was not a MutableMapping, but: %r" % collector
+            )
+        self._overwrites_collector = collector
 
     def __getstate__(self):
         state = Operation.__getstate__(self)
-        state['net'] = self.__dict__['net']
+        state["net"] = self.__dict__["net"]
         return state

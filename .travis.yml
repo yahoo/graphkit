@@ -2,19 +2,35 @@ language: python
 
 python:
   - "2.7"
-  - "3.4"
   - "3.5"
+  - "3.6"
+  - "3.7"
+
+addons:
+  apt:
+    packages:
+      - graphviz
+
 
 install:
-  - pip install Sphinx sphinx_rtd_theme codecov packaging
+  - pip install Sphinx codecov packaging
   - "python -c $'import os, packaging.version as version\\nv = version.parse(os.environ.get(\"TRAVIS_TAG\", \"1.0\")).public\\nwith open(\"VERSION\", \"w\") as f: f.write(v)'"
-  - python setup.py install
+  - pip install -e .[test]
   - cd docs
   - make clean html
   - cd ..
 
 script:
-  - python setup.py nosetests --with-coverage --cover-package=graphkit
+  # OVERRIDE pytest-defaults adopted in `setup.cfg`:
+  #
+  # Run doctests in latest Python; certainly not < PY3.6 due to unstable dicts.
+  # Also give `-m 'slow or not slow'` since `not slow` adopted in `setup.cfg`.
+  - |
+    if [[ "$TRAVIS_PYTHON_VERSION" = '3.7' ]]; then
+      pytest --cov=graphkit -m 'slow or not slow'
+    else
+      pytest --cov=graphkit test/ 
+    fi
 
 deploy:
   provider: pypi
