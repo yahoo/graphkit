@@ -27,6 +27,14 @@ class DeleteInstruction(str):
     def __repr__(self):
         return 'DeleteInstruction("%s")' % self
 
+def _format_cycle(cycle):
+    operation_strings = []
+    for second, first in reversed(cycle[1:] + [cycle[0]]):
+        if isinstance(first, DataPlaceholderNode) and operation_strings:
+            operation_strings[-1] += f' needs "{first}" from {second.name}.'
+        if isinstance(first, Operation):
+            operation_strings.append(first.name)
+    return "\n".join(operation_strings)
 
 class Network(object):
     """
@@ -107,8 +115,15 @@ class Network(object):
         self.steps = []
 
         # create an execution order such that each layer's needs are provided.
-        ordered_nodes = list(nx.dag.topological_sort(self.graph))
-
+        try:
+            ordered_nodes = list(nx.dag.topological_sort(self.graph))
+        except nx.exception.NetworkXUnfeasible as ex:
+            try:
+                cycle = nx.find_cycle(self.graph)
+            except nx.exception.NetworkXNoCycle:
+                raise ex
+            message = f"Cyclic dependency in graph:\n{_format_cycle(cycle)}"
+            raise nx.exception.NetworkXUnfeasible(message)
         # add Operations evaluation steps, and instructions to free data.
         for i, node in enumerate(ordered_nodes):
 
