@@ -122,8 +122,8 @@ class Network(object):
                 cycle = nx.find_cycle(self.graph)
             except nx.exception.NetworkXNoCycle:
                 raise ex
-            
-            raise Exception(f"Cyclic dependency in graph:\n{_format_cycle(cycle)}")
+            message = f"Cyclic dependency in graph:\n{_format_cycle(cycle)}"
+            raise nx.exception.NetworkXUnfeasible(message)
         # add Operations evaluation steps, and instructions to free data.
         for i, node in enumerate(ordered_nodes):
 
